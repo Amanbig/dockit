@@ -389,22 +389,24 @@ export default function ComposeView({
           {activeTab === 'editor' && (
             <div className="flex-1 flex flex-col p-6 overflow-hidden">
               {/* Studio Toolbar */}
-              <div className="mb-3 flex items-center justify-between">
-                <div className="flex items-center gap-2 text-xs">
-                  <span className="text-slate-400">Target File:</span>
-                  <span className="font-mono text-cyan-400">{project.filePath || `${project.workingDir}/docker-compose.yml`}</span>
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-xs min-w-0 max-w-full sm:max-w-md md:max-w-xl">
+                  <span className="text-slate-400 shrink-0">Target File:</span>
+                  <span className="font-mono text-cyan-400 truncate" title={project.filePath || `${project.workingDir}/docker-compose.yml`}>
+                    {project.filePath || `${project.workingDir}/docker-compose.yml`}
+                  </span>
                   {project.hasStagedChanges ? (
-                    <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[11px] font-semibold">
+                    <span className="shrink-0 px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[11px] font-semibold">
                       Draft Testing Sandbox Active
                     </span>
                   ) : (
-                    <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 text-[11px]">
+                    <span className="shrink-0 px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 text-[11px]">
                       Synced with Disk
                     </span>
                   )}
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                   <button
                     onClick={handleStage}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border border-amber-500/30 text-xs font-semibold transition-all cursor-pointer"

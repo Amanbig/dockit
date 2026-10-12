@@ -16,6 +16,17 @@ html, body {
     overflow: hidden;
 }
 
+/* Default Dark Mode Select and Options */
+select {
+    background-color: #020617;
+    color: #e2e8f0;
+}
+
+select option {
+    background-color: #020617;
+    color: #e2e8f0;
+}
+
 /* -------------------------------------------------------------
    LIGHT MODE STYLING & VARIABLE OVERRIDES
 ------------------------------------------------------------- */

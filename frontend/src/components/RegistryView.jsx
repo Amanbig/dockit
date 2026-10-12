@@ -34,11 +34,20 @@ export default function RegistryView({
       setSearching(true);
       let res = [];
       if (selectedRegistry === 'all') {
-        res = await onSearchAll(query.trim(), 25, 1);
+        // App.SearchAllRegistries(query, page, limit)
+        res = await onSearchAll(query.trim(), 1, 25);
       } else {
-        res = await onSearch(selectedRegistry, query.trim(), 25, 1);
+        // App.SearchRegistry(registryName, query, page, limit)
+        res = await onSearch(selectedRegistry, query.trim(), 1, 25);
       }
-      setResults(res || []);
+      const sorted = (res || []).sort((a, b) => {
+        if (a.isOfficial && !b.isOfficial) return -1;
+        if (!a.isOfficial && b.isOfficial) return 1;
+        const starsA = a.stars ?? a.starCount ?? 0;
+        const starsB = b.stars ?? b.starCount ?? 0;
+        return starsB - starsA;
+      });
+      setResults(sorted);
       setSelectedImage(null);
       setTags([]);
     } catch (err) {
@@ -193,13 +202,13 @@ export default function RegistryView({
                     </button>
                   </div>
 
-                  <div className="flex items-center gap-4 mt-3 pt-2 border-t border-slate-900 text-xs text-slate-500">
+                    <div className="flex items-center gap-4 mt-3 pt-2 border-t border-slate-900 text-xs text-slate-500">
                     <span className="flex items-center gap-1">
                       <Star className="w-3 h-3 text-amber-500" />
-                      {res.starCount || 0} stars
+                      {(res.stars ?? res.starCount ?? 0).toLocaleString()} stars
                     </span>
-                    {res.pullCount > 0 && (
-                      <span>{res.pullCount.toLocaleString()} pulls</span>
+                    {(res.pullCount ?? 0) > 0 && (
+                      <span>{(res.pullCount ?? 0).toLocaleString()} pulls</span>
                     )}
                   </div>
                 </div>
