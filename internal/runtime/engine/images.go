@@ -1,4 +1,4 @@
-package docker
+package engine
 
 import (
 	"context"
@@ -9,14 +9,14 @@ import (
 	"github.com/moby/moby/client"
 )
 
-// ListImages lists container images on the Docker host.
-func (c *Client) ListImages(ctx context.Context, opts ...runtime.ImageListOptions) ([]runtime.ImageSummary, error) {
+// ListImages lists container images on the host.
+func (e *Engine) ListImages(ctx context.Context, opts ...runtime.ImageListOptions) ([]runtime.ImageSummary, error) {
 	listOpts := client.ImageListOptions{All: false}
 	if len(opts) > 0 {
 		listOpts.All = opts[0].All
 	}
 
-	result, err := c.api.ImageList(ctx, listOpts)
+	result, err := e.api.ImageList(ctx, listOpts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list images: %w", err)
 	}
@@ -39,9 +39,9 @@ func (c *Client) ListImages(ctx context.Context, opts ...runtime.ImageListOption
 	return images, nil
 }
 
-// InspectImage retrieves low-level inspection information about a Docker image.
-func (c *Client) InspectImage(ctx context.Context, imageID string) (*runtime.ImageInspect, error) {
-	res, err := c.api.ImageInspect(ctx, imageID)
+// InspectImage retrieves low-level inspection information about an image.
+func (e *Engine) InspectImage(ctx context.Context, imageID string) (*runtime.ImageInspect, error) {
+	res, err := e.api.ImageInspect(ctx, imageID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to inspect image %q: %w", imageID, err)
 	}
@@ -81,8 +81,8 @@ func (c *Client) InspectImage(ctx context.Context, imageID string) (*runtime.Ima
 }
 
 // PullImage downloads an image from a remote registry and streams the progress response.
-func (c *Client) PullImage(ctx context.Context, ref string) (io.ReadCloser, error) {
-	response, err := c.api.ImagePull(ctx, ref, client.ImagePullOptions{})
+func (e *Engine) PullImage(ctx context.Context, ref string) (io.ReadCloser, error) {
+	response, err := e.api.ImagePull(ctx, ref, client.ImagePullOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to pull image %q: %w", ref, err)
 	}
@@ -90,16 +90,16 @@ func (c *Client) PullImage(ctx context.Context, ref string) (io.ReadCloser, erro
 }
 
 // TagImage adds a tag to an existing image.
-func (c *Client) TagImage(ctx context.Context, source string, target string) error {
-	if _, err := c.api.ImageTag(ctx, client.ImageTagOptions{Source: source, Target: target}); err != nil {
+func (e *Engine) TagImage(ctx context.Context, source string, target string) error {
+	if _, err := e.api.ImageTag(ctx, client.ImageTagOptions{Source: source, Target: target}); err != nil {
 		return fmt.Errorf("failed to tag image %q -> %q: %w", source, target, err)
 	}
 	return nil
 }
 
-// RemoveImage removes an image from Docker storage.
-func (c *Client) RemoveImage(ctx context.Context, imageID string, opts runtime.ImageRemoveOptions) ([]runtime.ImageDeleteResult, error) {
-	result, err := c.api.ImageRemove(ctx, imageID, client.ImageRemoveOptions{
+// RemoveImage removes an image from local storage.
+func (e *Engine) RemoveImage(ctx context.Context, imageID string, opts runtime.ImageRemoveOptions) ([]runtime.ImageDeleteResult, error) {
+	result, err := e.api.ImageRemove(ctx, imageID, client.ImageRemoveOptions{
 		Force:         opts.Force,
 		PruneChildren: opts.PruneChildren,
 	})

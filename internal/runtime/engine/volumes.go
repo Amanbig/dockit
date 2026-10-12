@@ -1,4 +1,4 @@
-package docker
+package engine
 
 import (
 	"context"
@@ -8,9 +8,9 @@ import (
 	"github.com/moby/moby/client"
 )
 
-// ListVolumes lists volumes on the Docker host.
-func (c *Client) ListVolumes(ctx context.Context) ([]runtime.VolumeSummary, error) {
-	result, err := c.api.VolumeList(ctx, client.VolumeListOptions{})
+// ListVolumes lists volumes on the host.
+func (e *Engine) ListVolumes(ctx context.Context) ([]runtime.VolumeSummary, error) {
+	result, err := e.api.VolumeList(ctx, client.VolumeListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list volumes: %w", err)
 	}
@@ -36,8 +36,8 @@ func (c *Client) ListVolumes(ctx context.Context) ([]runtime.VolumeSummary, erro
 }
 
 // CreateVolume creates a new volume.
-func (c *Client) CreateVolume(ctx context.Context, opts runtime.VolumeCreateOptions) (*runtime.VolumeSummary, error) {
-	res, err := c.api.VolumeCreate(ctx, client.VolumeCreateOptions{
+func (e *Engine) CreateVolume(ctx context.Context, opts runtime.VolumeCreateOptions) (*runtime.VolumeSummary, error) {
+	res, err := e.api.VolumeCreate(ctx, client.VolumeCreateOptions{
 		Name:       opts.Name,
 		Driver:     opts.Driver,
 		DriverOpts: opts.DriverOpts,
@@ -65,8 +65,8 @@ func (c *Client) CreateVolume(ctx context.Context, opts runtime.VolumeCreateOpti
 }
 
 // InspectVolume inspects a specific volume.
-func (c *Client) InspectVolume(ctx context.Context, volumeID string) (*runtime.VolumeSummary, error) {
-	res, err := c.api.VolumeInspect(ctx, volumeID, client.VolumeInspectOptions{})
+func (e *Engine) InspectVolume(ctx context.Context, volumeID string) (*runtime.VolumeSummary, error) {
+	res, err := e.api.VolumeInspect(ctx, volumeID, client.VolumeInspectOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to inspect volume %q: %w", volumeID, err)
 	}
@@ -89,16 +89,16 @@ func (c *Client) InspectVolume(ctx context.Context, volumeID string) (*runtime.V
 }
 
 // RemoveVolume deletes a volume.
-func (c *Client) RemoveVolume(ctx context.Context, volumeID string, force bool) error {
-	if _, err := c.api.VolumeRemove(ctx, volumeID, client.VolumeRemoveOptions{Force: force}); err != nil {
+func (e *Engine) RemoveVolume(ctx context.Context, volumeID string, force bool) error {
+	if _, err := e.api.VolumeRemove(ctx, volumeID, client.VolumeRemoveOptions{Force: force}); err != nil {
 		return fmt.Errorf("failed to remove volume %q: %w", volumeID, err)
 	}
 	return nil
 }
 
 // PruneVolumes removes unused volumes.
-func (c *Client) PruneVolumes(ctx context.Context) error {
-	if _, err := c.api.VolumePrune(ctx, client.VolumePruneOptions{}); err != nil {
+func (e *Engine) PruneVolumes(ctx context.Context) error {
+	if _, err := e.api.VolumePrune(ctx, client.VolumePruneOptions{}); err != nil {
 		return fmt.Errorf("failed to prune volumes: %w", err)
 	}
 	return nil

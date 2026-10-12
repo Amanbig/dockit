@@ -1,4 +1,4 @@
-package docker
+package engine
 
 import (
 	"context"
@@ -8,9 +8,9 @@ import (
 	"github.com/moby/moby/client"
 )
 
-// ListNetworks lists all networks on the Docker host.
-func (c *Client) ListNetworks(ctx context.Context) ([]runtime.NetworkSummary, error) {
-	result, err := c.api.NetworkList(ctx, client.NetworkListOptions{})
+// ListNetworks lists all networks on the host.
+func (e *Engine) ListNetworks(ctx context.Context) ([]runtime.NetworkSummary, error) {
+	result, err := e.api.NetworkList(ctx, client.NetworkListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list networks: %w", err)
 	}
@@ -52,8 +52,8 @@ func (c *Client) ListNetworks(ctx context.Context) ([]runtime.NetworkSummary, er
 }
 
 // CreateNetwork creates a new network.
-func (c *Client) CreateNetwork(ctx context.Context, opts runtime.NetworkCreateOptions) (*runtime.NetworkSummary, error) {
-	res, err := c.api.NetworkCreate(ctx, opts.Name, client.NetworkCreateOptions{
+func (e *Engine) CreateNetwork(ctx context.Context, opts runtime.NetworkCreateOptions) (*runtime.NetworkSummary, error) {
+	res, err := e.api.NetworkCreate(ctx, opts.Name, client.NetworkCreateOptions{
 		Driver:     opts.Driver,
 		Internal:   opts.Internal,
 		Attachable: opts.Attachable,
@@ -63,12 +63,12 @@ func (c *Client) CreateNetwork(ctx context.Context, opts runtime.NetworkCreateOp
 		return nil, fmt.Errorf("failed to create network %q: %w", opts.Name, err)
 	}
 
-	return c.InspectNetwork(ctx, res.ID)
+	return e.InspectNetwork(ctx, res.ID)
 }
 
 // InspectNetwork retrieves inspection details for a specific network.
-func (c *Client) InspectNetwork(ctx context.Context, networkID string) (*runtime.NetworkSummary, error) {
-	res, err := c.api.NetworkInspect(ctx, networkID, client.NetworkInspectOptions{})
+func (e *Engine) InspectNetwork(ctx context.Context, networkID string) (*runtime.NetworkSummary, error) {
+	res, err := e.api.NetworkInspect(ctx, networkID, client.NetworkInspectOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to inspect network %q: %w", networkID, err)
 	}
@@ -116,24 +116,24 @@ func (c *Client) InspectNetwork(ctx context.Context, networkID string) (*runtime
 }
 
 // RemoveNetwork deletes an existing network.
-func (c *Client) RemoveNetwork(ctx context.Context, networkID string) error {
-	if _, err := c.api.NetworkRemove(ctx, networkID, client.NetworkRemoveOptions{}); err != nil {
+func (e *Engine) RemoveNetwork(ctx context.Context, networkID string) error {
+	if _, err := e.api.NetworkRemove(ctx, networkID, client.NetworkRemoveOptions{}); err != nil {
 		return fmt.Errorf("failed to remove network %q: %w", networkID, err)
 	}
 	return nil
 }
 
 // ConnectContainerToNetwork attaches a container to a network.
-func (c *Client) ConnectContainerToNetwork(ctx context.Context, networkID string, containerID string) error {
-	if _, err := c.api.NetworkConnect(ctx, networkID, client.NetworkConnectOptions{Container: containerID}); err != nil {
+func (e *Engine) ConnectContainerToNetwork(ctx context.Context, networkID string, containerID string) error {
+	if _, err := e.api.NetworkConnect(ctx, networkID, client.NetworkConnectOptions{Container: containerID}); err != nil {
 		return fmt.Errorf("failed to connect container %q to network %q: %w", containerID, networkID, err)
 	}
 	return nil
 }
 
 // DisconnectContainerFromNetwork detaches a container from a network.
-func (c *Client) DisconnectContainerFromNetwork(ctx context.Context, networkID string, containerID string, force bool) error {
-	if _, err := c.api.NetworkDisconnect(ctx, networkID, client.NetworkDisconnectOptions{Container: containerID, Force: force}); err != nil {
+func (e *Engine) DisconnectContainerFromNetwork(ctx context.Context, networkID string, containerID string, force bool) error {
+	if _, err := e.api.NetworkDisconnect(ctx, networkID, client.NetworkDisconnectOptions{Container: containerID, Force: force}); err != nil {
 		return fmt.Errorf("failed to disconnect container %q from network %q: %w", containerID, networkID, err)
 	}
 	return nil

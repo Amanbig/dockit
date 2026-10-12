@@ -1,4 +1,4 @@
-package docker
+package engine
 
 import (
 	"bytes"
@@ -16,14 +16,14 @@ import (
 )
 
 // ListContainers returns summary information for containers matching the given options.
-func (c *Client) ListContainers(ctx context.Context, opts ...runtime.ContainerListOptions) ([]runtime.ContainerSummary, error) {
+func (e *Engine) ListContainers(ctx context.Context, opts ...runtime.ContainerListOptions) ([]runtime.ContainerSummary, error) {
 	listOpts := client.ContainerListOptions{All: true}
 	if len(opts) > 0 {
 		listOpts.All = opts[0].All
 		listOpts.Limit = opts[0].Limit
 	}
 
-	result, err := c.api.ContainerList(ctx, listOpts)
+	result, err := e.api.ContainerList(ctx, listOpts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list containers: %w", err)
 	}
@@ -62,8 +62,8 @@ func (c *Client) ListContainers(ctx context.Context, opts ...runtime.ContainerLi
 }
 
 // GetContainer returns a single container summary matching the ID or prefix.
-func (c *Client) GetContainer(ctx context.Context, containerID string) (*runtime.ContainerSummary, error) {
-	containers, err := c.ListContainers(ctx, runtime.ContainerListOptions{All: true})
+func (e *Engine) GetContainer(ctx context.Context, containerID string) (*runtime.ContainerSummary, error) {
+	containers, err := e.ListContainers(ctx, runtime.ContainerListOptions{All: true})
 	if err != nil {
 		return nil, err
 	}
@@ -84,8 +84,8 @@ func (c *Client) GetContainer(ctx context.Context, containerID string) (*runtime
 }
 
 // InspectContainer returns full low-level details for a specific container.
-func (c *Client) InspectContainer(ctx context.Context, containerID string) (*runtime.ContainerInspect, error) {
-	res, err := c.api.ContainerInspect(ctx, containerID, client.ContainerInspectOptions{})
+func (e *Engine) InspectContainer(ctx context.Context, containerID string) (*runtime.ContainerInspect, error) {
+	res, err := e.api.ContainerInspect(ctx, containerID, client.ContainerInspectOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to inspect container %q: %w", containerID, err)
 	}
@@ -202,7 +202,7 @@ func (c *Client) InspectContainer(ctx context.Context, containerID string) (*run
 }
 
 // CreateContainer creates a container according to the options provided.
-func (c *Client) CreateContainer(ctx context.Context, opts runtime.ContainerCreateOptions) (string, error) {
+func (e *Engine) CreateContainer(ctx context.Context, opts runtime.ContainerCreateOptions) (string, error) {
 	config := &container.Config{
 		Image:  opts.Image,
 		Cmd:    opts.Command,
@@ -291,7 +291,7 @@ func (c *Client) CreateContainer(ctx context.Context, opts runtime.ContainerCrea
 		}
 	}
 
-	result, err := c.api.ContainerCreate(ctx, client.ContainerCreateOptions{
+	result, err := e.api.ContainerCreate(ctx, client.ContainerCreateOptions{
 		Config:           config,
 		HostConfig:       hostConfig,
 		NetworkingConfig: networkingConfig,
@@ -305,48 +305,48 @@ func (c *Client) CreateContainer(ctx context.Context, opts runtime.ContainerCrea
 }
 
 // StartContainer begins execution of a stopped container.
-func (c *Client) StartContainer(ctx context.Context, containerID string) error {
-	if _, err := c.api.ContainerStart(ctx, containerID, client.ContainerStartOptions{}); err != nil {
+func (e *Engine) StartContainer(ctx context.Context, containerID string) error {
+	if _, err := e.api.ContainerStart(ctx, containerID, client.ContainerStartOptions{}); err != nil {
 		return fmt.Errorf("failed to start container %q: %w", containerID, err)
 	}
 	return nil
 }
 
 // StopContainer stops a running container within the optional timeout.
-func (c *Client) StopContainer(ctx context.Context, containerID string, timeout *int) error {
-	if _, err := c.api.ContainerStop(ctx, containerID, client.ContainerStopOptions{Timeout: timeout}); err != nil {
+func (e *Engine) StopContainer(ctx context.Context, containerID string, timeout *int) error {
+	if _, err := e.api.ContainerStop(ctx, containerID, client.ContainerStopOptions{Timeout: timeout}); err != nil {
 		return fmt.Errorf("failed to stop container %q: %w", containerID, err)
 	}
 	return nil
 }
 
 // RestartContainer restarts a container within the optional timeout.
-func (c *Client) RestartContainer(ctx context.Context, containerID string, timeout *int) error {
-	if _, err := c.api.ContainerRestart(ctx, containerID, client.ContainerRestartOptions{Timeout: timeout}); err != nil {
+func (e *Engine) RestartContainer(ctx context.Context, containerID string, timeout *int) error {
+	if _, err := e.api.ContainerRestart(ctx, containerID, client.ContainerRestartOptions{Timeout: timeout}); err != nil {
 		return fmt.Errorf("failed to restart container %q: %w", containerID, err)
 	}
 	return nil
 }
 
 // PauseContainer pauses the processes within a running container.
-func (c *Client) PauseContainer(ctx context.Context, containerID string) error {
-	if _, err := c.api.ContainerPause(ctx, containerID, client.ContainerPauseOptions{}); err != nil {
+func (e *Engine) PauseContainer(ctx context.Context, containerID string) error {
+	if _, err := e.api.ContainerPause(ctx, containerID, client.ContainerPauseOptions{}); err != nil {
 		return fmt.Errorf("failed to pause container %q: %w", containerID, err)
 	}
 	return nil
 }
 
 // UnpauseContainer resumes execution of a paused container.
-func (c *Client) UnpauseContainer(ctx context.Context, containerID string) error {
-	if _, err := c.api.ContainerUnpause(ctx, containerID, client.ContainerUnpauseOptions{}); err != nil {
+func (e *Engine) UnpauseContainer(ctx context.Context, containerID string) error {
+	if _, err := e.api.ContainerUnpause(ctx, containerID, client.ContainerUnpauseOptions{}); err != nil {
 		return fmt.Errorf("failed to unpause container %q: %w", containerID, err)
 	}
 	return nil
 }
 
 // RemoveContainer deletes a container.
-func (c *Client) RemoveContainer(ctx context.Context, containerID string, opts runtime.ContainerRemoveOptions) error {
-	_, err := c.api.ContainerRemove(ctx, containerID, client.ContainerRemoveOptions{
+func (e *Engine) RemoveContainer(ctx context.Context, containerID string, opts runtime.ContainerRemoveOptions) error {
+	_, err := e.api.ContainerRemove(ctx, containerID, client.ContainerRemoveOptions{
 		Force:         opts.Force,
 		RemoveVolumes: opts.RemoveVolumes,
 	})
@@ -357,8 +357,8 @@ func (c *Client) RemoveContainer(ctx context.Context, containerID string, opts r
 }
 
 // GetContainerLogs returns logs for a container as a string.
-func (c *Client) GetContainerLogs(ctx context.Context, containerID string) (string, error) {
-	logs, err := c.api.ContainerLogs(ctx, containerID, client.ContainerLogsOptions{
+func (e *Engine) GetContainerLogs(ctx context.Context, containerID string) (string, error) {
+	logs, err := e.api.ContainerLogs(ctx, containerID, client.ContainerLogsOptions{
 		ShowStdout: true,
 		ShowStderr: true,
 		Timestamps: false,
@@ -371,7 +371,7 @@ func (c *Client) GetContainerLogs(ctx context.Context, containerID string) (stri
 
 	// Check if container has TTY enabled
 	isTTY := false
-	inspect, err := c.api.ContainerInspect(ctx, containerID, client.ContainerInspectOptions{})
+	inspect, err := e.api.ContainerInspect(ctx, containerID, client.ContainerInspectOptions{})
 	if err == nil && inspect.Container.Config != nil && inspect.Container.Config.Tty {
 		isTTY = true
 	}
@@ -383,8 +383,7 @@ func (c *Client) GetContainerLogs(ctx context.Context, containerID string) (stri
 		}
 	} else {
 		if _, err := stdcopy.StdCopy(&logOutput, &logOutput, logs); err != nil {
-			// In case stdcopy errors (e.g. malformed stream), fallback to plain copy
-			logs2, err2 := c.api.ContainerLogs(ctx, containerID, client.ContainerLogsOptions{
+			logs2, err2 := e.api.ContainerLogs(ctx, containerID, client.ContainerLogsOptions{
 				ShowStdout: true,
 				ShowStderr: true,
 			})
@@ -400,8 +399,8 @@ func (c *Client) GetContainerLogs(ctx context.Context, containerID string) (stri
 }
 
 // GetContainerLogsStream returns an io.ReadCloser streaming logs for a container.
-func (c *Client) GetContainerLogsStream(ctx context.Context, containerID string, opts runtime.ContainerLogsOptions) (io.ReadCloser, error) {
-	logs, err := c.api.ContainerLogs(ctx, containerID, client.ContainerLogsOptions{
+func (e *Engine) GetContainerLogsStream(ctx context.Context, containerID string, opts runtime.ContainerLogsOptions) (io.ReadCloser, error) {
+	logs, err := e.api.ContainerLogs(ctx, containerID, client.ContainerLogsOptions{
 		ShowStdout: opts.ShowStdout,
 		ShowStderr: opts.ShowStderr,
 		Timestamps: opts.Timestamps,
@@ -415,8 +414,8 @@ func (c *Client) GetContainerLogsStream(ctx context.Context, containerID string,
 }
 
 // GetContainerStats returns an io.ReadCloser with live resource usage statistics for a container.
-func (c *Client) GetContainerStats(ctx context.Context, containerID string, stream bool) (io.ReadCloser, error) {
-	res, err := c.api.ContainerStats(ctx, containerID, client.ContainerStatsOptions{
+func (e *Engine) GetContainerStats(ctx context.Context, containerID string, stream bool) (io.ReadCloser, error) {
+	res, err := e.api.ContainerStats(ctx, containerID, client.ContainerStatsOptions{
 		Stream: stream,
 	})
 	if err != nil {
