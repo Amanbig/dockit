@@ -1,11 +1,11 @@
 package docker
 
 import (
-    "context"
-    "fmt"
+	"context"
+	"fmt"
 
-    "github.com/moby/moby/api/types/container"
-    "github.com/moby/moby/client"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/client"
 )
 
 type Client struct {
@@ -24,7 +24,7 @@ func NewClient(ctx context.Context) (*Client, error) {
 
 	c := &Client{api: api}
 
-	if _ , err := api.Ping(ctx); err != nil {
+	if _ , err := api.Ping(ctx,client.PingOptions{}); err != nil {
 		api.Close()
 		return nil, fmt.Errorf("Failed to ping Docker daemon: %w", err)
 	}
@@ -36,7 +36,7 @@ func (c *Client) Close() error {
 	return c.api.Close()
 }
 
-func (c *Client) ListContainers(ctx context.Context) ([]container.Containers, error){
+func (c *Client) ListContainers(ctx context.Context) ([]container.Summary, error){
 	result , err := c.api.ContainerList(ctx, client.ContainerListOptions{All: true})
 	
 	if err != nil{

@@ -3,6 +3,17 @@ import logo from './assets/images/logo-universal.png';
 import './App.css';
 import {Greet} from "../wailsjs/go/main/App";
 
+import { GetContainers } from "../wailsjs/go/main/App";
+
+async function loadContainers() {
+  try {
+    const containers = await GetContainers();
+    console.log(containers);
+  } catch (error) {
+    console.error("Failed to load containers:", error);
+  }
+}
+
 function App() {
     const [resultText, setResultText] = useState("Please enter your name below 👇");
     const [name, setName] = useState('');
@@ -11,6 +22,7 @@ function App() {
 
     function greet() {
         Greet(name).then(updateResultText);
+        loadContainers(); // Call the function to load containers
     }
 
     return (
