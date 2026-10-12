@@ -5,11 +5,8 @@ import {
   DownloadCloud, 
   Star, 
   ShieldCheck, 
-  ExternalLink,
   Layers,
-  Tag,
-  CheckCircle2,
-  Bookmark
+  Tag
 } from 'lucide-react';
 
 export default function RegistryView({
@@ -39,7 +36,7 @@ export default function RegistryView({
       if (selectedRegistry === 'all') {
         res = await onSearchAll(query.trim(), 25, 1);
       } else {
-        res = await onSearchRegistry(selectedRegistry, query.trim(), 25, 1);
+        res = await onSearch(selectedRegistry, query.trim(), 25, 1);
       }
       setResults(res || []);
       setSelectedImage(null);
@@ -104,15 +101,21 @@ export default function RegistryView({
 
         {/* Search controls */}
         <form onSubmit={handleSearch} className="flex items-center gap-2">
-          <select
-            value={selectedRegistry}
-            onChange={(e) => setSelectedRegistry(e.target.value)}
-            className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-cyan-500"
-          >
-            <option value="all">All Registries</option>
-            <option value="dockerhub">Docker Hub</option>
-            <option value="ghcr">GitHub (GHCR)</option>
-          </select>
+          {/* Custom Dropdown */}
+          <div className="relative">
+            <select
+              value={selectedRegistry}
+              onChange={(e) => setSelectedRegistry(e.target.value)}
+              className="appearance-none bg-slate-950 border border-slate-800 rounded-lg pl-3 pr-8 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-cyan-500 cursor-pointer"
+            >
+              <option value="all" className="bg-slate-900 text-slate-200">All Registries</option>
+              <option value="dockerhub" className="bg-slate-900 text-slate-200">Docker Hub</option>
+              <option value="ghcr" className="bg-slate-900 text-slate-200">GitHub (GHCR)</option>
+            </select>
+            <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-[10px]">
+              ▼
+            </div>
+          </div>
 
           <div className="relative">
             <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
@@ -121,24 +124,24 @@ export default function RegistryView({
               placeholder="Search images (e.g. postgres, redis, node)..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 w-72 font-mono transition-colors"
+              className="bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 w-64 md:w-80 font-mono transition-colors"
             />
           </div>
 
           <button
             type="submit"
             disabled={searching}
-            className="px-4 py-1.5 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 text-xs font-bold shadow-md shadow-cyan-500/20 hover:brightness-110 disabled:opacity-50 transition-all"
+            className="px-4 py-1.5 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 text-xs font-bold shadow-md shadow-cyan-500/20 hover:brightness-110 disabled:opacity-50 transition-all whitespace-nowrap"
           >
             {searching ? 'Searching...' : 'Search'}
           </button>
         </form>
       </div>
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex overflow-hidden">
+      {/* Main Content Area: Responsive side-by-side or stacked on smaller screens */}
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
         {/* Left Side: Results List */}
-        <div className="w-1/2 border-r border-slate-800 overflow-y-auto p-6 space-y-3">
+        <div className="w-full md:w-1/2 border-b md:border-b-0 md:border-r border-slate-800 overflow-y-auto p-4 md:p-6 space-y-3">
           {results.length === 0 ? (
             <div className="h-64 border border-dashed border-slate-800 rounded-xl flex flex-col items-center justify-center text-center p-6 text-slate-500">
               <Search className="w-8 h-8 text-slate-600 mb-2" />
@@ -164,12 +167,12 @@ export default function RegistryView({
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-slate-100 text-sm">{res.name}</span>
                         {res.isOfficial && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-semibold flex items-center gap-1">
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-semibold flex items-center gap-1 whitespace-nowrap">
                             <ShieldCheck className="w-3 h-3" />
                             Official
                           </span>
                         )}
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400 uppercase font-mono">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400 uppercase font-mono whitespace-nowrap">
                           {res.registry}
                         </span>
                       </div>
@@ -206,9 +209,9 @@ export default function RegistryView({
         </div>
 
         {/* Right Side: Image Details & Tag Browser */}
-        <div className="w-1/2 overflow-y-auto p-6 bg-slate-950/40">
+        <div className="w-full md:w-1/2 overflow-y-auto p-4 md:p-6 bg-slate-950/40">
           {!selectedImage ? (
-            <div className="h-full flex flex-col items-center justify-center text-center text-slate-500">
+            <div className="h-full min-h-[250px] flex flex-col items-center justify-center text-center text-slate-500">
               <Layers className="w-8 h-8 text-slate-700 mb-2" />
               <p className="text-sm font-medium text-slate-400">Select an image</p>
               <p className="text-xs mt-1">Click any image on the left to inspect tags and pull layers directly.</p>
@@ -221,7 +224,7 @@ export default function RegistryView({
                   <h2 className="text-lg font-bold text-slate-100">{selectedImage.name}</h2>
                   <button
                     onClick={() => handlePullImageTag(selectedImage.name, 'latest')}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 text-xs font-bold hover:brightness-110 shadow-md shadow-cyan-500/20"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 text-xs font-bold hover:brightness-110 shadow-md shadow-cyan-500/20 whitespace-nowrap"
                   >
                     <DownloadCloud className="w-3.5 h-3.5 stroke-[2.5]" />
                     <span>Pull :latest</span>
@@ -264,7 +267,7 @@ export default function RegistryView({
                         <button
                           onClick={() => handlePullImageTag(selectedImage.name, t.name)}
                           disabled={pullingTag === t.name}
-                          className="flex items-center gap-1 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-750 text-slate-300 text-xs transition-colors disabled:opacity-50"
+                          className="flex items-center gap-1 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-750 text-slate-300 text-xs transition-colors disabled:opacity-50 whitespace-nowrap"
                         >
                           <DownloadCloud className="w-3 h-3 text-cyan-400" />
                           <span>{pullingTag === t.name ? 'Pulling...' : 'Pull'}</span>
