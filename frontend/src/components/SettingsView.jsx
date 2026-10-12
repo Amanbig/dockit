@@ -24,10 +24,16 @@ export default function SettingsView({
   onSetTheme
 }) {
   const [selectedTheme, setSelectedTheme] = useState(theme || config?.ui?.theme || 'dark');
-  const [defaultRuntime, setDefaultRuntime] = useState(config?.runtime?.selected || activeRuntime || 'docker');
+  const [defaultRuntime, setDefaultRuntime] = useState(activeRuntime || 'docker');
   const [dockerSocket, setDockerSocket] = useState(config?.runtime?.dockerSocket || '');
   const [podmanSocket, setPodmanSocket] = useState(config?.runtime?.podmanSocket || '');
   const [savedSuccess, setSavedSuccess] = useState(false);
+
+  useEffect(() => {
+    if (activeRuntime) {
+      setDefaultRuntime(activeRuntime);
+    }
+  }, [activeRuntime]);
 
   useEffect(() => {
     if (theme) {
