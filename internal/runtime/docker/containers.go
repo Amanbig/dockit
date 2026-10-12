@@ -5,10 +5,10 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/netip"
 	"strings"
 
 	"dockit/internal/runtime"
-	"github.com/docker/go-connections/nat"
 	"github.com/moby/moby/api/pkg/stdcopy"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
@@ -32,8 +32,12 @@ func (c *Client) ListContainers(ctx context.Context, opts ...runtime.ContainerLi
 	for _, item := range result.Items {
 		ports := make([]runtime.Port, 0, len(item.Ports))
 		for _, p := range item.Ports {
+			ipStr := ""
+			if p.IP.IsValid() {
+				ipStr = p.IP.String()
+			}
 			ports = append(ports, runtime.Port{
-				IP:          p.IP,
+				IP:          ipStr,
 				PrivatePort: p.PrivatePort,
 				PublicPort:  p.PublicPort,
 				Type:        p.Type,
@@ -108,8 +112,8 @@ func (c *Client) InspectContainer(ctx context.Context, containerID string) (*run
 	var ports []runtime.Port
 	if insp.NetworkSettings != nil && insp.NetworkSettings.Ports != nil {
 		for portProto, bindings := range insp.NetworkSettings.Ports {
-			privatePort := uint16(portProto.Int())
-			proto := portProto.Proto()
+			privatePort := portProto.Num()
+			proto := string(portProto.Proto())
 			if len(bindings) == 0 {
 				ports = append(ports, runtime.Port{
 					PrivatePort: privatePort,
@@ -119,8 +123,12 @@ func (c *Client) InspectContainer(ctx context.Context, containerID string) (*run
 				for _, b := range bindings {
 					var pubPort uint16
 					fmt.Sscanf(b.HostPort, "%d", &pubPort)
+					hostIP := ""
+					if b.HostIP.IsValid() {
+						hostIP = b.HostIP.String()
+					}
 					ports = append(ports, runtime.Port{
-						IP:          b.HostIP,
+						IP:          hostIP,
 						PrivatePort: privatePort,
 						PublicPort:  pubPort,
 						Type:        proto,
@@ -213,26 +221,63 @@ func (c *Client) CreateContainer(ctx context.Context, opts runtime.ContainerCrea
 	}
 
 	if len(opts.PortMappings) > 0 {
-		exposedPorts, portBindings, err := nat.ParsePortSpecs(opts.PortMappings)
-		if err != nil {
-			return "", fmt.Errorf("failed to parse port mappings: %w", err)
+		config.ExposedPorts = make(network.PortSet)
+		hostConfig.PortBindings = make(network.PortMap)
+		for _, spec := range opts.PortMappings {
+			parts := strings.Split(spec, ":")
+			var hostIPStr, hostPortStr, containerPortStr string
+			switch len(parts) {
+			case 1:
+				containerPortStr = parts[0]
+			case 2:
+				hostPortStr = parts[0]
+				containerPortStr = parts[1]
+			case 3:
+				hostIPStr = parts[0]
+				hostPortStr = parts[1]
+				containerPortStr = parts[2]
+			}
+			if !strings.Contains(containerPortStr, "/") {
+				containerPortStr += "/tcp"
+			}
+			p, err := network.ParsePort(containerPortStr)
+			if err != nil {
+				return "", fmt.Errorf("failed to parse port %q: %w", containerPortStr, err)
+			}
+			config.ExposedPorts[p] = struct{}{}
+			if hostPortStr != "" {
+				var hostIP netip.Addr
+				if hostIPStr != "" {
+					hostIP, _ = netip.ParseAddr(hostIPStr)
+				}
+				hostConfig.PortBindings[p] = append(hostConfig.PortBindings[p], network.PortBinding{
+					HostIP:   hostIP,
+					HostPort: hostPortStr,
+				})
+			}
 		}
-		config.ExposedPorts = exposedPorts
-		hostConfig.PortBindings = portBindings
 	} else if len(opts.Ports) > 0 {
-		config.ExposedPorts = make(nat.PortSet)
-		hostConfig.PortBindings = make(nat.PortMap)
-		for portProto, bindings := range opts.Ports {
-			natPort := nat.Port(portProto)
-			config.ExposedPorts[natPort] = struct{}{}
-			var natBindings []nat.PortBinding
+		config.ExposedPorts = make(network.PortSet)
+		hostConfig.PortBindings = make(network.PortMap)
+		for portStr, bindings := range opts.Ports {
+			if !strings.Contains(portStr, "/") {
+				portStr += "/tcp"
+			}
+			p, err := network.ParsePort(portStr)
+			if err != nil {
+				return "", fmt.Errorf("failed to parse port %q: %w", portStr, err)
+			}
+			config.ExposedPorts[p] = struct{}{}
 			for _, b := range bindings {
-				natBindings = append(natBindings, nat.PortBinding{
-					HostIP:   b.HostIP,
+				var hostIP netip.Addr
+				if b.HostIP != "" {
+					hostIP, _ = netip.ParseAddr(b.HostIP)
+				}
+				hostConfig.PortBindings[p] = append(hostConfig.PortBindings[p], network.PortBinding{
+					HostIP:   hostIP,
 					HostPort: b.HostPort,
 				})
 			}
-			hostConfig.PortBindings[natPort] = natBindings
 		}
 	}
 

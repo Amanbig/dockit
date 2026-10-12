@@ -91,8 +91,8 @@ func (c *Client) InspectNetwork(ctx context.Context, networkID string) (*runtime
 
 	containers := make(map[string]string)
 	for contID, endpoint := range net.Containers {
-		if endpoint.IPv4Address != "" {
-			containers[contID] = endpoint.IPv4Address
+		if endpoint.IPv4Address.IsValid() {
+			containers[contID] = endpoint.IPv4Address.String()
 		} else {
 			containers[contID] = endpoint.Name
 		}
