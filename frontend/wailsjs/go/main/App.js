@@ -214,6 +214,10 @@ export function SearchRegistry(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['SearchRegistry'](arg1, arg2, arg3, arg4);
 }
 
+export function SelectDirectoryDialog() {
+  return window['go']['main']['App']['SelectDirectoryDialog']();
+}
+
 export function SetCustomValue(arg1, arg2) {
   return window['go']['main']['App']['SetCustomValue'](arg1, arg2);
 }

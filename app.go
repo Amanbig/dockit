@@ -21,6 +21,7 @@ import (
 	dockerclient "dockit/internal/runtime/docker"
 	podmanclient "dockit/internal/runtime/podman"
 	"dockit/internal/volumes"
+	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // App manages backend state and exposes bound RPC methods to the Wails frontend.
@@ -519,6 +520,18 @@ func (a *App) DisconnectContainerFromNetwork(networkID, containerID string, forc
 // ==========================================
 // Compose Methods
 // ==========================================
+
+// SelectDirectoryDialog opens native OS file manager / directory chooser.
+func (a *App) SelectDirectoryDialog() (string, error) {
+	ctx := a.ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	dir, err := wailsruntime.OpenDirectoryDialog(ctx, wailsruntime.OpenDialogOptions{
+		Title: "Select Folder Containing docker-compose.yml",
+	})
+	return dir, err
+}
 
 // OpenComposeProject loads a project from a path.
 func (a *App) OpenComposeProject(path string) (*compose.Project, error) {

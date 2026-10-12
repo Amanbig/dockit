@@ -65,7 +65,8 @@ import {
   GetSystemTheme,
   DetectRuntimes,
   GetInstallPlan,
-  InstallRuntime
+  InstallRuntime,
+  SelectDirectoryDialog
 } from '../wailsjs/go/main/App';
 
 export default function App() {
@@ -456,6 +457,7 @@ export default function App() {
             <ComposeView
               onOpenLocal={OpenComposeProject}
               onOpenURL={OpenComposeProjectFromURL}
+              onSelectDirectory={SelectDirectoryDialog}
               onUp={ComposeUp}
               onDown={ComposeDown}
               onStart={ComposeStart}

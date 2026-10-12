@@ -116,6 +116,8 @@ export function SearchAllRegistries(arg1:string,arg2:number,arg3:number):Promise
 
 export function SearchRegistry(arg1:string,arg2:string,arg3:number,arg4:number):Promise<Array<registry.SearchResult>>;
 
+export function SelectDirectoryDialog():Promise<string>;
+
 export function SetCustomValue(arg1:string,arg2:string):Promise<void>;
 
 export function SetTheme(arg1:string):Promise<void>;

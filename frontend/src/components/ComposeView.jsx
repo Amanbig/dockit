@@ -21,6 +21,7 @@ import {
 export default function ComposeView({
   onOpenLocal,
   onOpenURL,
+  onSelectDirectory,
   onUp,
   onDown,
   onStart,
@@ -40,18 +41,35 @@ export default function ComposeView({
   const [actionOutput, setActionOutput] = useState('');
   const [showUrlDialog, setShowUrlDialog] = useState(false);
 
-  const handleOpenLocal = async (e) => {
-    e.preventDefault();
-    if (!localPathInput.trim()) return;
+  const loadProjectFromPath = async (dirPath) => {
+    if (!dirPath || !dirPath.trim()) return;
     try {
       setLoading(true);
-      const proj = await onOpenLocal(localPathInput.trim());
+      const proj = await onOpenLocal(dirPath.trim());
       setProject(proj);
       setEditorYaml(proj.stagedYaml || proj.originalYaml || '');
     } catch (err) {
       alert(`Failed to load project: ${err}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleOpenLocal = async (e) => {
+    if (e) e.preventDefault();
+    await loadProjectFromPath(localPathInput);
+  };
+
+  const handleBrowseDir = async () => {
+    if (!onSelectDirectory) return;
+    try {
+      const selected = await onSelectDirectory();
+      if (selected && selected.trim()) {
+        setLocalPathInput(selected.trim());
+        await loadProjectFromPath(selected.trim());
+      }
+    } catch (err) {
+      alert(`Directory selection failed: ${err}`);
     }
   };
 
@@ -173,10 +191,18 @@ export default function ComposeView({
               className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 w-64 font-mono transition-colors"
             />
             <button
-              type="submit"
-              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-semibold border border-slate-700 flex items-center gap-1.5 transition-colors"
+              type="button"
+              onClick={handleBrowseDir}
+              className="px-3 py-1.5 rounded-lg bg-slate-850 hover:bg-slate-800 text-slate-200 text-xs font-semibold border border-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer"
+              title="Open native file explorer to select folder"
             >
               <FolderOpen className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Browse</span>
+            </button>
+            <button
+              type="submit"
+              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-semibold border border-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
               <span>Load</span>
             </button>
           </form>
@@ -198,14 +224,22 @@ export default function ComposeView({
           </div>
           <h2 className="text-base font-semibold text-slate-200">No Compose Project Open</h2>
           <p className="text-xs text-slate-400 max-w-md mt-1 mb-6">
-            Enter a local directory path containing a <code className="text-cyan-400 font-mono">docker-compose.yml</code> file or clone one directly from GitHub to begin visual service orchestration.
+            Select a project folder with your file explorer, enter a local directory path containing a <code className="text-cyan-400 font-mono">docker-compose.yml</code> file, or clone directly from GitHub.
           </p>
-          <div className="flex gap-3">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleBrowseDir}
+              className="text-xs px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold flex items-center gap-2 shadow-lg shadow-cyan-500/20 transition-all cursor-pointer"
+            >
+              <FolderOpen className="w-4 h-4" />
+              Browse Folder...
+            </button>
             <button
               onClick={() => {
                 setLocalPathInput('.');
+                loadProjectFromPath('.');
               }}
-              className="text-xs px-3 py-2 rounded-lg bg-slate-900 hover:bg-slate-850 text-slate-300 border border-slate-800 font-mono transition-colors"
+              className="text-xs px-3.5 py-2 rounded-lg bg-slate-900 hover:bg-slate-850 text-slate-300 border border-slate-800 font-mono transition-colors cursor-pointer"
             >
               Use Current Workspace (.)
             </button>
