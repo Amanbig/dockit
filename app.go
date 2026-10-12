@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os/exec"
+	"strings"
 	"sync"
 
 	"dockit/internal/compose"
@@ -601,6 +603,39 @@ func (a *App) SetTheme(theme string) error {
 		return nil
 	}
 	return a.configMgr.SetTheme(theme)
+}
+
+// GetSystemTheme queries host OS desktop settings (e.g. Cinnamon, GNOME, FreeDesktop portal)
+// to accurately determine if the user has a dark theme active.
+func (a *App) GetSystemTheme() string {
+	// 1. Check org.gnome.desktop.interface color-scheme
+	if out, err := exec.Command("gsettings", "get", "org.gnome.desktop.interface", "color-scheme").Output(); err == nil {
+		s := strings.Trim(strings.TrimSpace(string(out)), "'\"")
+		if strings.Contains(s, "dark") {
+			return "dark"
+		}
+	}
+	// 2. Check org.x.apps.portal color-scheme (Mint/Cinnamon)
+	if out, err := exec.Command("gsettings", "get", "org.x.apps.portal", "color-scheme").Output(); err == nil {
+		s := strings.Trim(strings.TrimSpace(string(out)), "'\"")
+		if strings.Contains(s, "dark") {
+			return "dark"
+		}
+	}
+	// 3. Check GTK theme name for "Dark" keyword (e.g. Mint-Y-Dark-Blue, Adwaita-dark)
+	if out, err := exec.Command("gsettings", "get", "org.cinnamon.desktop.interface", "gtk-theme").Output(); err == nil {
+		s := strings.Trim(strings.TrimSpace(string(out)), "'\"")
+		if strings.Contains(strings.ToLower(s), "dark") {
+			return "dark"
+		}
+	}
+	if out, err := exec.Command("gsettings", "get", "org.gnome.desktop.interface", "gtk-theme").Output(); err == nil {
+		s := strings.Trim(strings.TrimSpace(string(out)), "'\"")
+		if strings.Contains(strings.ToLower(s), "dark") {
+			return "dark"
+		}
+	}
+	return "light"
 }
 
 // AddFavorite adds an image to saved favorites.

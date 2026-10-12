@@ -61,6 +61,7 @@ import {
   RemoveFavorite,
   GetConfig,
   SetTheme,
+  GetSystemTheme,
   DetectRuntimes,
   GetInstallPlan,
   InstallRuntime
@@ -72,6 +73,7 @@ export default function App() {
   const [systemInfo, setSystemInfo] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [appConfig, setAppConfig] = useState(null);
+  const [theme, setTheme] = useState('dark');
 
   // Domain states
   const [containers, setContainers] = useState([]);
@@ -84,6 +86,52 @@ export default function App() {
   const [logsModal, setLogsModal] = useState({ open: false, id: '', name: '' });
   const [inspectModal, setInspectModal] = useState({ open: false, title: '', data: null });
   const [showInstaller, setShowInstaller] = useState(false);
+
+  // Apply theme to document root
+  const applyThemeToDOM = async (t) => {
+    const root = document.documentElement;
+    if (t === 'light') {
+      root.classList.remove('dark');
+      root.classList.add('light');
+    } else if (t === 'dark') {
+      root.classList.remove('light');
+      root.classList.add('dark');
+    } else {
+      // System: first check backend desktop portal (e.g. Cinnamon, GNOME, Mint)
+      try {
+        const sys = await GetSystemTheme();
+        if (sys === 'dark') {
+          root.classList.remove('light');
+          root.classList.add('dark');
+          return;
+        } else if (sys === 'light') {
+          root.classList.remove('dark');
+          root.classList.add('light');
+          return;
+        }
+      } catch (e) {
+        // Fallback to WebKit media query
+      }
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (prefersDark) {
+        root.classList.remove('light');
+        root.classList.add('dark');
+      } else {
+        root.classList.remove('dark');
+        root.classList.add('light');
+      }
+    }
+  };
+
+  const handleSetTheme = async (newTheme) => {
+    setTheme(newTheme);
+    await applyThemeToDOM(newTheme);
+    try {
+      await SetTheme(newTheme);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   // Initial load & runtime synchronization
   const refreshAll = useCallback(async () => {
@@ -107,7 +155,13 @@ export default function App() {
       if (vList.status === 'fulfilled' && Array.isArray(vList.value)) setVolumes(vList.value);
       if (nList.status === 'fulfilled' && Array.isArray(nList.value)) setNetworks(nList.value);
       if (favs.status === 'fulfilled' && Array.isArray(favs.value)) setFavorites(favs.value);
-      if (cfg.status === 'fulfilled') setAppConfig(cfg.value);
+      if (cfg.status === 'fulfilled' && cfg.value) {
+        setAppConfig(cfg.value);
+        if (cfg.value.ui?.theme) {
+          setTheme(cfg.value.ui.theme);
+          applyThemeToDOM(cfg.value.ui.theme);
+        }
+      }
     } catch (err) {
       console.error('Error refreshing Dockit state:', err);
     } finally {
@@ -418,6 +472,8 @@ export default function App() {
               activeRuntime={activeRuntime}
               onSwitchRuntime={handleSwitchRuntime}
               onOpenInstaller={() => setShowInstaller(true)}
+              theme={theme}
+              onSetTheme={handleSetTheme}
             />
           )}
         </main>

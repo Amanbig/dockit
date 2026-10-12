@@ -72,6 +72,8 @@ export function GetRegistryTags(arg1:string,arg2:string):Promise<Array<registry.
 
 export function GetSystemInfo():Promise<runtime.SystemInfo>;
 
+export function GetSystemTheme():Promise<string>;
+
 export function GetSystemVersion():Promise<runtime.SystemVersion>;
 
 export function GetVolumes():Promise<Array<volumes.Volume>>;

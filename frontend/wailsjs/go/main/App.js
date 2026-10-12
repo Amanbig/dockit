@@ -126,6 +126,10 @@ export function GetSystemInfo() {
   return window['go']['main']['App']['GetSystemInfo']();
 }
 
+export function GetSystemTheme() {
+  return window['go']['main']['App']['GetSystemTheme']();
+}
+
 export function GetSystemVersion() {
   return window['go']['main']['App']['GetSystemVersion']();
 }
