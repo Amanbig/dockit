@@ -8,6 +8,7 @@ import NetworksView from './components/NetworksView';
 import ComposeView from './components/ComposeView';
 import RegistryView from './components/RegistryView';
 import SettingsView from './components/SettingsView';
+import ContainerDetailsView from './components/ContainerDetailsView';
 
 import LogsModal from './components/LogsModal';
 import InspectModal from './components/InspectModal';
@@ -69,6 +70,7 @@ import {
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('containers');
+  const [selectedContainerId, setSelectedContainerId] = useState(null);
   const [activeRuntime, setActiveRuntime] = useState('docker');
   const [systemInfo, setSystemInfo] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -364,7 +366,10 @@ export default function App() {
       {/* Left Navigation Sidebar */}
       <Sidebar
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={(tab) => {
+          setSelectedContainerId(null);
+          setActiveTab(tab);
+        }}
         activeRuntime={activeRuntime}
         stats={{
           runningContainers,
@@ -387,20 +392,29 @@ export default function App() {
         {/* View Switcher */}
         <main className="flex-1 flex overflow-hidden">
           {activeTab === 'containers' && (
-            <ContainersView
-              containers={containers}
-              loading={isRefreshing}
-              onRefresh={refreshAll}
-              onStart={handleStartContainer}
-              onStop={handleStopContainer}
-              onRestart={handleRestartContainer}
-              onPause={handlePauseContainer}
-              onUnpause={handleUnpauseContainer}
-              onRemove={handleRemoveContainer}
-              onCreate={handleCreateContainer}
-              onOpenLogs={(id, name) => setLogsModal({ open: true, id, name })}
-              onInspect={handleInspectContainer}
-            />
+            selectedContainerId ? (
+              <ContainerDetailsView
+                containerId={selectedContainerId}
+                onBack={() => setSelectedContainerId(null)}
+                onRefreshList={refreshAll}
+              />
+            ) : (
+              <ContainersView
+                containers={containers}
+                loading={isRefreshing}
+                onRefresh={refreshAll}
+                onStart={handleStartContainer}
+                onStop={handleStopContainer}
+                onRestart={handleRestartContainer}
+                onPause={handlePauseContainer}
+                onUnpause={handleUnpauseContainer}
+                onRemove={handleRemoveContainer}
+                onCreate={handleCreateContainer}
+                onOpenLogs={(id, name) => setLogsModal({ open: true, id, name })}
+                onInspect={handleInspectContainer}
+                onSelectContainer={(id) => setSelectedContainerId(id)}
+              />
+            )
           )}
 
           {activeTab === 'images' && (

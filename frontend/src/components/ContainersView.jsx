@@ -21,9 +21,9 @@ export default function ContainersView({
   onPause,
   onUnpause,
   onRemove,
-  onCreate,
   onOpenLogs,
-  onInspect
+  onInspect,
+  onSelectContainer
 }) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -208,7 +208,11 @@ export default function ContainersView({
                   const shortId = c.shortId || (c.id ? c.id.substring(0, 12) : '');
 
                   return (
-                    <tr key={c.id} className="hover:bg-slate-900/50 transition-colors group">
+                    <tr 
+                      key={c.id} 
+                      onClick={() => onSelectContainer && onSelectContainer(c.id)}
+                      className="hover:bg-slate-900/50 transition-colors group cursor-pointer"
+                    >
                       <td className="py-3 px-4">
                         <div className="font-semibold text-slate-100 group-hover:text-cyan-400 transition-colors truncate max-w-[180px]">
                           {c.name || shortId}
@@ -239,20 +243,20 @@ export default function ContainersView({
                           month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
                         }) : '-'}
                       </td>
-                      <td className="py-3 px-4 text-right">
+                      <td className="py-3 px-4 text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1">
                           {/* Lifecycle controls */}
                           {isRunning ? (
                             <>
                               <button
-                                onClick={() => onStop(c.id)}
+                                onClick={(e) => { e.stopPropagation(); onStop(c.id); }}
                                 title="Stop Container"
                                 className="p-1.5 text-amber-400 hover:bg-amber-400/10 rounded-md transition-colors"
                               >
                                 <Square className="w-3.5 h-3.5" />
                               </button>
                               <button
-                                onClick={() => onPause(c.id)}
+                                onClick={(e) => { e.stopPropagation(); onPause(c.id); }}
                                 title="Pause Container"
                                 className="p-1.5 text-slate-400 hover:bg-slate-800 rounded-md transition-colors"
                               >
@@ -261,7 +265,7 @@ export default function ContainersView({
                             </>
                           ) : isPaused ? (
                             <button
-                              onClick={() => onUnpause(c.id)}
+                              onClick={(e) => { e.stopPropagation(); onUnpause(c.id); }}
                               title="Unpause Container"
                               className="p-1.5 text-emerald-400 hover:bg-emerald-400/10 rounded-md transition-colors"
                             >
@@ -269,7 +273,7 @@ export default function ContainersView({
                             </button>
                           ) : (
                             <button
-                              onClick={() => onStart(c.id)}
+                              onClick={(e) => { e.stopPropagation(); onStart(c.id); }}
                               title="Start Container"
                               className="p-1.5 text-emerald-400 hover:bg-emerald-400/10 rounded-md transition-colors"
                             >
@@ -278,7 +282,7 @@ export default function ContainersView({
                           )}
 
                           <button
-                            onClick={() => onRestart(c.id)}
+                            onClick={(e) => { e.stopPropagation(); onRestart(c.id); }}
                             title="Restart Container"
                             className="p-1.5 text-slate-400 hover:bg-slate-800 rounded-md transition-colors"
                           >
@@ -286,7 +290,7 @@ export default function ContainersView({
                           </button>
 
                           <button
-                            onClick={() => onOpenLogs(c.id, c.name)}
+                            onClick={(e) => { e.stopPropagation(); onOpenLogs(c.id, c.name); }}
                             title="View Container Logs"
                             className="p-1.5 text-cyan-400 hover:bg-cyan-400/10 rounded-md transition-colors"
                           >
@@ -294,7 +298,7 @@ export default function ContainersView({
                           </button>
 
                           <button
-                            onClick={() => onInspect(c.id, c.name)}
+                            onClick={(e) => { e.stopPropagation(); onInspect(c.id, c.name); }}
                             title="Inspect Container Details"
                             className="p-1.5 text-blue-400 hover:bg-blue-400/10 rounded-md transition-colors"
                           >
@@ -302,7 +306,7 @@ export default function ContainersView({
                           </button>
 
                           <button
-                            onClick={() => onRemove(c.id, false)}
+                            onClick={(e) => { e.stopPropagation(); onRemove(c.id, false); }}
                             title="Delete Container"
                             className="p-1.5 text-rose-400 hover:bg-rose-400/10 rounded-md transition-colors"
                           >
