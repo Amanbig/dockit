@@ -1,25 +1,31 @@
 package docker
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io"
-	"strings"
 
-	"github.com/moby/moby/api/types/container"
+	"dockit/internal/runtime"
 	"github.com/moby/moby/client"
 )
 
+var _ runtime.Runtime = (*Client)(nil)
+
+// Client implements runtime.Runtime for the Docker daemon.
 type Client struct {
 	api *client.Client
 }
 
+// NewClient initializes a new Docker client connected to the local Docker daemon.
 func NewClient(ctx context.Context) (*Client, error) {
-	api, err := client.NewClientWithOpts(
+	return NewClientWithOpts(ctx,
 		client.FromEnv,
 		client.WithAPIVersionNegotiation(),
 	)
+}
+
+// NewClientWithOpts creates a new Docker client with customizable options.
+func NewClientWithOpts(ctx context.Context, opts ...client.Opt) (*Client, error) {
+	api, err := client.NewClientWithOpts(opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Docker client: %w", err)
 	}
@@ -34,48 +40,61 @@ func NewClient(ctx context.Context) (*Client, error) {
 	return c, nil
 }
 
+// Type returns runtime.TypeDocker.
+func (c *Client) Type() runtime.Type {
+	return runtime.TypeDocker
+}
+
+// Close closes the underlying Docker API client connection.
 func (c *Client) Close() error {
 	return c.api.Close()
 }
 
-func (c *Client) ListContainers(ctx context.Context) ([]container.Summary, error) {
-	result, err := c.api.ContainerList(ctx, client.ContainerListOptions{All: true})
-	if err != nil {
-		return nil, fmt.Errorf("failed to list containers: %w", err)
+// Ping verifies connectivity to the Docker daemon.
+func (c *Client) Ping(ctx context.Context) error {
+	if _, err := c.api.Ping(ctx, client.PingOptions{}); err != nil {
+		return fmt.Errorf("docker ping failed: %w", err)
 	}
-
-	return result.Items, nil
+	return nil
 }
 
-func (c *Client) GetContainer(ctx context.Context, containerID string) (*container.Summary, error) {
-	result, err := c.api.ContainerList(ctx, client.ContainerListOptions{All: true})
+// Info retrieves system-wide Docker daemon details.
+func (c *Client) Info(ctx context.Context) (*runtime.SystemInfo, error) {
+	result, err := c.api.Info(ctx, client.InfoOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to list containers: %w", err)
+		return nil, fmt.Errorf("failed to get docker info: %w", err)
 	}
-	for i := range result.Items {
-		if strings.HasPrefix(result.Items[i].ID, containerID) {
-			return &result.Items[i], nil
-		}
-	}
-	return nil, fmt.Errorf("container %q not found", containerID)
+
+	info := result.Info
+	return &runtime.SystemInfo{
+		ID:                info.ID,
+		Containers:        info.Containers,
+		ContainersRunning: info.ContainersRunning,
+		ContainersPaused:  info.ContainersPaused,
+		ContainersStopped: info.ContainersStopped,
+		Images:            info.Images,
+		Driver:            info.Driver,
+		MemoryTotal:       info.MemTotal,
+		CPUs:              info.NCPU,
+		OperatingSystem:   info.OperatingSystem,
+		OSType:            info.OSType,
+		Architecture:      info.Architecture,
+		ServerVersion:     info.ServerVersion,
+	}, nil
 }
 
-func (c *Client) GetContainerLogs(ctx context.Context, containerID string) (string, error) {
-	logs, err := c.api.ContainerLogs(ctx, containerID, client.ContainerLogsOptions{
-		ShowStdout: true,
-		ShowStderr: true,
-		Timestamps: false,
-		Follow:     false,
-	})
+// Version retrieves Docker daemon version information.
+func (c *Client) Version(ctx context.Context) (*runtime.SystemVersion, error) {
+	result, err := c.api.ServerVersion(ctx, client.ServerVersionOptions{})
 	if err != nil {
-		return "", fmt.Errorf("failed to get logs for container %q: %w", containerID, err)
-	}
-	defer logs.Close()
-
-	var logOutput bytes.Buffer
-	if _, err := io.Copy(&logOutput, logs); err != nil {
-		return "", fmt.Errorf("failed to read logs for container %q: %w", containerID, err)
+		return nil, fmt.Errorf("failed to get docker version: %w", err)
 	}
 
-	return logOutput.String(), nil
+	return &runtime.SystemVersion{
+		Version:       result.Version,
+		APIVersion:    result.APIVersion,
+		MinAPIVersion: result.MinAPIVersion,
+		Os:            result.Os,
+		Arch:          result.Arch,
+	}, nil
 }
