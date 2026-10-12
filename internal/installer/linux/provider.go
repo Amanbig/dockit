@@ -96,7 +96,17 @@ func (p *Provider) Install(ctx context.Context, targetRuntime string, progressCb
 			progressCb(i+1, total, fmt.Sprintf("Step %d/%d: %s", i+1, total, step.Title))
 		}
 
-		cmd := exec.CommandContext(ctx, "sh", "-c", step.Command)
+		command := step.Command
+		// If command requires privilege and uses sudo, check if running in GUI desktop
+		// where pkexec can launch the native Polkit password dialog
+		if step.Privileged && strings.Contains(command, "sudo ") {
+			if _, err := exec.LookPath("pkexec"); err == nil {
+				// Replace sudo with pkexec for GUI desktop authorization dialog
+				command = strings.ReplaceAll(command, "sudo ", "pkexec ")
+			}
+		}
+
+		cmd := exec.CommandContext(ctx, "sh", "-c", command)
 		var stderr bytes.Buffer
 		cmd.Stderr = &stderr
 
