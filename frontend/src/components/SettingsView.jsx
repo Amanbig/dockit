@@ -1,0 +1,199 @@
+import React, { useState } from 'react';
+import { 
+  Settings, 
+  Terminal, 
+  DownloadCloud, 
+  Palette, 
+  HardDrive, 
+  FolderCheck, 
+  Zap,
+  Save,
+  CheckCircle2,
+  RefreshCw
+} from 'lucide-react';
+
+export default function SettingsView({
+  config,
+  onSaveConfig,
+  onOpenInstaller,
+  onSwitchRuntime,
+  activeRuntime
+}) {
+  const [theme, setTheme] = useState(config?.theme || 'dark');
+  const [defaultRuntime, setDefaultRuntime] = useState(config?.defaultRuntime || activeRuntime || 'docker');
+  const [dockerSocket, setDockerSocket] = useState(config?.dockerSocket || '');
+  const [podmanSocket, setPodmanSocket] = useState(config?.podmanSocket || '');
+  const [savedSuccess, setSavedSuccess] = useState(false);
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    try {
+      if (onSwitchRuntime && defaultRuntime !== activeRuntime) {
+        await onSwitchRuntime(defaultRuntime);
+      }
+      setSavedSuccess(true);
+      setTimeout(() => setSavedSuccess(false), 2000);
+    } catch (err) {
+      alert(`Save failed: ${err}`);
+    }
+  };
+
+  return (
+    <div className="flex-1 flex flex-col h-full bg-slate-900/60 overflow-y-auto">
+      {/* Top Header */}
+      <div className="p-6 border-b border-slate-800 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-bold text-slate-100 flex items-center gap-2">
+            <Settings className="w-5 h-5 text-cyan-400" />
+            Preferences & Environment
+          </h1>
+          <p className="text-xs text-slate-400 mt-0.5">
+            Configure default container engine, custom socket endpoints, and installation packages.
+          </p>
+        </div>
+
+        <button
+          onClick={onOpenInstaller}
+          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 text-xs font-bold shadow-md shadow-cyan-500/20 hover:brightness-110"
+        >
+          <DownloadCloud className="w-3.5 h-3.5 stroke-[2.5]" />
+          <span>Launch Engine Installer</span>
+        </button>
+      </div>
+
+      {/* Main Settings Form */}
+      <div className="p-6 max-w-2xl space-y-6">
+        <form onSubmit={handleSave} className="space-y-6">
+          {/* Active Runtime Selection */}
+          <div className="p-5 rounded-xl border border-slate-800 bg-slate-950/70 space-y-3">
+            <h2 className="text-sm font-bold text-slate-200 flex items-center gap-2">
+              <Zap className="w-4 h-4 text-cyan-400" />
+              Default Container Engine
+            </h2>
+            <p className="text-xs text-slate-400">
+              Select which engine Dockit binds to by default upon startup.
+            </p>
+
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <label className={`p-4 rounded-lg border cursor-pointer flex flex-col gap-1 transition-all ${
+                defaultRuntime === 'docker'
+                  ? 'border-cyan-500 bg-cyan-950/20 text-slate-100 shadow-sm'
+                  : 'border-slate-800 bg-slate-900 text-slate-400 hover:border-slate-700'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-xs">Docker Engine</span>
+                  <input
+                    type="radio"
+                    name="defaultRuntime"
+                    value="docker"
+                    checked={defaultRuntime === 'docker'}
+                    onChange={(e) => setDefaultRuntime(e.target.value)}
+                    className="accent-cyan-500"
+                  />
+                </div>
+                <span className="text-[11px] text-slate-500 font-mono">/var/run/docker.sock</span>
+              </label>
+
+              <label className={`p-4 rounded-lg border cursor-pointer flex flex-col gap-1 transition-all ${
+                defaultRuntime === 'podman'
+                  ? 'border-purple-500 bg-purple-950/20 text-slate-100 shadow-sm'
+                  : 'border-slate-800 bg-slate-900 text-slate-400 hover:border-slate-700'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-xs">Podman</span>
+                  <input
+                    type="radio"
+                    name="defaultRuntime"
+                    value="podman"
+                    checked={defaultRuntime === 'podman'}
+                    onChange={(e) => setDefaultRuntime(e.target.value)}
+                    className="accent-purple-500"
+                  />
+                </div>
+                <span className="text-[11px] text-slate-500 font-mono">podman.sock (rootless / rootful)</span>
+              </label>
+            </div>
+          </div>
+
+          {/* Theme & Visuals */}
+          <div className="p-5 rounded-xl border border-slate-800 bg-slate-950/70 space-y-3">
+            <h2 className="text-sm font-bold text-slate-200 flex items-center gap-2">
+              <Palette className="w-4 h-4 text-cyan-400" />
+              Interface Theme
+            </h2>
+            <div className="flex items-center gap-3 pt-1">
+              {['dark', 'light', 'system'].map((t) => (
+                <button
+                  type="button"
+                  key={t}
+                  onClick={() => setTheme(t)}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all ${
+                    theme === t
+                      ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 shadow-sm'
+                      : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-slate-200'
+                  }`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Sockets Overrides */}
+          <div className="p-5 rounded-xl border border-slate-800 bg-slate-950/70 space-y-4">
+            <h2 className="text-sm font-bold text-slate-200 flex items-center gap-2">
+              <Terminal className="w-4 h-4 text-cyan-400" />
+              Daemon Socket Endpoints (Optional Overrides)
+            </h2>
+            <p className="text-xs text-slate-400">
+              Dockit auto-detects standard unix sockets, user rootless sockets, and named pipes. Override if running custom proxies.
+            </p>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block text-slate-300 font-medium mb-1">Docker Socket Endpoint</label>
+                <input
+                  type="text"
+                  placeholder="unix:///var/run/docker.sock"
+                  value={dockerSocket}
+                  onChange={(e) => setDockerSocket(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-medium mb-1">Podman Socket Endpoint</label>
+                <input
+                  type="text"
+                  placeholder="unix:///run/user/1000/podman/podman.sock"
+                  value={podmanSocket}
+                  onChange={(e) => setPodmanSocket(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500 font-mono"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Action Footer */}
+          <div className="flex items-center justify-between pt-2">
+            <div>
+              {savedSuccess && (
+                <span className="flex items-center gap-1.5 text-xs text-emerald-400 font-medium animate-pulse">
+                  <CheckCircle2 className="w-4 h-4" />
+                  Preferences saved successfully!
+                </span>
+              )}
+            </div>
+            <button
+              type="submit"
+              className="flex items-center gap-2 px-5 py-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 text-xs font-bold hover:brightness-110 shadow-md shadow-cyan-500/20"
+            >
+              <Save className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span>Save Preferences</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
