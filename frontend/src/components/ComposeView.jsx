@@ -47,7 +47,7 @@ export default function ComposeView({
       setLoading(true);
       const proj = await onOpenLocal(dirPath.trim());
       setProject(proj);
-      setEditorYaml(proj.stagedYaml || proj.originalYaml || '');
+      setEditorYaml(proj.temporaryContent || proj.content || '');
     } catch (err) {
       alert(`Failed to load project: ${err}`);
     } finally {
@@ -80,7 +80,7 @@ export default function ComposeView({
       setLoading(true);
       const proj = await onOpenURL(urlInput.trim(), 'dockit-remote-project');
       setProject(proj);
-      setEditorYaml(proj.stagedYaml || proj.originalYaml || '');
+      setEditorYaml(proj.temporaryContent || proj.content || '');
       setShowUrlDialog(false);
     } catch (err) {
       alert(`Failed to clone project: ${err}`);
@@ -89,12 +89,15 @@ export default function ComposeView({
     }
   };
 
+  const projectKey = project?.id || project?.filePath || project?.workingDir;
+
   const handleStage = async () => {
-    if (!project) return;
+    if (!project || !projectKey) return;
     try {
-      await onStageChanges(project.workDir, editorYaml);
-      const refreshed = await onRefreshProject(project.workDir);
+      await onStageChanges(projectKey, editorYaml);
+      const refreshed = await onRefreshProject(projectKey);
       setProject(refreshed);
+      setEditorYaml(refreshed.temporaryContent || refreshed.content || '');
       alert('Changes staged! You can now test run them safely without touching your disk file.');
     } catch (err) {
       alert(`Stage failed: ${err}`);
@@ -102,12 +105,13 @@ export default function ComposeView({
   };
 
   const handleApply = async () => {
-    if (!project) return;
+    if (!project || !projectKey) return;
     if (!window.confirm('Write staged YAML permanently to docker-compose.yml on disk?')) return;
     try {
-      await onApplyChanges(project.workDir);
-      const refreshed = await onRefreshProject(project.workDir);
+      await onApplyChanges(projectKey);
+      const refreshed = await onRefreshProject(projectKey);
       setProject(refreshed);
+      setEditorYaml(refreshed.temporaryContent || refreshed.content || '');
       alert('Staged changes permanently applied to disk!');
     } catch (err) {
       alert(`Apply failed: ${err}`);
@@ -115,12 +119,12 @@ export default function ComposeView({
   };
 
   const handleDiscard = async () => {
-    if (!project) return;
+    if (!project || !projectKey) return;
     try {
-      await onDiscardChanges(project.workDir);
-      const refreshed = await onRefreshProject(project.workDir);
+      await onDiscardChanges(projectKey);
+      const refreshed = await onRefreshProject(projectKey);
       setProject(refreshed);
-      setEditorYaml(refreshed.originalYaml);
+      setEditorYaml(refreshed.content || '');
       alert('Staged changes discarded.');
     } catch (err) {
       alert(`Discard failed: ${err}`);
@@ -128,16 +132,16 @@ export default function ComposeView({
   };
 
   const handleUp = async (useStaged = false) => {
-    if (!project) return;
+    if (!project || !projectKey) return;
     try {
       setLoading(true);
-      const out = await onUp(project.workDir, {
+      const out = await onUp(projectKey, {
         detached: true,
         build: false,
         useStaged: useStaged
       });
       setActionOutput(out);
-      const refreshed = await onRefreshProject(project.workDir);
+      const refreshed = await onRefreshProject(projectKey);
       setProject(refreshed);
     } catch (err) {
       alert(`Compose Up failed: ${err}`);
@@ -147,12 +151,12 @@ export default function ComposeView({
   };
 
   const handleDown = async () => {
-    if (!project) return;
+    if (!project || !projectKey) return;
     try {
       setLoading(true);
-      const out = await onDown(project.workDir, { removeVolumes: false });
+      const out = await onDown(projectKey, { removeVolumes: false });
       setActionOutput(out);
-      const refreshed = await onRefreshProject(project.workDir);
+      const refreshed = await onRefreshProject(projectKey);
       setProject(refreshed);
     } catch (err) {
       alert(`Compose Down failed: ${err}`);
@@ -168,7 +172,7 @@ export default function ComposeView({
         <div>
           <h1 className="text-xl font-bold text-slate-100 flex items-center gap-2">
             <span>Compose Management & Testing Studio</span>
-            {project?.isStaged && (
+            {project?.hasStagedChanges && (
               <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30 flex items-center gap-1">
                 <FlaskConical className="w-3 h-3" />
                 Staged Testing Active
@@ -259,7 +263,7 @@ export default function ComposeView({
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                Services ({Object.keys(project.services || {}).length})
+                Services ({Array.isArray(project.services) ? project.services.length : Object.keys(project.services || {}).length})
               </button>
               <button
                 onClick={() => setActiveTab('editor')}
@@ -289,7 +293,7 @@ export default function ComposeView({
               <button
                 onClick={() => handleUp(false)}
                 disabled={loading}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 text-xs font-semibold transition-all disabled:opacity-50"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 text-xs font-semibold transition-all disabled:opacity-50 cursor-pointer"
               >
                 <Play className="w-3.5 h-3.5 fill-current" />
                 <span>Compose Up</span>
@@ -297,7 +301,7 @@ export default function ComposeView({
               <button
                 onClick={handleDown}
                 disabled={loading}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 border border-rose-500/30 text-xs font-semibold transition-all disabled:opacity-50"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 border border-rose-500/30 text-xs font-semibold transition-all disabled:opacity-50 cursor-pointer"
               >
                 <Square className="w-3.5 h-3.5 fill-current" />
                 <span>Compose Down</span>
@@ -309,7 +313,11 @@ export default function ComposeView({
           {activeTab === 'services' && (
             <div className="flex-1 overflow-auto p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {Object.entries(project.services || {}).map(([sName, sCfg]) => {
+                {(Array.isArray(project.services)
+                  ? project.services
+                  : Object.entries(project.services || {}).map(([sName, sCfg]) => ({ name: sName, ...sCfg }))
+                ).map((service) => {
+                  const sName = service.name;
                   return (
                     <div
                       key={sName}
@@ -322,25 +330,25 @@ export default function ComposeView({
                             {sName}
                           </span>
                           <span className="text-[10px] px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400 font-mono">
-                            {sCfg.restart || 'no'}
+                            {service.status || service.restart || 'stopped'}
                           </span>
                         </div>
 
                         <div className="space-y-1.5 text-xs text-slate-400 mb-4 font-mono">
                           <div>
                             <span className="text-slate-500">Image:</span>{' '}
-                            <span className="text-slate-300">{sCfg.image || '(local build)'}</span>
+                            <span className="text-slate-300">{service.image || '(local build)'}</span>
                           </div>
-                          {sCfg.ports && sCfg.ports.length > 0 && (
+                          {service.ports && service.ports.length > 0 && (
                             <div>
                               <span className="text-slate-500">Ports:</span>{' '}
-                              <span className="text-cyan-400">{sCfg.ports.join(', ')}</span>
+                              <span className="text-cyan-400">{Array.isArray(service.ports) ? service.ports.join(', ') : String(service.ports)}</span>
                             </div>
                           )}
-                          {sCfg.volumes && sCfg.volumes.length > 0 && (
+                          {service.volumes && service.volumes.length > 0 && (
                             <div>
                               <span className="text-slate-500">Volumes:</span>{' '}
-                              <span className="text-slate-300">{sCfg.volumes.length} mounted</span>
+                              <span className="text-slate-300">{service.volumes.length} mounted</span>
                             </div>
                           )}
                         </div>
@@ -349,22 +357,22 @@ export default function ComposeView({
                       {/* Per-service controls */}
                       <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-900">
                         <button
-                          onClick={() => onStart(project.workDir, [sName])}
-                          className="p-1.5 text-emerald-400 hover:bg-emerald-400/10 rounded transition-colors text-xs flex items-center gap-1"
+                          onClick={() => onStart(projectKey, [sName])}
+                          className="p-1.5 text-emerald-400 hover:bg-emerald-400/10 rounded transition-colors text-xs flex items-center gap-1 cursor-pointer"
                           title="Start service"
                         >
                           <Play className="w-3.5 h-3.5 fill-current" />
                         </button>
                         <button
-                          onClick={() => onStop(project.workDir, [sName])}
-                          className="p-1.5 text-amber-400 hover:bg-amber-400/10 rounded transition-colors text-xs flex items-center gap-1"
+                          onClick={() => onStop(projectKey, [sName])}
+                          className="p-1.5 text-amber-400 hover:bg-amber-400/10 rounded transition-colors text-xs flex items-center gap-1 cursor-pointer"
                           title="Stop service"
                         >
                           <Square className="w-3.5 h-3.5 fill-current" />
                         </button>
                         <button
-                          onClick={() => onRestart(project.workDir, [sName])}
-                          className="p-1.5 text-slate-400 hover:bg-slate-800 rounded transition-colors text-xs flex items-center gap-1"
+                          onClick={() => onRestart(projectKey, [sName])}
+                          className="p-1.5 text-slate-400 hover:bg-slate-800 rounded transition-colors text-xs flex items-center gap-1 cursor-pointer"
                           title="Restart service"
                         >
                           <RotateCw className="w-3.5 h-3.5" />
@@ -384,8 +392,8 @@ export default function ComposeView({
               <div className="mb-3 flex items-center justify-between">
                 <div className="flex items-center gap-2 text-xs">
                   <span className="text-slate-400">Target File:</span>
-                  <span className="font-mono text-cyan-400">{project.composeFile}</span>
-                  {project.isStaged ? (
+                  <span className="font-mono text-cyan-400">{project.filePath || `${project.workingDir}/docker-compose.yml`}</span>
+                  {project.hasStagedChanges ? (
                     <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[11px] font-semibold">
                       Draft Testing Sandbox Active
                     </span>
@@ -399,7 +407,7 @@ export default function ComposeView({
                 <div className="flex items-center gap-2">
                   <button
                     onClick={handleStage}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border border-amber-500/30 text-xs font-semibold transition-all"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border border-amber-500/30 text-xs font-semibold transition-all cursor-pointer"
                     title="Stage YAML into memory for non-destructive dry testing"
                   >
                     <FlaskConical className="w-3.5 h-3.5" />
@@ -408,18 +416,18 @@ export default function ComposeView({
 
                   <button
                     onClick={() => handleUp(true)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-400 border border-cyan-500/30 text-xs font-semibold transition-all"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-400 border border-cyan-500/30 text-xs font-semibold transition-all cursor-pointer"
                     title="Test run with staged changes"
                   >
                     <Play className="w-3.5 h-3.5 fill-current" />
                     <span>Test Run Staged</span>
                   </button>
 
-                  {project.isStaged && (
+                  {project.hasStagedChanges && (
                     <>
                       <button
                         onClick={handleApply}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/40 text-xs font-bold transition-all"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/40 text-xs font-bold transition-all cursor-pointer"
                         title="Permanently overwrite docker-compose.yml on disk"
                       >
                         <Save className="w-3.5 h-3.5" />
@@ -428,7 +436,7 @@ export default function ComposeView({
 
                       <button
                         onClick={handleDiscard}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 border border-rose-500/30 text-xs font-semibold transition-all"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 border border-rose-500/30 text-xs font-semibold transition-all cursor-pointer"
                         title="Discard draft sandbox and restore original disk YAML"
                       >
                         <Undo2 className="w-3.5 h-3.5" />

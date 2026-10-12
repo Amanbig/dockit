@@ -90,6 +90,7 @@ func (m *Manager) OpenProject(path string) (*Project, error) {
 	}
 
 	m.projects[proj.ID] = proj
+	m.projects[workingDir] = proj
 	return proj, nil
 }
 
