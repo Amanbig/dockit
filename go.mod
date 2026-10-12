@@ -6,6 +6,7 @@ require (
 	github.com/moby/moby/api v1.56.1
 	github.com/moby/moby/client v0.6.2
 	github.com/wailsapp/wails/v2 v2.16.0
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -54,7 +55,6 @@ require (
 	golang.org/x/net v0.56.0 // indirect
 	golang.org/x/sys v0.46.0 // indirect
 	golang.org/x/text v0.39.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
 // replace github.com/wailsapp/wails/v2 v2.16.0 => /home/amanpreet/go/pkg/mod
