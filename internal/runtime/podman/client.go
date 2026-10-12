@@ -72,14 +72,14 @@ func FindSocket() string {
 
 // NewClient initializes a new Podman client connecting via its Docker-compatible socket.
 func NewClient(ctx context.Context) (*Client, error) {
-	opts := []client.Opt{
-		client.WithAPIVersionNegotiation(),
+	sock := FindSocket()
+	if sock == "" {
+		return nil, fmt.Errorf("podman socket not found (podman service is not running or not installed)")
 	}
 
-	if sock := FindSocket(); sock != "" {
-		opts = append(opts, client.WithHost(sock))
-	} else {
-		opts = append(opts, client.FromEnv)
+	opts := []client.Opt{
+		client.WithHost(sock),
+		client.WithAPIVersionNegotiation(),
 	}
 
 	return NewClientWithOpts(ctx, opts...)

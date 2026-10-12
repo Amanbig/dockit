@@ -84,24 +84,41 @@ func (a *App) initRuntime(preferred string) error {
 	var rtType string
 	var err error
 
+	ctx := a.ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	switch preferred {
 	case "podman":
-		rt, err = podmanclient.NewClient(a.ctx)
+		rt, err = podmanclient.NewClient(ctx)
 		if err == nil {
 			rtType = "podman"
+		} else {
+			// Fallback to Docker if Podman fails
+			rt, err = dockerclient.NewClient(ctx)
+			if err == nil {
+				rtType = "docker"
+			}
 		}
 	case "docker":
-		rt, err = dockerclient.NewClient(a.ctx)
-		if err == nil {
-			rtType = "docker"
-		}
-	default: // "auto"
-		// Try Docker first, fallback to Podman
-		rt, err = dockerclient.NewClient(a.ctx)
+		rt, err = dockerclient.NewClient(ctx)
 		if err == nil {
 			rtType = "docker"
 		} else {
-			rt, err = podmanclient.NewClient(a.ctx)
+			// Fallback to Podman if Docker fails
+			rt, err = podmanclient.NewClient(ctx)
+			if err == nil {
+				rtType = "podman"
+			}
+		}
+	default: // "auto"
+		// Try Docker first, fallback to Podman
+		rt, err = dockerclient.NewClient(ctx)
+		if err == nil {
+			rtType = "docker"
+		} else {
+			rt, err = podmanclient.NewClient(ctx)
 			if err == nil {
 				rtType = "podman"
 			}
@@ -142,7 +159,14 @@ func (a *App) GetActiveRuntime() string {
 
 // SwitchRuntime reconnects Dockit to a different runtime ("docker" or "podman").
 func (a *App) SwitchRuntime(targetRuntime string) (string, error) {
+	prev := a.GetActiveRuntime()
 	if err := a.initRuntime(targetRuntime); err != nil {
+		// Restore previous reachable runtime or auto
+		if prev != "none" && prev != targetRuntime {
+			_ = a.initRuntime(prev)
+		} else {
+			_ = a.initRuntime("auto")
+		}
 		return a.GetActiveRuntime(), err
 	}
 	if a.configMgr != nil {

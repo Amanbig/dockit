@@ -26,19 +26,48 @@ html.light .bg-slate-950 {
     color: #0f172a !important;
 }
 
-/* Primary cards & panels */
+/* Primary cards, panels, sub-bars, headers */
 html.light .bg-slate-900,
+html.light .bg-slate-900\/20,
 html.light .bg-slate-900\/40,
 html.light .bg-slate-900\/50,
 html.light .bg-slate-900\/60,
 html.light .bg-slate-900\/80,
-html.light .bg-slate-950\/70,
-html.light .bg-slate-950\/60,
+html.light .bg-slate-950\/20,
 html.light .bg-slate-950\/40,
+html.light .bg-slate-950\/60,
+html.light .bg-slate-950\/70,
 html.light .bg-slate-950\/80,
 html.light header,
 html.light aside {
     background-color: #ffffff !important;
+}
+
+/* Sub tabs and secondary toolbars */
+html.light div[class*="bg-slate-950/20"],
+html.light div[class*="bg-slate-950/40"] {
+    background-color: #f1f5f9 !important;
+    border-color: #e2e8f0 !important;
+}
+
+/* Inactive sub-tabs in light mode */
+html.light div[class*="bg-slate-950/20"] button:not([class*="bg-slate-800"]),
+html.light div[class*="bg-slate-900"] button:not([class*="bg-slate-800"]) {
+    color: #475569 !important;
+}
+
+html.light div[class*="bg-slate-950/20"] button:hover {
+    color: #0f172a !important;
+    background-color: #e2e8f0 !important;
+}
+
+/* Active tab inside sub-tabs */
+html.light div[class*="bg-slate-950/20"] button[class*="bg-slate-800"],
+html.light div[class*="bg-slate-900"] button[class*="bg-slate-800"] {
+    background-color: #ffffff !important;
+    color: #0891b2 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+    border: 1px solid #cbd5e1 !important;
 }
 
 /* Hover rows & secondary backgrounds */
@@ -51,6 +80,46 @@ html.light .hover\:bg-slate-850:hover,
 html.light .hover\:bg-slate-700:hover,
 html.light .hover\:bg-slate-750:hover {
     background-color: #f1f5f9 !important;
+}
+
+/* Secondary neutral action buttons in light mode (e.g. Restart, Back) */
+html.light button[class*="bg-slate-800"]:not([class*="bg-slate-800 text-cyan-400"]),
+html.light button[class*="bg-slate-900"] {
+    background-color: #ffffff !important;
+    color: #334155 !important;
+    border: 1px solid #cbd5e1 !important;
+}
+
+html.light button[class*="bg-slate-800"]:hover,
+html.light button[class*="bg-slate-900"]:hover {
+    background-color: #f8fafc !important;
+    color: #0f172a !important;
+}
+
+/* Status Badges in light mode */
+html.light span[class*="bg-slate-800 text-slate-400"] {
+    background-color: #f1f5f9 !important;
+    color: #64748b !important;
+    border-color: #cbd5e1 !important;
+}
+
+html.light span[class*="bg-emerald-500/15"] {
+    background-color: #ecfdf5 !important;
+    color: #059669 !important;
+    border-color: #a7f3d0 !important;
+}
+
+html.light span[class*="bg-amber-500/15"] {
+    background-color: #fffbeb !important;
+    color: #d97706 !important;
+    border-color: #fde68a !important;
+}
+
+/* Danger action buttons in light mode */
+html.light button[class*="text-rose-400"] {
+    background-color: #fff1f2 !important;
+    border-color: #fecdd3 !important;
+    color: #e11d48 !important;
 }
 
 /* Border overrides */
