@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"dockit/internal/containers"
 	dockerclient "dockit/internal/runtime/docker"
-    "dockit/internal/containers"
 )
 
 // App struct
@@ -29,46 +29,14 @@ func (a *App) Greet(name string) string {
 	return fmt.Sprintf("Hello %s, It's show time!", name)
 }
 
-
+// GetContainers returns the list of containers using the containers Service.
 func (a *App) GetContainers() ([]containers.Container, error) {
-    cli, err := dockerclient.NewClient(a.ctx)
-    if err != nil {
-        return nil, fmt.Errorf("connect to Docker: %w", err)
-    }
-    defer cli.Close()
+	cli, err := dockerclient.NewClient(a.ctx)
+	if err != nil {
+		return nil, fmt.Errorf("connect to Docker: %w", err)
+	}
+	defer cli.Close()
 
-    result, err := cli.ListContainers(a.ctx)
-    if err != nil {
-        return nil, err
-    }
-
-    items := make([]containers.Container, 0, len(result))
-
-    for _, c := range result {
-        name := ""
-        if len(c.Names) > 0 {
-            name = c.Names[0]
-            if len(name) > 0 && name[0] == '/' {
-                name = name[1:]
-            }
-        }
-
-        ports := make([]string, 0, len(c.Ports))
-        for _, p := range c.Ports {
-            ports = append(ports, fmt.Sprintf(
-                "%d/%s", p.PublicPort, p.Type,
-            ))
-        }
-
-        items = append(items, containers.Container{
-            ID:     c.ID,
-            Name:   name,
-            Image:  c.Image,
-            Status: c.Status,
-            State:  string(c.State),
-            Ports:  ports,
-        })
-    }
-
-    return items, nil
+	svc := containers.NewService(cli)
+	return svc.List(a.ctx, true)
 }
