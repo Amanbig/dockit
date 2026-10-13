@@ -407,52 +407,50 @@ export default function ComposeView({
       {/* VIEW 1: Projects Library (when no project is open) */}
       {!project ? (
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Action Callout Hero */}
-          <div className="p-6 rounded-2xl bg-gradient-to-r from-slate-900 to-slate-950 border border-slate-800 flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 shrink-0">
-                <Layers className="w-7 h-7" />
+          {/* Welcome Callout Hero - Only shown if no projects exist yet */}
+          {recentProjects.length === 0 ? (
+            <div className="p-8 rounded-2xl bg-gradient-to-r from-slate-900 to-slate-950 border border-slate-800 flex flex-col md:flex-row items-center justify-between gap-6">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 shrink-0">
+                  <Layers className="w-7 h-7" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-slate-100">Select or Open a Compose Folder</h2>
+                  <p className="text-xs text-slate-400 max-w-xl mt-1">
+                    Choose a directory containing <code className="text-cyan-400 font-mono">docker-compose.yml</code>. Dockit will create a dedicated project workspace with service inspection, Git-style blob hashing, and isolated testing sandboxes.
+                  </p>
+                </div>
               </div>
-              <div>
-                <h2 className="text-base font-bold text-slate-100">Select or Open a Compose Folder</h2>
-                <p className="text-xs text-slate-400 max-w-xl mt-1">
-                  Choose a directory containing <code className="text-cyan-400 font-mono">docker-compose.yml</code>. Dockit will create a dedicated project workspace with service inspection, Git-style blob hashing, and isolated testing sandboxes.
-                </p>
+
+              <div className="flex items-center gap-3 shrink-0">
+                <button
+                  onClick={handleBrowseDir}
+                  className="text-xs px-4 py-2.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold flex items-center gap-2 shadow-lg shadow-cyan-500/20 transition-all cursor-pointer"
+                >
+                  <FolderOpen className="w-4 h-4" />
+                  <span>Browse Folder in Explorer</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setLocalPathInput('.');
+                    loadProjectFromPath('.');
+                  }}
+                  className="text-xs px-3.5 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-300 border border-slate-700 font-mono transition-colors cursor-pointer"
+                >
+                  Use Current Workspace (.)
+                </button>
               </div>
             </div>
-
-            <div className="flex items-center gap-3 shrink-0">
-              <button
-                onClick={handleBrowseDir}
-                className="text-xs px-4 py-2.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold flex items-center gap-2 shadow-lg shadow-cyan-500/20 transition-all cursor-pointer"
-              >
-                <FolderOpen className="w-4 h-4" />
-                <span>Browse Folder in Explorer</span>
-              </button>
-              <button
-                onClick={() => {
-                  setLocalPathInput('.');
-                  loadProjectFromPath('.');
-                }}
-                className="text-xs px-3.5 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-300 border border-slate-700 font-mono transition-colors cursor-pointer"
-              >
-                Use Current Workspace (.)
-              </button>
-            </div>
-          </div>
-
-          {/* Recent Projects List */}
-          <div>
-            <h3 className="text-xs uppercase font-semibold text-slate-400 tracking-wider mb-3 flex items-center gap-2">
-              <History className="w-3.5 h-3.5 text-cyan-400" />
-              Recent Compose Projects ({recentProjects.length})
-            </h3>
-
-            {recentProjects.length === 0 ? (
-              <div className="p-8 border border-dashed border-slate-800 rounded-xl text-center text-xs text-slate-500">
-                No recent projects opened yet. Use the Browse button above to open your first compose project.
+          ) : (
+            /* Recent Projects List */
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-xs uppercase font-semibold text-slate-400 tracking-wider flex items-center gap-2">
+                  <History className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Recent Compose Projects ({recentProjects.length})</span>
+                </h3>
               </div>
-            ) : (
+
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {recentProjects.map((p) => (
                   <div
@@ -496,8 +494,8 @@ export default function ComposeView({
                   </div>
                 ))}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       ) : (
         /* VIEW 2: Dedicated Compose Project Workspace */
