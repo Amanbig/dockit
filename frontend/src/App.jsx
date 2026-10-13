@@ -64,6 +64,7 @@ import {
   AddFavorite,
   RemoveFavorite,
   GetConfig,
+  GetAppVersion,
   SetTheme,
   GetSystemTheme,
   DetectRuntimes,
@@ -80,6 +81,7 @@ export default function App() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [appConfig, setAppConfig] = useState(null);
   const [theme, setTheme] = useState('dark');
+  const [appVersion, setAppVersion] = useState('0.1.0');
 
   // Domain states
   const [containers, setContainers] = useState([]);
@@ -143,7 +145,7 @@ export default function App() {
   const refreshAll = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      const [rt, info, cList, iList, vList, nList, favs, cfg] = await Promise.allSettled([
+      const [rt, info, cList, iList, vList, nList, favs, cfg, ver] = await Promise.allSettled([
         GetActiveRuntime(),
         GetSystemInfo(),
         GetContainers(true),
@@ -151,7 +153,8 @@ export default function App() {
         GetVolumes(),
         GetNetworks(),
         GetFavorites(),
-        GetConfig()
+        GetConfig(),
+        GetAppVersion()
       ]);
 
       if (rt.status === 'fulfilled' && rt.value) setActiveRuntime(rt.value);
@@ -161,6 +164,7 @@ export default function App() {
       if (vList.status === 'fulfilled' && Array.isArray(vList.value)) setVolumes(vList.value);
       if (nList.status === 'fulfilled' && Array.isArray(nList.value)) setNetworks(nList.value);
       if (favs.status === 'fulfilled' && Array.isArray(favs.value)) setFavorites(favs.value);
+      if (ver.status === 'fulfilled' && ver.value) setAppVersion(ver.value);
       if (cfg.status === 'fulfilled' && cfg.value) {
         setAppConfig(cfg.value);
         if (cfg.value.ui?.theme) {
@@ -498,6 +502,7 @@ export default function App() {
               onOpenInstaller={() => setShowInstaller(true)}
               theme={theme}
               onSetTheme={handleSetTheme}
+              appVersion={appVersion}
             />
           )}
         </main>

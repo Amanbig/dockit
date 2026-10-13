@@ -62,7 +62,7 @@ jobs:
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
       - name: Build Wails Application
-        run: wails build -platform ${{ matrix.platform }}
+        run: wails build -platform ${{ matrix.platform }} -ldflags "-X dockit/internal/version.Version=${{ github.ref_name }}"
 
       - name: Package Linux Binary
         if: runner.os == 'Linux'

@@ -20,6 +20,7 @@ import (
 	"dockit/internal/runtime"
 	dockerclient "dockit/internal/runtime/docker"
 	podmanclient "dockit/internal/runtime/podman"
+	"dockit/internal/version"
 	"dockit/internal/volumes"
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -196,6 +197,11 @@ func (a *App) GetSystemVersion() (*runtime.SystemVersion, error) {
 		return nil, fmt.Errorf("no active container runtime")
 	}
 	return rt.Version(a.ctx)
+}
+
+// GetAppVersion returns the current application version string.
+func (a *App) GetAppVersion() string {
+	return version.Version
 }
 
 // ==========================================

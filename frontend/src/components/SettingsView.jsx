@@ -21,7 +21,8 @@ export default function SettingsView({
   onSwitchRuntime,
   activeRuntime,
   theme,
-  onSetTheme
+  onSetTheme,
+  appVersion = '0.1.0'
 }) {
   const [selectedTheme, setSelectedTheme] = useState(theme || config?.ui?.theme || 'dark');
   const [defaultRuntime, setDefaultRuntime] = useState(activeRuntime || 'docker');
@@ -242,6 +243,27 @@ export default function SettingsView({
                 />
               </div>
             </div>
+          </div>
+
+          {/* About & Version Information */}
+          <div className="p-5 rounded-xl border border-slate-800 bg-slate-950/70 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 font-bold text-sm">
+                  D
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold text-slate-200">Dockit Desktop</h2>
+                  <p className="text-xs text-slate-400">Universal Docker &amp; Podman Management</p>
+                </div>
+              </div>
+              <span className="px-2.5 py-1 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 font-mono text-xs font-semibold">
+                v{appVersion.replace(/^v/, '')}
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Built with Wails v2, Go, and React. Official binaries are built across Linux, Windows, and macOS via GitHub Actions.
+            </p>
           </div>
 
           {/* Action Footer */}

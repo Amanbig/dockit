@@ -54,6 +54,8 @@ export function ExecContainer(arg1:string,arg2:Array<string>):Promise<string>;
 
 export function GetActiveRuntime():Promise<string>;
 
+export function GetAppVersion():Promise<string>;
+
 export function GetConfig():Promise<config.Config>;
 
 export function GetContainer(arg1:string):Promise<containers.Container>;

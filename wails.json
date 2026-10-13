@@ -9,5 +9,12 @@
   "author": {
     "name": "Amanbig",
     "email": "amanpreetsinghjhiwant@outlook.com"
+  },
+  "info": {
+    "companyName": "Dockit",
+    "productName": "Dockit",
+    "productVersion": "0.1.0",
+    "copyright": "Copyright 2026",
+    "comments": "Cross-platform Docker & Podman desktop management"
   }
 }
