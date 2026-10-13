@@ -243,6 +243,28 @@ html.light button[class*="bg-cyan-500/20"] {
     color: #0e7490 !important;
 }
 
+/* Version pills and indicators in light mode (e.g. Sidebar and Settings) */
+html.light .bg-cyan-950,
+html.light span[class*="bg-cyan-950"],
+html.light button[class*="bg-cyan-950"] {
+    background-color: #ecfeff !important;
+    color: #0891b2 !important;
+    border-color: #a5f3fc !important;
+}
+
+html.light .bg-amber-500\/20,
+html.light button[class*="bg-amber-500/20"] {
+    background-color: #fef3c7 !important;
+    color: #b45309 !important;
+    border-color: #fde68a !important;
+}
+
+html.light .bg-cyan-500\/10 {
+    background-color: #ecfeff !important;
+    border-color: #a5f3fc !important;
+    color: #0891b2 !important;
+}
+
 /* Radio Cards & Selection Options (Settings & Compose Down) */
 html.light label[class*="border-cyan-500"] {
     background-color: #ecfeff !important;
