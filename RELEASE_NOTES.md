@@ -1,6 +1,6 @@
-# Dockit v0.3.0 🚀
+# Dockit v0.3.2 🚀
 
-Dockit **v0.3.0** introduces a seamless in-place background self-updater (VS Code-style), real-time container resource monitoring (CPU, Memory, Network & Disk I/O), comprehensive light mode styling polish, and full support for Ubuntu 24.04 / Linux Mint 22.
+Dockit **v0.3.2** delivers the complete in-place background self-updater (VS Code-style), smooth atomic application restart, real-time container resource monitoring (CPU, Memory, Network & Disk I/O), full Light Mode UI polish, and automated release note generation.
 
 ---
 
