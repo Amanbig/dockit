@@ -79,15 +79,23 @@ sed -i -E "s/\"productVersion\": \"[^\"]+\"/\"productVersion\": \"$NEW_VER\"/" "
 # 4. Update frontend/package.json
 sed -i -E "s/\"version\": \"[^\"]+\"/\"version\": \"$NEW_VER\"/" "$PKG_FILE"
 
+NOTES_FILE="$ROOT_DIR/RELEASE_NOTES.md"
+
 echo "Updated files:"
 echo " - $VERSION_FILE"
 echo " - $WAILS_FILE"
 echo " - $PKG_FILE"
+if [ -f "$NOTES_FILE" ]; then
+  echo " - $NOTES_FILE (make sure your release highlights are written here!)"
+fi
 
 # 5. Git Commit & Tag if requested
 if [ "$CREATE_TAG" = true ]; then
   echo "Creating git commit and tag v$NEW_VER..."
   git add "$VERSION_FILE" "$WAILS_FILE" "$PKG_FILE"
+  if [ -f "$NOTES_FILE" ]; then
+    git add "$NOTES_FILE"
+  fi
   git commit -m "chore(release): bump version to v$NEW_VER"
   git tag "v$NEW_VER"
   echo ""
