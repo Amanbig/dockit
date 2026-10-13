@@ -19,11 +19,15 @@ import {
   Folder,
   Sliders,
   CheckCircle2,
-  AlertTriangle
+  AlertTriangle,
+  Activity,
+  ArrowDown,
+  ArrowUp
 } from 'lucide-react';
 import { 
   InspectContainer, 
   GetContainerLogs, 
+  GetContainerResourceStats,
   StartContainer, 
   StopContainer, 
   RestartContainer, 
@@ -41,6 +45,7 @@ export default function ContainerDetailsView({ containerId, onBack, onRefreshLis
   const [activeSubTab, setActiveSubTab] = useState('overview'); // 'overview' | 'terminal' | 'logs' | 'env' | 'mounts' | 'raw'
   const [copiedKey, setCopiedKey] = useState(null);
   const [actionInProgress, setActionInProgress] = useState(false);
+  const [resourceStats, setResourceStats] = useState(null);
 
   // Terminal state
   const [commandInput, setCommandInput] = useState('');
@@ -151,6 +156,27 @@ export default function ContainerDetailsView({ containerId, onBack, onRefreshLis
     }
     return () => clearInterval(timer);
   }, [activeSubTab, autoTail, containerId, details?.state?.running]);
+
+  // Auto-poll resource stats when container is running
+  useEffect(() => {
+    let timer;
+    if (details?.state?.running) {
+      const fetchStats = () => {
+        GetContainerResourceStats(containerId)
+          .then((st) => {
+            if (st) setResourceStats(st);
+          })
+          .catch(() => {});
+      };
+      fetchStats();
+      timer = setInterval(fetchStats, 2000);
+    } else {
+      setResourceStats(null);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [containerId, details?.state?.running]);
 
   useEffect(() => {
     if (containerId) {
@@ -383,7 +409,113 @@ export default function ContainerDetailsView({ containerId, onBack, onRefreshLis
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {/* Tab 1: Overview */}
         {activeSubTab === 'overview' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="space-y-6">
+            {/* Live Metrics Grid (Visible when container is running) */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {/* CPU Usage Card */}
+              <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/60 flex flex-col justify-between">
+                <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
+                  <span className="font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                    <Cpu className="w-3.5 h-3.5 text-cyan-400" />
+                    CPU Usage
+                  </span>
+                  {details?.state?.running && (
+                    <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+                  )}
+                </div>
+                <div>
+                  <div className="text-2xl font-bold font-mono text-slate-100">
+                    {resourceStats ? `${resourceStats.cpuPercent.toFixed(1)}%` : details?.state?.running ? 'Loading...' : '0.0%'}
+                  </div>
+                  <div className="w-full bg-slate-800 h-1.5 rounded-full mt-2 overflow-hidden">
+                    <div 
+                      className="bg-cyan-400 h-full rounded-full transition-all duration-500"
+                      style={{ width: `${Math.min(100, Math.max(0, resourceStats?.cpuPercent || 0))}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Memory Usage Card */}
+              <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/60 flex flex-col justify-between">
+                <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
+                  <span className="font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                    <Activity className="w-3.5 h-3.5 text-purple-400" />
+                    Memory Usage
+                  </span>
+                  {resourceStats?.memoryPercent !== undefined && (
+                    <span className="font-mono text-purple-400 font-semibold">
+                      {resourceStats.memoryPercent.toFixed(1)}%
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <div className="text-2xl font-bold font-mono text-slate-100 truncate">
+                    {resourceStats 
+                      ? `${(resourceStats.memoryUsage / (1024 * 1024)).toFixed(1)} MB` 
+                      : details?.state?.running ? 'Loading...' : '0.0 MB'}
+                  </div>
+                  <div className="text-[11px] text-slate-500 font-mono mt-0.5 truncate">
+                    {resourceStats?.memoryLimit ? `Limit: ${(resourceStats.memoryLimit / (1024 * 1024 * 1024)).toFixed(2)} GB` : 'No Limit'}
+                  </div>
+                  <div className="w-full bg-slate-800 h-1.5 rounded-full mt-1.5 overflow-hidden">
+                    <div 
+                      className="bg-purple-500 h-full rounded-full transition-all duration-500"
+                      style={{ width: `${Math.min(100, Math.max(0, resourceStats?.memoryPercent || 0))}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Network I/O Card */}
+              <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/60 flex flex-col justify-between">
+                <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
+                  <span className="font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                    <Network className="w-3.5 h-3.5 text-emerald-400" />
+                    Network I/O
+                  </span>
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 text-xs font-mono">
+                    <span className="flex items-center text-emerald-400">
+                      <ArrowDown className="w-3 h-3 mr-0.5" />
+                      {resourceStats ? `${(resourceStats.netRxBytes / 1024).toFixed(1)} KB` : '0 KB'}
+                    </span>
+                    <span className="text-slate-600">/</span>
+                    <span className="flex items-center text-blue-400">
+                      <ArrowUp className="w-3 h-3 mr-0.5" />
+                      {resourceStats ? `${(resourceStats.netTxBytes / 1024).toFixed(1)} KB` : '0 KB'}
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-slate-500 font-mono mt-1">
+                    Rx / Tx Traffic
+                  </div>
+                </div>
+              </div>
+
+              {/* Disk / Block I/O & Processes Card */}
+              <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/60 flex flex-col justify-between">
+                <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
+                  <span className="font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                    <HardDrive className="w-3.5 h-3.5 text-amber-400" />
+                    Disk & Tasks
+                  </span>
+                  {resourceStats?.pids ? (
+                    <span className="font-mono text-amber-400 font-semibold">{resourceStats.pids} PIDs</span>
+                  ) : null}
+                </div>
+                <div>
+                  <div className="text-sm font-bold font-mono text-slate-200 truncate">
+                    {resourceStats ? `R: ${(resourceStats.blockRead / 1024).toFixed(0)} KB • W: ${(resourceStats.blockWrite / 1024).toFixed(0)} KB` : '0 KB / 0 KB'}
+                  </div>
+                  <div className="text-[11px] text-slate-500 font-mono mt-1">
+                    Total Disk Read / Write
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {/* General Info Card */}
             <div className="p-5 rounded-xl border border-slate-800 bg-slate-950/60 space-y-3">
               <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
@@ -480,6 +612,7 @@ export default function ContainerDetailsView({ containerId, onBack, onRefreshLis
               </div>
             </div>
           </div>
+        </div>
         )}
 
         {/* Tab: Terminal Exec */}

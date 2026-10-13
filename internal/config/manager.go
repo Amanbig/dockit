@@ -174,6 +174,13 @@ func (m *Manager) SetTheme(theme string) error {
 	})
 }
 
+// SetAutoCheckUpdates updates the automatic startup update check preference.
+func (m *Manager) SetAutoCheckUpdates(enabled bool) error {
+	return m.Update(func(cfg *Config) {
+		cfg.UI.AutoCheckUpdates = enabled
+	})
+}
+
 // GetRegistryAuth retrieves saved credentials for a registry host.
 func (m *Manager) GetRegistryAuth(server string) (RegistryAuth, bool) {
 	m.mu.RLock()

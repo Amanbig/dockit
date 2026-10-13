@@ -30,7 +30,28 @@ export default function SettingsView({
   const [defaultRuntime, setDefaultRuntime] = useState(activeRuntime || 'docker');
   const [dockerSocket, setDockerSocket] = useState(config?.runtime?.dockerSocket || '');
   const [podmanSocket, setPodmanSocket] = useState(config?.runtime?.podmanSocket || '');
+  const [autoCheckUpdates, setAutoCheckUpdates] = useState(config?.ui?.autoCheckUpdates !== false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+
+  useEffect(() => {
+    if (config?.ui?.autoCheckUpdates !== undefined) {
+      setAutoCheckUpdates(config.ui.autoCheckUpdates);
+    }
+  }, [config?.ui?.autoCheckUpdates]);
+
+  const handleToggleAutoCheck = async (e) => {
+    const newVal = e.target.checked;
+    setAutoCheckUpdates(newVal);
+    if (onSaveConfig) {
+      await onSaveConfig({
+        ...config,
+        ui: {
+          ...config?.ui,
+          autoCheckUpdates: newVal
+        }
+      });
+    }
+  };
 
   useEffect(() => {
     if (activeRuntime) {
@@ -274,6 +295,22 @@ export default function SettingsView({
                 </button>
               </div>
             </div>
+            <div className="pt-3 border-t border-slate-900 flex items-center justify-between text-xs">
+              <div>
+                <span className="font-semibold text-slate-200 block">Automatic Startup Checks</span>
+                <span className="text-slate-400 text-[11px]">Check for newer releases in background when Dockit launches.</span>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={autoCheckUpdates} 
+                  onChange={handleToggleAutoCheck}
+                  className="sr-only peer"
+                />
+                <div className="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-cyan-500"></div>
+              </label>
+            </div>
+
             <p className="text-xs text-slate-500 leading-relaxed">
               Built with Wails v2, Go, and React. Official binaries are built across Linux, Windows, and macOS via GitHub Actions.
             </p>

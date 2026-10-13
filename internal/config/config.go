@@ -23,10 +23,11 @@ type RuntimeConfig struct {
 
 // UIConfig stores display and user interface preferences.
 type UIConfig struct {
-	Theme           string `json:"theme"` // "dark", "light", or "system"
-	RefreshInterval int    `json:"refreshInterval"` // in seconds, default 5
-	Notifications   bool   `json:"notifications"`
-	CompactView     bool   `json:"compactView"`
+	Theme            string `json:"theme"` // "dark", "light", or "system"
+	RefreshInterval  int    `json:"refreshInterval"` // in seconds, default 5
+	Notifications    bool   `json:"notifications"`
+	CompactView      bool   `json:"compactView"`
+	AutoCheckUpdates bool   `json:"autoCheckUpdates"`
 }
 
 // RegistryAuth stores saved authentication credentials for a container registry.
@@ -46,10 +47,11 @@ func DefaultConfig() *Config {
 			AutoConnect: true,
 		},
 		UI: UIConfig{
-			Theme:           "system",
-			RefreshInterval: 5,
-			Notifications:   true,
-			CompactView:     false,
+			Theme:            "system",
+			RefreshInterval:  5,
+			Notifications:    true,
+			CompactView:      false,
+			AutoCheckUpdates: true,
 		},
 		Registries: make(map[string]RegistryAuth),
 		Favorites:  make([]string, 0),

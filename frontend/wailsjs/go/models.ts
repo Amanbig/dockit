@@ -182,6 +182,7 @@ export namespace config {
 	    refreshInterval: number;
 	    notifications: boolean;
 	    compactView: boolean;
+	    autoCheckUpdates: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new UIConfig(source);
@@ -193,6 +194,7 @@ export namespace config {
 	        this.refreshInterval = source["refreshInterval"];
 	        this.notifications = source["notifications"];
 	        this.compactView = source["compactView"];
+	        this.autoCheckUpdates = source["autoCheckUpdates"];
 	    }
 	}
 	export class RuntimeConfig {
@@ -284,6 +286,34 @@ export namespace containers {
 	        this.state = source["state"];
 	        this.ports = source["ports"];
 	        this.created = source["created"];
+	    }
+	}
+	export class ResourceStats {
+	    cpuPercent: number;
+	    memoryUsage: number;
+	    memoryLimit: number;
+	    memoryPercent: number;
+	    netRxBytes: number;
+	    netTxBytes: number;
+	    blockRead: number;
+	    blockWrite: number;
+	    pids: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ResourceStats(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.cpuPercent = source["cpuPercent"];
+	        this.memoryUsage = source["memoryUsage"];
+	        this.memoryLimit = source["memoryLimit"];
+	        this.memoryPercent = source["memoryPercent"];
+	        this.netRxBytes = source["netRxBytes"];
+	        this.netTxBytes = source["netTxBytes"];
+	        this.blockRead = source["blockRead"];
+	        this.blockWrite = source["blockWrite"];
+	        this.pids = source["pids"];
 	    }
 	}
 

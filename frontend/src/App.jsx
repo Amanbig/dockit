@@ -13,6 +13,7 @@ import ContainerDetailsView from './components/ContainerDetailsView';
 import LogsModal from './components/LogsModal';
 import InspectModal from './components/InspectModal';
 import InstallerModal from './components/InstallerModal';
+import { Sparkles, ArrowRight, X } from 'lucide-react';
 
 // Wails Go Bridge API bindings
 import {
@@ -97,6 +98,7 @@ export default function App() {
   const [inspectModal, setInspectModal] = useState({ open: false, title: '', data: null });
   const [showInstaller, setShowInstaller] = useState(false);
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
+  const [showUpdateToast, setShowUpdateToast] = useState(false);
   const [updateInfo, setUpdateInfo] = useState(null);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
 
@@ -202,7 +204,13 @@ export default function App() {
       const res = await CheckForAppUpdate();
       if (res) {
         setUpdateInfo(res);
-        if (res.available || manual) {
+        if (res.available) {
+          if (manual) {
+            setUpdateModalOpen(true);
+          } else {
+            setShowUpdateToast(true);
+          }
+        } else if (manual) {
           setUpdateModalOpen(true);
         }
       }
@@ -216,13 +224,14 @@ export default function App() {
     }
   }, []);
 
-  // Background check for update shortly after app startup
+  // Background check for update shortly after app startup (if enabled in preferences)
   useEffect(() => {
+    if (appConfig?.ui?.autoCheckUpdates === false) return;
     const timer = setTimeout(() => {
       handleCheckForUpdates(false);
     }, 3000);
     return () => clearTimeout(timer);
-  }, [handleCheckForUpdates]);
+  }, [appConfig?.ui?.autoCheckUpdates, handleCheckForUpdates]);
 
   // Runtime Switch Handler
   const handleSwitchRuntime = async (target) => {
@@ -578,6 +587,54 @@ export default function App() {
         onCheckAgain={() => handleCheckForUpdates(true)}
         isChecking={isCheckingUpdate}
       />
+
+      {/* Non-intrusive Update Toast Notification */}
+      {showUpdateToast && updateInfo?.available && !updateModalOpen && (
+        <div className="fixed bottom-5 right-5 z-40 max-w-sm w-full bg-slate-900/95 border border-cyan-500/40 rounded-xl p-4 shadow-2xl shadow-cyan-500/20 backdrop-blur-md animate-in slide-in-from-bottom-5 duration-300">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
+                <Sparkles className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-slate-100 flex items-center gap-1.5">
+                  Dockit Update Available
+                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-cyan-950 text-cyan-300 border border-cyan-800/60">
+                    v{String(updateInfo.latestVersion).replace(/^v/, '')}
+                  </span>
+                </h4>
+                <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">
+                  A newer release is ready with improvements &amp; fixes.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowUpdateToast(false)}
+              className="text-slate-400 hover:text-slate-200 p-0.5 transition"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          <div className="mt-3 flex items-center justify-end gap-2">
+            <button
+              onClick={() => setShowUpdateToast(false)}
+              className="text-[11px] px-2.5 py-1 text-slate-400 hover:text-slate-200 transition"
+            >
+              Later
+            </button>
+            <button
+              onClick={() => {
+                setShowUpdateToast(false);
+                setUpdateModalOpen(true);
+              }}
+              className="flex items-center gap-1 px-3 py-1 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 text-xs font-bold shadow-sm shadow-cyan-500/20 hover:brightness-110 transition"
+            >
+              <span>View Update</span>
+              <ArrowRight className="w-3 h-3 stroke-[3]" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

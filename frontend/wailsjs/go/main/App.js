@@ -114,6 +114,10 @@ export function GetContainerLogs(arg1) {
   return window['go']['main']['App']['GetContainerLogs'](arg1);
 }
 
+export function GetContainerResourceStats(arg1) {
+  return window['go']['main']['App']['GetContainerResourceStats'](arg1);
+}
+
 export function GetContainers(arg1) {
   return window['go']['main']['App']['GetContainers'](arg1);
 }
@@ -248,6 +252,10 @@ export function SearchRegistry(arg1, arg2, arg3, arg4) {
 
 export function SelectDirectoryDialog() {
   return window['go']['main']['App']['SelectDirectoryDialog']();
+}
+
+export function SetAutoCheckUpdates(arg1) {
+  return window['go']['main']['App']['SetAutoCheckUpdates'](arg1);
 }
 
 export function SetCustomValue(arg1, arg2) {

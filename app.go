@@ -262,6 +262,17 @@ func (a *App) InspectContainer(id string) (*runtime.ContainerInspect, error) {
 	return svc.Inspect(a.ctx, id)
 }
 
+// GetContainerResourceStats returns real-time CPU, Memory, Network, and Block I/O statistics for a container.
+func (a *App) GetContainerResourceStats(id string) (*containers.ResourceStats, error) {
+	a.mu.RLock()
+	svc := a.containerSvc
+	a.mu.RUnlock()
+	if svc == nil {
+		return nil, fmt.Errorf("container runtime not connected")
+	}
+	return svc.GetResourceStats(a.ctx, id)
+}
+
 // CreateContainer creates a new container with the specified parameters.
 func (a *App) CreateContainer(opts runtime.ContainerCreateOptions) (string, error) {
 	a.mu.RLock()
@@ -688,6 +699,14 @@ func (a *App) SetTheme(theme string) error {
 		return nil
 	}
 	return a.configMgr.SetTheme(theme)
+}
+
+// SetAutoCheckUpdates saves the user's preference for automatic background update checking.
+func (a *App) SetAutoCheckUpdates(enabled bool) error {
+	if a.configMgr == nil {
+		return nil
+	}
+	return a.configMgr.SetAutoCheckUpdates(enabled)
 }
 
 // GetSystemTheme queries host OS desktop settings (e.g. Cinnamon, GNOME, FreeDesktop portal)

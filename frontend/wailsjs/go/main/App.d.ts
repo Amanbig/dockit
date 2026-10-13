@@ -67,6 +67,8 @@ export function GetContainer(arg1:string):Promise<containers.Container>;
 
 export function GetContainerLogs(arg1:string):Promise<string>;
 
+export function GetContainerResourceStats(arg1:string):Promise<containers.ResourceStats>;
+
 export function GetContainers(arg1:boolean):Promise<Array<containers.Container>>;
 
 export function GetCustomValue(arg1:string):Promise<string>;
@@ -134,6 +136,8 @@ export function SearchAllRegistries(arg1:string,arg2:number,arg3:number):Promise
 export function SearchRegistry(arg1:string,arg2:string,arg3:number,arg4:number):Promise<Array<registry.SearchResult>>;
 
 export function SelectDirectoryDialog():Promise<string>;
+
+export function SetAutoCheckUpdates(arg1:boolean):Promise<void>;
 
 export function SetCustomValue(arg1:string,arg2:string):Promise<void>;
 
