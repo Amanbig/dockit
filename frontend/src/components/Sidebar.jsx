@@ -16,7 +16,8 @@ export default function Sidebar({
   activeTab, 
   setActiveTab, 
   stats = { runningContainers: 0, totalContainers: 0 },
-  activeRuntime = 'docker'
+  activeRuntime = 'docker',
+  appVersion = '0.1.0'
 }) {
   const navItems = [
     { 
@@ -44,8 +45,8 @@ export default function Sidebar({
         <div className="flex flex-col">
           <span className="font-bold text-base text-slate-100 tracking-tight flex items-center gap-1.5">
             Dockit
-            <span className="text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-400 border border-cyan-800/60">
-              v0.1
+            <span className="text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-400 border border-cyan-800/60 font-mono">
+              v{appVersion.replace(/^v/, '')}
             </span>
           </span>
           <span className="text-xs text-slate-500 font-mono flex items-center gap-1">

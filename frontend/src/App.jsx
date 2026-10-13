@@ -383,6 +383,7 @@ export default function App() {
           runningContainers,
           totalContainers: containers.length
         }}
+        appVersion={appVersion}
       />
 
       {/* Main Content Area */}
