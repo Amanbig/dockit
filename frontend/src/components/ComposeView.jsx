@@ -365,41 +365,43 @@ export default function ComposeView({
           </p>
         </div>
 
-        {/* Global Directory Loader */}
-        <div className="flex items-center gap-3">
-          <form onSubmit={handleOpenLocal} className="flex items-center gap-2">
-            <input
-              type="text"
-              placeholder="/path/to/project folder"
-              value={localPathInput}
-              onChange={(e) => setLocalPathInput(e.target.value)}
-              className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 w-56 md:w-72 font-mono transition-colors"
-            />
-            <button
-              type="button"
-              onClick={handleBrowseDir}
-              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-semibold border border-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer"
-              title="Open native file explorer to select folder"
-            >
-              <FolderOpen className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Browse</span>
-            </button>
-            <button
-              type="submit"
-              className="px-3.5 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold transition-all cursor-pointer"
-            >
-              <span>Load</span>
-            </button>
-          </form>
+        {/* Directory Loader: Only shown in All Projects view */}
+        {!project && (
+          <div className="flex items-center gap-3">
+            <form onSubmit={handleOpenLocal} className="flex items-center gap-2">
+              <input
+                type="text"
+                placeholder="/path/to/project folder"
+                value={localPathInput}
+                onChange={(e) => setLocalPathInput(e.target.value)}
+                className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 w-56 md:w-72 font-mono transition-colors"
+              />
+              <button
+                type="button"
+                onClick={handleBrowseDir}
+                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-semibold border border-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer"
+                title="Open native file explorer to select folder"
+              >
+                <FolderOpen className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Browse</span>
+              </button>
+              <button
+                type="submit"
+                className="px-3.5 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold transition-all cursor-pointer"
+              >
+                <span>Load</span>
+              </button>
+            </form>
 
-          <button
-            onClick={() => setShowUrlDialog(true)}
-            className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-300 text-xs font-semibold border border-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer"
-          >
-            <LinkIcon className="w-3.5 h-3.5 text-cyan-400" />
-            <span>Git URL</span>
-          </button>
-        </div>
+            <button
+              onClick={() => setShowUrlDialog(true)}
+              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-300 text-xs font-semibold border border-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <LinkIcon className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Git URL</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* VIEW 1: Projects Library (when no project is open) */}
