@@ -13,12 +13,13 @@ Built with **Go (Wails v2)** + **React 19** + **Tailwind CSS v4** + **Base UI / 
 - Automatic detection of standard sockets, user rootless sockets (`/run/user/$UID/podman/podman.sock`), rootful sockets, and Windows named pipes (`//./pipe/docker_engine`).
 - Custom socket endpoint overrides supported via persistent configuration.
 
-### 📦 Containers Management
+### 📦 Containers Management & Interactive Terminal
 - View, start, stop, restart, pause, unpause, and delete containers.
 - Real-time container status badges, port bindings, and created timestamps.
+- **In-Container Terminal Shell (Exec)**: Launch an interactive shell terminal (`/bin/sh`, `/bin/bash`) directly into running containers to run commands and inspect runtime state.
 - **Log Streaming & Inspection**: Live container logs with auto-scroll and quick clipboard copy.
 - **Inspect Inspector**: Deep JSON inspection of low-level container configurations and network settings.
-- **Create Container Wizard**: Interactive dialog to spin up containers with port mappings, environment variables, and command overrides.
+- **Create Container Wizard**: Interactive dialog to spin up containers with port mappings, environment variables, restart policies, and network attachments.
 
 ### 🖼️ Images & Local Cache
 - List local images with repository tags, IDs, and human-readable sizes.
@@ -30,19 +31,25 @@ Built with **Go (Wails v2)** + **React 19** + **Tailwind CSS v4** + **Base UI / 
 - **Volumes**: Manage persistent storage volumes, inspect mount points, create new local volumes, and prune dangling volumes.
 - **Networks**: Inspect virtual bridges, host networks, overlays, and custom internal networks with IPAM subnet information.
 
-### 🧪 Docker Compose & Staged Testing Studio
-- **Local & Git Projects**: Open any local folder containing a `docker-compose.yml` or clone one directly from a Git URL.
-- **Visual Service Cards**: Monitor service definitions, mapped ports, and volumes with individual service start/stop/restart controls.
-- **Staged Testing Sandbox**: 
-  - Edit your compose YAML directly in the built-in monospace editor.
-  - **Stage Changes in Memory**: Test-run tweaks in an isolated sandbox *without* overwriting the file on disk.
-  - **Apply or Discard**: Once verified, atomically commit the changes to disk or discard them back to the original file.
+### 🧪 Docker Compose Studio & Workspace
+- **Multi-Project Library**: Open folders containing `docker-compose.yml`, clone from Git URLs, or browse recent projects with persistent history.
+- **Dedicated Project Workspace**:
+  - **Visual Services Grid**: Context-aware Start, Stop, and Restart controls based on actual container running states.
+  - **Compose Down Modal**: Choose cleanup options including volume removal (`--volumes`), orphan cleanup (`--remove-orphans`), and image deletion (`--rmi all`).
+  - **YAML Testing Studio**: Edit compose configs with live syntax highlighting and non-destructive memory staging.
+  - **Git-Style Blob Hashing (`sha256`) & Snapshots**: Authentic Git object ID hashing (`blob <length>\0<data>`) detects uncommitted edits and provides snapshot rollbacks.
+  - **Live CLI Stream**: Real-time terminal output stream for Compose Up, Down, and service orchestration commands.
 
 ### 🌍 Unified Registry Hub
-- Multi-registry search across **Docker Hub** and **GitHub Container Registry (GHCR)**.
-- Filter by official images, view star counts, pull counts, and descriptions.
-- Inspect published tags with layer sizes.
+- Multi-registry exploration across **Docker Hub** and **GitHub Container Registry (GHCR)**.
+- **Rich Markdown Documentation**: Full repository READMEs rendered in rich GitHub-flavored Markdown with code copy, formatted tables, and external documentation links opened via your default OS browser.
+- **Tags & Architecture Browser**: Inspect tag layers, image sizes, and release dates with one-click pull commands.
+- **Adaptive Number Formatting**: High-density star and pull counters (e.g. `1.14B+`, `34.8K`) with native hover tooltips showing exact counts.
 - One-click image pulling and favorites bookmarking.
+
+### 🎨 Themes & Adaptive UI
+- Fully integrated **Dark Mode** and **Light Mode** with WCAG AA compliant contrast across all cards, modals, and tables.
+- Responsive overflow protection with ellipsis truncation (`...`) and compact layouts for small displays and laptops.
 
 ### 🛠️ Runtime Detection & Engine Installer
 - Cross-platform detection for Docker and Podman daemon states.
