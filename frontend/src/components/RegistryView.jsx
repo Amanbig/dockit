@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import { marked } from 'marked';
 import { 
   Globe, 
   Search, 
@@ -17,8 +18,36 @@ import {
   RefreshCw
 } from 'lucide-react';
 
+// Configure marked with GitHub Flavored Markdown and line breaks
+marked.setOptions({
+  gfm: true,
+  breaks: true,
+});
+
 /**
- * Lightweight, safe Markdown & Code Formatter for Docker Hub / Registry READMEs
+ * Format large numbers cleanly (e.g. 1.14B, 12.5M, 13.6K) to prevent layout overflows on small displays
+ */
+function formatCount(num) {
+  if (num === undefined || num === null) return '0';
+  if (typeof num === 'string') {
+    const parsed = parseInt(num.replace(/,/g, ''), 10);
+    if (!isNaN(parsed)) num = parsed;
+    else return num;
+  }
+  if (num >= 1_000_000_000) {
+    return (num / 1_000_000_000).toFixed(2).replace(/\.00$/, '') + 'B';
+  }
+  if (num >= 1_000_000) {
+    return (num / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M';
+  }
+  if (num >= 1_000) {
+    return (num / 1_000).toFixed(1).replace(/\.0$/, '') + 'K';
+  }
+  return num.toLocaleString();
+}
+
+/**
+ * Rich Markdown & Code Formatter for Docker Hub / Registry READMEs
  */
 function ReadmeViewer({ markdown }) {
   if (!markdown || !markdown.trim()) {
@@ -29,134 +58,39 @@ function ReadmeViewer({ markdown }) {
     );
   }
 
-  // Split lines and parse blocks
-  const lines = markdown.split('\n');
-  const blocks = [];
-  let inCodeBlock = false;
-  let codeBuffer = [];
-  let codeLang = '';
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    if (line.trim().startsWith('```')) {
-      if (inCodeBlock) {
-        blocks.push({
-          type: 'code',
-          content: codeBuffer.join('\n'),
-          lang: codeLang
-        });
-        codeBuffer = [];
-        inCodeBlock = false;
-        codeLang = '';
-      } else {
-        inCodeBlock = true;
-        codeLang = line.trim().replace(/^```/, '').trim();
-      }
-      continue;
+  const renderedHtml = useMemo(() => {
+    try {
+      const parsed = marked.parse(markdown);
+      // Strip potentially harmful script tags
+      return parsed.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+    } catch (err) {
+      console.error('Failed to parse README markdown:', err);
+      return `<p>${markdown}</p>`;
     }
+  }, [markdown]);
 
-    if (inCodeBlock) {
-      codeBuffer.push(line);
-      continue;
-    }
-
-    // Headers
-    if (line.startsWith('# ')) {
-      blocks.push({ type: 'h1', text: line.slice(2).trim() });
-    } else if (line.startsWith('## ')) {
-      blocks.push({ type: 'h2', text: line.slice(3).trim() });
-    } else if (line.startsWith('### ')) {
-      blocks.push({ type: 'h3', text: line.slice(4).trim() });
-    } else if (line.trim().startsWith('- ') || line.trim().startsWith('* ')) {
-      blocks.push({ type: 'li', text: line.trim().replace(/^[-*]\s+/, '') });
-    } else if (line.trim() === '') {
-      // Empty separator
-    } else {
-      blocks.push({ type: 'p', text: line });
-    }
-  }
-
-  if (codeBuffer.length > 0) {
-    blocks.push({ type: 'code', content: codeBuffer.join('\n'), lang: codeLang });
-  }
-
-  // Helper to format inline code and bolding
-  const formatInline = (str) => {
-    if (!str) return '';
-    // Format bold **text** and inline `code`
-    const parts = str.split(/(`[^`]+`|\*\*[^*]+\*\*)/g);
-    return parts.map((part, idx) => {
-      if (part.startsWith('`') && part.endsWith('`')) {
-        return (
-          <code key={idx} className="bg-slate-800/80 text-cyan-400 px-1 py-0.5 rounded font-mono text-[11px]">
-            {part.slice(1, -1)}
-          </code>
-        );
+  const handleContainerClick = (e) => {
+    const anchor = e.target.closest('a');
+    if (anchor && anchor.href) {
+      e.preventDefault();
+      try {
+        if (window.runtime?.BrowserOpenURL) {
+          window.runtime.BrowserOpenURL(anchor.href);
+        } else {
+          window.open(anchor.href, '_blank', 'noopener,noreferrer');
+        }
+      } catch {
+        window.open(anchor.href, '_blank', 'noopener,noreferrer');
       }
-      if (part.startsWith('**') && part.endsWith('**')) {
-        return <strong key={idx} className="font-semibold text-slate-100">{part.slice(2, -2)}</strong>;
-      }
-      return part;
-    });
+    }
   };
 
   return (
-    <div className="space-y-3.5 text-xs text-slate-300 leading-relaxed font-sans select-text">
-      {blocks.map((block, idx) => {
-        switch (block.type) {
-          case 'h1':
-            return (
-              <h1 key={idx} className="text-base font-bold text-slate-100 pb-1.5 border-b border-slate-800 mt-4 first:mt-0">
-                {block.text}
-              </h1>
-            );
-          case 'h2':
-            return (
-              <h2 key={idx} className="text-sm font-semibold text-slate-100 pb-1 border-b border-slate-800/60 mt-3.5">
-                {block.text}
-              </h2>
-            );
-          case 'h3':
-            return (
-              <h3 key={idx} className="text-xs font-semibold text-cyan-400 mt-2.5">
-                {block.text}
-              </h3>
-            );
-          case 'code':
-            return (
-              <div key={idx} className="relative group rounded-lg bg-slate-950 border border-slate-800 overflow-hidden my-2">
-                <div className="px-3 py-1 bg-slate-900 border-b border-slate-800 flex justify-between items-center text-[10px] text-slate-400 font-mono">
-                  <span>{block.lang || 'bash'}</span>
-                  <button
-                    onClick={() => navigator.clipboard.writeText(block.content)}
-                    className="hover:text-cyan-400 flex items-center gap-1 transition-colors cursor-pointer"
-                    title="Copy code"
-                  >
-                    <Copy className="w-3 h-3" />
-                    <span>Copy</span>
-                  </button>
-                </div>
-                <pre className="p-3 text-[11px] font-mono text-slate-200 overflow-x-auto whitespace-pre leading-normal">
-                  {block.content}
-                </pre>
-              </div>
-            );
-          case 'li':
-            return (
-              <li key={idx} className="ml-4 list-disc text-slate-300 text-xs">
-                {formatInline(block.text)}
-              </li>
-            );
-          case 'p':
-          default:
-            return (
-              <p key={idx} className="text-slate-300">
-                {formatInline(block.text)}
-              </p>
-            );
-        }
-      })}
-    </div>
+    <div
+      className="readme-markdown max-w-full overflow-x-auto text-xs text-slate-300 leading-relaxed select-text"
+      onClick={handleContainerClick}
+      dangerouslySetInnerHTML={{ __html: renderedHtml }}
+    />
   );
 }
 
@@ -186,6 +120,7 @@ export default function RegistryView({
   const [pullingTag, setPullingTag] = useState(null);
   const [tagFilter, setTagFilter] = useState('');
   const [copiedCmd, setCopiedCmd] = useState(false);
+  const [copiedReadme, setCopiedReadme] = useState(false);
 
   const handleSearch = async (e) => {
     if (e) e.preventDefault();
@@ -332,9 +267,9 @@ export default function RegistryView({
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-w-0">
         {/* Left Side: Results List */}
-        <div className="w-full md:w-5/12 border-b md:border-b-0 md:border-r border-slate-800 overflow-y-auto p-4 md:p-6 space-y-3">
+        <div className="w-full md:w-5/12 border-b md:border-b-0 md:border-r border-slate-800 overflow-y-auto p-4 md:p-6 space-y-3 min-w-0">
           {results.length === 0 ? (
             <div className="h-64 border border-dashed border-slate-800 rounded-xl flex flex-col items-center justify-center text-center p-6 text-slate-500">
               <Search className="w-8 h-8 text-slate-600 mb-2" />
@@ -355,17 +290,17 @@ export default function RegistryView({
                       : 'bg-slate-950/70 border-slate-800 hover:border-slate-700'
                   }`}
                 >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-100 text-sm">{res.name}</span>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-slate-100 text-sm truncate">{res.name}</span>
                         {res.isOfficial && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-semibold flex items-center gap-1 whitespace-nowrap">
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-semibold flex items-center gap-1 shrink-0 whitespace-nowrap">
                             <ShieldCheck className="w-3 h-3" />
                             Official
                           </span>
                         )}
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400 uppercase font-mono whitespace-nowrap">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400 uppercase font-mono shrink-0 whitespace-nowrap">
                           {res.registry}
                         </span>
                       </div>
@@ -379,7 +314,7 @@ export default function RegistryView({
                         e.stopPropagation();
                         toggleFavorite(res.name);
                       }}
-                      className="p-1 text-slate-500 hover:text-amber-400 transition-colors"
+                      className="p-1 text-slate-500 hover:text-amber-400 transition-colors shrink-0"
                       title={fav ? 'Remove from favorites' : 'Add to favorites'}
                     >
                       <Star className={`w-4 h-4 ${fav ? 'text-amber-400 fill-amber-400' : ''}`} />
@@ -389,10 +324,10 @@ export default function RegistryView({
                   <div className="flex items-center gap-4 mt-3 pt-2 border-t border-slate-900 text-xs text-slate-500">
                     <span className="flex items-center gap-1">
                       <Star className="w-3 h-3 text-amber-500" />
-                      {(res.stars ?? res.starCount ?? 0).toLocaleString()} stars
+                      {formatCount(res.stars ?? res.starCount ?? 0)} stars
                     </span>
                     {(res.pullCount ?? 0) > 0 && (
-                      <span>{(res.pullCount ?? 0).toLocaleString()} pulls</span>
+                      <span>{formatCount(res.pullCount)} pulls</span>
                     )}
                   </div>
                 </div>
@@ -402,7 +337,7 @@ export default function RegistryView({
         </div>
 
         {/* Right Side: Image Overview & Tags Workspace */}
-        <div className="w-full md:w-7/12 flex flex-col overflow-hidden bg-slate-950/40">
+        <div className="w-full md:w-7/12 flex flex-col overflow-hidden bg-slate-950/40 min-w-0">
           {!selectedImage ? (
             <div className="h-full min-h-[300px] flex flex-col items-center justify-center text-center text-slate-500 p-8">
               <Layers className="w-10 h-10 text-slate-700 mb-3" />
@@ -412,24 +347,24 @@ export default function RegistryView({
               </p>
             </div>
           ) : (
-            <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="flex-1 flex flex-col overflow-hidden min-w-0">
               {/* Repository Header Banner */}
-              <div className="p-6 border-b border-slate-800 bg-slate-900/60">
+              <div className="p-4 md:p-6 border-b border-slate-800 bg-slate-900/60 min-w-0">
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
-                  <div className="flex items-center gap-2.5">
-                    <h2 className="text-xl font-bold text-slate-100 font-mono">{selectedImage.name}</h2>
+                  <div className="flex items-center gap-2.5 flex-wrap min-w-0">
+                    <h2 className="text-lg md:text-xl font-bold text-slate-100 font-mono truncate">{selectedImage.name}</h2>
                     {selectedImage.isOfficial && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-semibold flex items-center gap-1">
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-semibold flex items-center gap-1 shrink-0">
                         <ShieldCheck className="w-3.5 h-3.5" />
-                        Docker Official Image
+                        Official Image
                       </span>
                     )}
-                    <span className="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-400 uppercase font-mono">
+                    <span className="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-400 uppercase font-mono shrink-0">
                       {selectedImage.registry}
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 shrink-0">
                     <button
                       onClick={() => handlePullImageTag(selectedImage.name, 'latest')}
                       disabled={pullingTag === 'latest'}
@@ -446,8 +381,8 @@ export default function RegistryView({
                 </p>
 
                 {/* Docker Pull Command Banner */}
-                <div className="flex items-center justify-between gap-2 p-2.5 rounded-lg bg-slate-950 border border-slate-800 text-xs font-mono">
-                  <div className="flex items-center gap-2 text-slate-300 truncate">
+                <div className="flex items-center justify-between gap-2 p-2.5 rounded-lg bg-slate-950 border border-slate-800 text-xs font-mono min-w-0">
+                  <div className="flex items-center gap-2 text-slate-300 truncate min-w-0">
                     <Terminal className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
                     <span className="text-slate-500 select-none">$</span>
                     <span className="truncate">docker pull {selectedImage.name}:latest</span>
@@ -491,56 +426,83 @@ export default function RegistryView({
 
               {/* Tab 1: Overview & Documentation */}
               {detailTab === 'overview' && (
-                <div className="flex-1 overflow-y-auto p-6 space-y-5">
+                <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-5 min-w-0">
                   {/* Metadata Stats Chips */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <div className="p-3 rounded-lg bg-slate-900 border border-slate-800">
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+                    <div className="p-3 rounded-lg bg-slate-900 border border-slate-800 min-w-0">
                       <div className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Stars</div>
-                      <div className="text-sm font-bold text-amber-400 flex items-center gap-1 mt-0.5">
-                        <Star className="w-3.5 h-3.5 fill-current" />
-                        {(metadata?.starCount ?? selectedImage.stars ?? 0).toLocaleString()}
+                      <div 
+                        className="text-xs sm:text-sm font-bold text-amber-400 flex items-center gap-1 mt-0.5 truncate"
+                        title={`${(metadata?.starCount ?? selectedImage.stars ?? 0).toLocaleString()} stars`}
+                      >
+                        <Star className="w-3.5 h-3.5 fill-current shrink-0" />
+                        <span className="truncate">{formatCount(metadata?.starCount ?? selectedImage.stars ?? 0)}</span>
                       </div>
                     </div>
-                    <div className="p-3 rounded-lg bg-slate-900 border border-slate-800">
+                    <div className="p-3 rounded-lg bg-slate-900 border border-slate-800 min-w-0">
                       <div className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Pulls</div>
-                      <div className="text-sm font-bold text-slate-200 mt-0.5">
+                      <div 
+                        className="text-xs sm:text-sm font-bold text-slate-200 mt-0.5 truncate"
+                        title={`${(metadata?.pullCount ?? selectedImage.pullCount ?? 0).toLocaleString()} pulls`}
+                      >
                         {(metadata?.pullCount ?? selectedImage.pullCount ?? 0) > 0 
-                          ? (metadata?.pullCount ?? selectedImage.pullCount).toLocaleString()
+                          ? `${formatCount(metadata?.pullCount ?? selectedImage.pullCount)}+`
                           : '10M+'}
                       </div>
                     </div>
-                    <div className="p-3 rounded-lg bg-slate-900 border border-slate-800">
+                    <div className="p-3 rounded-lg bg-slate-900 border border-slate-800 min-w-0">
                       <div className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Updated</div>
-                      <div className="text-xs font-medium text-slate-300 mt-0.5 truncate">
+                      <div 
+                        className="text-xs font-medium text-slate-300 mt-0.5 truncate"
+                        title={metadata?.lastUpdated ? new Date(metadata.lastUpdated).toLocaleDateString() : 'Recent'}
+                      >
                         {metadata?.lastUpdated ? new Date(metadata.lastUpdated).toLocaleDateString() : 'Recent'}
                       </div>
                     </div>
-                    <div className="p-3 rounded-lg bg-slate-900 border border-slate-800">
+                    <div className="p-3 rounded-lg bg-slate-900 border border-slate-800 min-w-0">
                       <div className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Provider</div>
-                      <div className="text-xs font-semibold text-cyan-400 mt-0.5 uppercase">
+                      <div 
+                        className="text-xs font-semibold text-cyan-400 mt-0.5 uppercase truncate"
+                        title={selectedImage.registry}
+                      >
                         {selectedImage.registry}
                       </div>
                     </div>
                   </div>
 
                   {/* README / Markdown Documentation */}
-                  <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-5">
-                    <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-800 text-xs">
-                      <span className="font-semibold text-slate-200 flex items-center gap-1.5">
-                        <FileText className="w-4 h-4 text-cyan-400" />
-                        Repository Documentation
+                  <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-4 md:p-5 overflow-hidden min-w-0">
+                    <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-800 text-xs gap-2">
+                      <span className="font-semibold text-slate-200 flex items-center gap-1.5 truncate">
+                        <FileText className="w-4 h-4 text-cyan-400 shrink-0" />
+                        <span className="truncate">Repository Documentation</span>
                       </span>
-                      {selectedImage.registry === 'dockerhub' && (
-                        <a
-                          href={`https://hub.docker.com/${selectedImage.isOfficial ? '_' : 'r'}/${selectedImage.name}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-slate-400 hover:text-cyan-400 flex items-center gap-1 text-[11px] transition-colors"
+                      <div className="flex items-center gap-3 shrink-0">
+                        <button
+                          onClick={() => {
+                            const text = metadata?.fullDescription || selectedImage.description || '';
+                            navigator.clipboard.writeText(text);
+                            setCopiedReadme(true);
+                            setTimeout(() => setCopiedReadme(false), 2000);
+                          }}
+                          className="text-slate-400 hover:text-cyan-400 flex items-center gap-1 text-[11px] transition-colors cursor-pointer"
+                          title="Copy raw markdown text"
                         >
-                          <span>Open on Docker Hub</span>
-                          <ExternalLink className="w-3 h-3" />
-                        </a>
-                      )}
+                          {copiedReadme ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                          <span>{copiedReadme ? 'Copied' : 'Copy MD'}</span>
+                        </button>
+                        {selectedImage.registry === 'dockerhub' && (
+                          <a
+                            href={`https://hub.docker.com/${selectedImage.isOfficial ? '_' : 'r'}/${selectedImage.name}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-slate-400 hover:text-cyan-400 flex items-center gap-1 text-[11px] transition-colors"
+                          >
+                            <span className="hidden sm:inline">Docker Hub</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        )}
+                      </div>
                     </div>
 
                     {loadingMetadata ? (
@@ -557,7 +519,7 @@ export default function RegistryView({
 
               {/* Tab 2: Available Tags & Pull */}
               {detailTab === 'tags' && (
-                <div className="flex-1 flex flex-col p-6 overflow-hidden">
+                <div className="flex-1 flex flex-col p-4 md:p-6 overflow-hidden min-w-0">
                   {/* Tag search filter */}
                   <div className="mb-3 flex items-center justify-between gap-3">
                     <div className="relative flex-1 max-w-sm">
@@ -570,13 +532,13 @@ export default function RegistryView({
                         className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-3 py-1 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 font-mono"
                       />
                     </div>
-                    <span className="text-xs text-slate-400">
+                    <span className="text-xs text-slate-400 shrink-0">
                       Showing {filteredTags.length} of {tags.length} tags
                     </span>
                   </div>
 
                   {/* Tags list */}
-                  <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+                  <div className="flex-1 overflow-y-auto space-y-2 pr-1 min-w-0">
                     {loadingTags ? (
                       <div className="p-8 text-center text-xs text-slate-500 flex flex-col items-center gap-2">
                         <RefreshCw className="w-4 h-4 animate-spin text-cyan-400" />
@@ -590,17 +552,17 @@ export default function RegistryView({
                       filteredTags.map((t) => (
                         <div
                           key={t.name}
-                          className="flex items-center justify-between p-3 rounded-lg bg-slate-900 border border-slate-800 text-xs hover:border-slate-700 transition-colors"
+                          className="flex items-center justify-between p-3 rounded-lg bg-slate-900 border border-slate-800 text-xs hover:border-slate-700 transition-colors gap-2 min-w-0"
                         >
-                          <div className="flex items-center gap-3">
-                            <span className="font-mono font-semibold text-cyan-300">{t.name}</span>
+                          <div className="flex items-center gap-2 sm:gap-3 min-w-0 truncate">
+                            <span className="font-mono font-semibold text-cyan-300 truncate">{t.name}</span>
                             {t.size > 0 && (
-                              <span className="text-[11px] text-slate-400 font-mono">
+                              <span className="text-[11px] text-slate-400 font-mono shrink-0">
                                 {(t.size / 1024 / 1024).toFixed(1)} MB
                               </span>
                             )}
                             {t.lastUpdated && (
-                              <span className="text-[11px] text-slate-500 flex items-center gap-1">
+                              <span className="text-[11px] text-slate-500 hidden sm:flex items-center gap-1 shrink-0">
                                 <Clock className="w-3 h-3" />
                                 {new Date(t.lastUpdated).toLocaleDateString()}
                               </span>
