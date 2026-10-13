@@ -16,6 +16,7 @@ Built with **Go (Wails v2)** + **React 19** + **Tailwind CSS v4** + **Base UI / 
 ### 📦 Containers Management & Interactive Terminal
 - View, start, stop, restart, pause, unpause, and delete containers.
 - Real-time container status badges, port bindings, and created timestamps.
+- **Real-Time Resource Metrics**: Live CPU usage %, memory consumption (MB/GB) with limits, incoming/outgoing network I/O traffic, and block disk I/O / PIDs streamed directly on the overview tab.
 - **In-Container Terminal Shell (Exec)**: Launch an interactive shell terminal (`/bin/sh`, `/bin/bash`) directly into running containers to run commands and inspect runtime state.
 - **Log Streaming & Inspection**: Live container logs with auto-scroll and quick clipboard copy.
 - **Inspect Inspector**: Deep JSON inspection of low-level container configurations and network settings.
@@ -50,6 +51,11 @@ Built with **Go (Wails v2)** + **React 19** + **Tailwind CSS v4** + **Base UI / 
 ### 🎨 Themes & Adaptive UI
 - Fully integrated **Dark Mode** and **Light Mode** with WCAG AA compliant contrast across all cards, modals, and tables.
 - Responsive overflow protection with ellipsis truncation (`...`) and compact layouts for small displays and laptops.
+
+### 🔄 In-Place Self-Updates & Release Management
+- **Background Release Detection**: Automatic GitHub Releases checking with non-intrusive floating toast notifications and configurable startup toggles.
+- **In-Memory Extraction & Atomic Replacement**: Downloads platform-matched binaries (`.tar.gz` / `.zip`), unpacks in memory, and swaps the running executable in-place.
+- **Instant Restart**: One-click **Restart Now** action respawns the updated binary seamlessly (VS Code-style UX).
 
 ### 🛠️ Runtime Detection & Engine Installer
 - Cross-platform detection for Docker and Podman daemon states.
