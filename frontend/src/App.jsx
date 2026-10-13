@@ -65,6 +65,7 @@ import {
   RemoveFavorite,
   GetConfig,
   GetAppVersion,
+  CheckForAppUpdate,
   SetTheme,
   GetSystemTheme,
   DetectRuntimes,
@@ -72,6 +73,7 @@ import {
   InstallRuntime,
   SelectDirectoryDialog
 } from '../wailsjs/go/main/App';
+import UpdateModal from './components/UpdateModal';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('containers');
@@ -94,6 +96,9 @@ export default function App() {
   const [logsModal, setLogsModal] = useState({ open: false, id: '', name: '' });
   const [inspectModal, setInspectModal] = useState({ open: false, title: '', data: null });
   const [showInstaller, setShowInstaller] = useState(false);
+  const [updateModalOpen, setUpdateModalOpen] = useState(false);
+  const [updateInfo, setUpdateInfo] = useState(null);
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
 
   // Apply theme to document root
   const applyThemeToDOM = async (t) => {
@@ -189,6 +194,35 @@ export default function App() {
     }, 6000);
     return () => clearInterval(interval);
   }, [refreshAll]);
+
+  // Check for app updates
+  const handleCheckForUpdates = useCallback(async (manual = false) => {
+    setIsCheckingUpdate(true);
+    try {
+      const res = await CheckForAppUpdate();
+      if (res) {
+        setUpdateInfo(res);
+        if (res.available || manual) {
+          setUpdateModalOpen(true);
+        }
+      }
+    } catch (err) {
+      console.warn('Update check failed:', err);
+      if (manual) {
+        alert(`Could not check for updates: ${err}`);
+      }
+    } finally {
+      setIsCheckingUpdate(false);
+    }
+  }, []);
+
+  // Background check for update shortly after app startup
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      handleCheckForUpdates(false);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [handleCheckForUpdates]);
 
   // Runtime Switch Handler
   const handleSwitchRuntime = async (target) => {
@@ -384,6 +418,8 @@ export default function App() {
           totalContainers: containers.length
         }}
         appVersion={appVersion}
+        updateAvailable={Boolean(updateInfo?.available)}
+        onOpenUpdateModal={() => setUpdateModalOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -504,6 +540,8 @@ export default function App() {
               theme={theme}
               onSetTheme={handleSetTheme}
               appVersion={appVersion}
+              onCheckForUpdates={() => handleCheckForUpdates(true)}
+              isCheckingUpdates={isCheckingUpdate}
             />
           )}
         </main>
@@ -531,6 +569,14 @@ export default function App() {
         onDetect={DetectRuntimes}
         onGetPlan={GetInstallPlan}
         onInstall={InstallRuntime}
+      />
+
+      <UpdateModal
+        isOpen={updateModalOpen}
+        onClose={() => setUpdateModalOpen(false)}
+        updateInfo={updateInfo}
+        onCheckAgain={() => handleCheckForUpdates(true)}
+        isChecking={isCheckingUpdate}
       />
     </div>
   );

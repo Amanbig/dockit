@@ -22,7 +22,9 @@ export default function SettingsView({
   activeRuntime,
   theme,
   onSetTheme,
-  appVersion = '0.1.0'
+  appVersion = '0.1.0',
+  onCheckForUpdates,
+  isCheckingUpdates = false
 }) {
   const [selectedTheme, setSelectedTheme] = useState(theme || config?.ui?.theme || 'dark');
   const [defaultRuntime, setDefaultRuntime] = useState(activeRuntime || 'docker');
@@ -246,7 +248,7 @@ export default function SettingsView({
           </div>
 
           {/* About & Version Information */}
-          <div className="p-5 rounded-xl border border-slate-800 bg-slate-950/70 space-y-3">
+          <div className="p-5 rounded-xl border border-slate-800 bg-slate-950/70 space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 font-bold text-sm">
@@ -257,9 +259,20 @@ export default function SettingsView({
                   <p className="text-xs text-slate-400">Universal Docker &amp; Podman Management</p>
                 </div>
               </div>
-              <span className="px-2.5 py-1 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 font-mono text-xs font-semibold">
-                v{appVersion.replace(/^v/, '')}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-1 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 font-mono text-xs font-semibold">
+                  v{appVersion.replace(/^v/, '')}
+                </span>
+                <button
+                  type="button"
+                  onClick={onCheckForUpdates}
+                  disabled={isCheckingUpdates}
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-lg border border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-medium transition-colors disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3 h-3 ${isCheckingUpdates ? 'animate-spin text-cyan-400' : ''}`} />
+                  <span>{isCheckingUpdates ? 'Checking...' : 'Check for Updates'}</span>
+                </button>
+              </div>
             </div>
             <p className="text-xs text-slate-500 leading-relaxed">
               Built with Wails v2, Go, and React. Official binaries are built across Linux, Windows, and macOS via GitHub Actions.

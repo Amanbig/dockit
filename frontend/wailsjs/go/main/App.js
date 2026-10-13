@@ -6,6 +6,10 @@ export function AddFavorite(arg1) {
   return window['go']['main']['App']['AddFavorite'](arg1);
 }
 
+export function CheckForAppUpdate() {
+  return window['go']['main']['App']['CheckForAppUpdate']();
+}
+
 export function ComposeApplyChanges(arg1) {
   return window['go']['main']['App']['ComposeApplyChanges'](arg1);
 }

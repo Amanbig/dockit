@@ -20,6 +20,7 @@ import (
 	"dockit/internal/runtime"
 	dockerclient "dockit/internal/runtime/docker"
 	podmanclient "dockit/internal/runtime/podman"
+	"dockit/internal/updater"
 	"dockit/internal/version"
 	"dockit/internal/volumes"
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -202,6 +203,11 @@ func (a *App) GetSystemVersion() (*runtime.SystemVersion, error) {
 // GetAppVersion returns the current application version string.
 func (a *App) GetAppVersion() string {
 	return version.Version
+}
+
+// CheckForAppUpdate checks GitHub for newer releases and download assets.
+func (a *App) CheckForAppUpdate() (*updater.UpdateInfo, error) {
+	return updater.CheckForUpdate(a.ctx)
 }
 
 // ==========================================
