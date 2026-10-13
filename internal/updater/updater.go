@@ -74,6 +74,9 @@ var (
 	curProgress = DownloadProgress{
 		Status: "idle",
 	}
+
+	targetExecutableMu sync.RWMutex
+	appExecutablePath  string
 )
 
 // GetCurrentProgress returns the latest download/install status.
@@ -238,7 +241,7 @@ func DownloadAndInstallUpdate(ctx context.Context, downloadURL, assetFileName st
 		Percentage: 100,
 	})
 
-	// Apply selfupdate in place
+	// Resolve current executable path BEFORE selfupdate modifies or moves it
 	targetExecutable, err := os.Executable()
 	if err != nil {
 		setProgress(DownloadProgress{Status: "error", Error: err.Error()})
@@ -248,6 +251,11 @@ func DownloadAndInstallUpdate(ctx context.Context, downloadURL, assetFileName st
 	if err != nil {
 		targetExecutable, _ = os.Executable()
 	}
+
+	// Persist the real target binary path so RestartApp invokes the new binary, not .old
+	targetExecutableMu.Lock()
+	appExecutablePath = targetExecutable
+	targetExecutableMu.Unlock()
 
 	opts := selfupdate.Options{
 		TargetPath: targetExecutable,
@@ -330,13 +338,39 @@ func extractBinary(archiveData []byte, assetFileName string) (io.Reader, error) 
 
 // RestartApp respawns the updated binary and exits the current process.
 func RestartApp() error {
-	execPath, err := os.Executable()
-	if err != nil {
-		return err
+	targetExecutableMu.RLock()
+	execPath := appExecutablePath
+	targetExecutableMu.RUnlock()
+
+	if execPath == "" {
+		var err error
+		execPath, err = os.Executable()
+		if err != nil {
+			return err
+		}
+		execPath, err = filepath.EvalSymlinks(execPath)
+		if err != nil {
+			execPath, _ = os.Executable()
+		}
 	}
-	execPath, err = filepath.EvalSymlinks(execPath)
-	if err != nil {
-		execPath, _ = os.Executable()
+
+	// Safety check: On Linux / Unix, if execPath still contains .old or is pointing to the renamed old binary,
+	// restore it to the actual target binary path (e.g. /home/.../Downloads/.dockit.old -> /home/.../Downloads/dockit)
+	dir := filepath.Dir(execPath)
+	base := filepath.Base(execPath)
+	if strings.HasSuffix(base, ".old") {
+		cleanBase := strings.TrimPrefix(strings.TrimSuffix(base, ".old"), ".")
+		execPath = filepath.Join(dir, cleanBase)
+	}
+
+	// Verify the executable file actually exists
+	if _, err := os.Stat(execPath); err != nil {
+		return fmt.Errorf("target binary does not exist at %s: %w", execPath, err)
+	}
+
+	// Ensure execution permission is granted on Linux/macOS
+	if runtime.GOOS != "windows" {
+		_ = os.Chmod(execPath, 0755)
 	}
 
 	cmd := exec.Command(execPath, os.Args[1:]...)
