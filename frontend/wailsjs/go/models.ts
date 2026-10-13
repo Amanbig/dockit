@@ -943,6 +943,26 @@ export namespace types {
 
 export namespace updater {
 	
+	export class DownloadProgress {
+	    percentage: number;
+	    totalBytes: number;
+	    readBytes: number;
+	    status: string;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new DownloadProgress(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.percentage = source["percentage"];
+	        this.totalBytes = source["totalBytes"];
+	        this.readBytes = source["readBytes"];
+	        this.status = source["status"];
+	        this.error = source["error"];
+	    }
+	}
 	export class UpdateInfo {
 	    available: boolean;
 	    currentVersion: string;

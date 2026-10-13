@@ -210,6 +210,21 @@ func (a *App) CheckForAppUpdate() (*updater.UpdateInfo, error) {
 	return updater.CheckForUpdate(a.ctx)
 }
 
+// DownloadAndApplyUpdate starts downloading the update archive, extracts it, and applies it in-place.
+func (a *App) DownloadAndApplyUpdate(downloadURL, assetFileName string) error {
+	return updater.DownloadAndInstallUpdate(a.ctx, downloadURL, assetFileName)
+}
+
+// GetUpdateProgress returns the current percentage and state of the update download.
+func (a *App) GetUpdateProgress() updater.DownloadProgress {
+	return updater.GetCurrentProgress()
+}
+
+// RestartApp restarts the desktop application with the newly updated binary.
+func (a *App) RestartApp() error {
+	return updater.RestartApp()
+}
+
 // ==========================================
 // Containers Methods
 // ==========================================

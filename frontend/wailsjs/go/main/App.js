@@ -86,6 +86,10 @@ export function DisconnectContainerFromNetwork(arg1, arg2, arg3) {
   return window['go']['main']['App']['DisconnectContainerFromNetwork'](arg1, arg2, arg3);
 }
 
+export function DownloadAndApplyUpdate(arg1, arg2) {
+  return window['go']['main']['App']['DownloadAndApplyUpdate'](arg1, arg2);
+}
+
 export function ExecContainer(arg1, arg2) {
   return window['go']['main']['App']['ExecContainer'](arg1, arg2);
 }
@@ -154,6 +158,10 @@ export function GetSystemVersion() {
   return window['go']['main']['App']['GetSystemVersion']();
 }
 
+export function GetUpdateProgress() {
+  return window['go']['main']['App']['GetUpdateProgress']();
+}
+
 export function GetVolumes() {
   return window['go']['main']['App']['GetVolumes']();
 }
@@ -220,6 +228,10 @@ export function RemoveNetwork(arg1) {
 
 export function RemoveVolume(arg1, arg2) {
   return window['go']['main']['App']['RemoveVolume'](arg1, arg2);
+}
+
+export function RestartApp() {
+  return window['go']['main']['App']['RestartApp']();
 }
 
 export function RestartContainer(arg1, arg2) {

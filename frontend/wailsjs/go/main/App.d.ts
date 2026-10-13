@@ -53,6 +53,8 @@ export function DetectRuntimes():Promise<types.DetectionResult>;
 
 export function DisconnectContainerFromNetwork(arg1:string,arg2:string,arg3:boolean):Promise<void>;
 
+export function DownloadAndApplyUpdate(arg1:string,arg2:string):Promise<void>;
+
 export function ExecContainer(arg1:string,arg2:Array<string>):Promise<string>;
 
 export function GetActiveRuntime():Promise<string>;
@@ -87,6 +89,8 @@ export function GetSystemTheme():Promise<string>;
 
 export function GetSystemVersion():Promise<runtime.SystemVersion>;
 
+export function GetUpdateProgress():Promise<updater.DownloadProgress>;
+
 export function GetVolumes():Promise<Array<volumes.Volume>>;
 
 export function Greet(arg1:string):Promise<string>;
@@ -120,6 +124,8 @@ export function RemoveImage(arg1:string,arg2:boolean):Promise<Array<runtime.Imag
 export function RemoveNetwork(arg1:string):Promise<void>;
 
 export function RemoveVolume(arg1:string,arg2:boolean):Promise<void>;
+
+export function RestartApp():Promise<void>;
 
 export function RestartContainer(arg1:string,arg2:any):Promise<void>;
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Sparkles, 
   Download, 
@@ -7,9 +7,18 @@ import {
   CheckCircle2, 
   Clock, 
   FileText,
-  AlertCircle
+  AlertCircle,
+  RefreshCw,
+  RotateCcw,
+  ShieldCheck,
+  Check
 } from 'lucide-react';
 import { BrowserOpenURL } from '../../wailsjs/runtime/runtime';
+import { 
+  DownloadAndApplyUpdate, 
+  GetUpdateProgress, 
+  RestartApp 
+} from '../../wailsjs/go/main/App';
 
 export default function UpdateModal({
   isOpen,
@@ -18,11 +27,82 @@ export default function UpdateModal({
   onCheckAgain,
   isChecking
 }) {
+  const [installState, setInstallState] = useState('idle'); // idle, downloading, extracting, applying, ready, error
+  const [progress, setProgress] = useState(0);
+  const [progressInfo, setProgressInfo] = useState({ readBytes: 0, totalBytes: 0 });
+  const [errorMessage, setErrorMessage] = useState('');
+  const [isRestarting, setIsRestarting] = useState(false);
+
+  useEffect(() => {
+    let timer;
+    if (installState === 'downloading' || installState === 'extracting' || installState === 'applying') {
+      timer = setInterval(async () => {
+        try {
+          const res = await GetUpdateProgress();
+          if (res) {
+            setProgress(res.percentage || 0);
+            setProgressInfo({ readBytes: res.readBytes || 0, totalBytes: res.totalBytes || 0 });
+            if (res.status === 'ready') {
+              setInstallState('ready');
+            } else if (res.status === 'error') {
+              setInstallState('error');
+              setErrorMessage(res.error || 'Update failed');
+            } else if (res.status) {
+              setInstallState(res.status);
+            }
+          }
+        } catch (e) {
+          console.warn('Failed to poll progress:', e);
+        }
+      }, 500);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [installState]);
+
   if (!isOpen) return null;
 
   const hasUpdate = updateInfo?.available;
 
-  const handleDownload = () => {
+  const handleStartInAppUpdate = async () => {
+    if (!updateInfo?.downloadUrl || !updateInfo?.assetFileName) {
+      handleManualBrowserDownload();
+      return;
+    }
+
+    setInstallState('downloading');
+    setProgress(0);
+    setErrorMessage('');
+
+    try {
+      // Async trigger on Go side
+      DownloadAndApplyUpdate(updateInfo.downloadUrl, updateInfo.assetFileName)
+        .then(() => {
+          setInstallState('ready');
+        })
+        .catch((err) => {
+          setInstallState('error');
+          setErrorMessage(String(err));
+        });
+    } catch (err) {
+      setInstallState('error');
+      setErrorMessage(String(err));
+    }
+  };
+
+  const handleRestartNow = async () => {
+    setIsRestarting(true);
+    try {
+      await RestartApp();
+    } catch (err) {
+      setIsRestarting(false);
+      setErrorMessage(`Failed to restart: ${err}`);
+      setInstallState('error');
+    }
+  };
+
+  const handleManualBrowserDownload = () => {
     const url = updateInfo?.downloadUrl || updateInfo?.releaseUrl;
     if (url) {
       if (typeof BrowserOpenURL === 'function') {
@@ -42,6 +122,12 @@ export default function UpdateModal({
     }
   };
 
+  const formatSize = (bytes) => {
+    if (!bytes) return '';
+    const mb = bytes / (1024 * 1024);
+    return `${mb.toFixed(1)} MB`;
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
       <div 
@@ -56,30 +142,52 @@ export default function UpdateModal({
         <div className="flex items-start justify-between gap-4 mb-5 relative z-10">
           <div className="flex items-center gap-3">
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${
-              hasUpdate 
+              installState === 'ready'
+                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                : hasUpdate 
                 ? 'bg-gradient-to-tr from-cyan-500/20 to-blue-500/20 border-cyan-500/30 text-cyan-400' 
                 : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
             }`}>
-              {hasUpdate ? <Sparkles className="w-5 h-5" /> : <CheckCircle2 className="w-5 h-5" />}
+              {installState === 'ready' ? (
+                <Check className="w-5 h-5 text-emerald-400 stroke-[3]" />
+              ) : hasUpdate ? (
+                <Sparkles className="w-5 h-5" />
+              ) : (
+                <CheckCircle2 className="w-5 h-5" />
+              )}
             </div>
             <div>
               <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-                {hasUpdate ? 'Update Available!' : 'You Are Up To Date'}
+                {installState === 'ready' 
+                  ? 'Update Ready to Restart' 
+                  : installState === 'downloading' || installState === 'extracting' || installState === 'applying'
+                  ? 'Updating Dockit...'
+                  : hasUpdate 
+                  ? 'Update Available!' 
+                  : 'You Are Up To Date'}
               </h2>
               <p className="text-xs text-slate-400">
-                {hasUpdate 
-                  ? 'A newer version of Dockit is ready to download.' 
-                  : 'Dockit is running the latest available release.'}
+                {installState === 'ready'
+                  ? 'The update has been applied in-place. Restart to launch the new version.'
+                  : installState === 'downloading'
+                  ? 'Downloading update package in the background...'
+                  : installState === 'extracting' || installState === 'applying'
+                  ? 'Extracting and updating application binary...'
+                  : hasUpdate 
+                  ? 'A newer version is available. Update now seamlessly in the background.' 
+                  : 'Dockit is running the latest official release.'}
               </p>
             </div>
           </div>
 
-          <button
-            onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          {installState !== 'downloading' && installState !== 'applying' && (
+            <button
+              onClick={onClose}
+              className="p-1 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
         </div>
 
         {/* Versions Badges */}
@@ -91,7 +199,7 @@ export default function UpdateModal({
             </span>
           </div>
           <div className="flex flex-col">
-            <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Latest Release</span>
+            <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">New Version</span>
             <span className={`text-sm font-mono font-bold mt-0.5 ${
               hasUpdate ? 'text-cyan-400' : 'text-emerald-400'
             }`}>
@@ -100,8 +208,70 @@ export default function UpdateModal({
           </div>
         </div>
 
-        {/* Release Details / Notes */}
-        {hasUpdate ? (
+        {/* In-Progress Progress Bar & Status */}
+        {(installState === 'downloading' || installState === 'extracting' || installState === 'applying') && (
+          <div className="space-y-3 mb-6 p-4 rounded-xl bg-slate-950/80 border border-cyan-800/40">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-semibold text-cyan-300 flex items-center gap-2">
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                {installState === 'downloading' && `Downloading: ${progress}%`}
+                {installState === 'extracting' && 'Extracting binary...'}
+                {installState === 'applying' && 'Replacing application executable in-place...'}
+              </span>
+              {progressInfo.totalBytes > 0 && (
+                <span className="text-[11px] font-mono text-slate-400">
+                  {formatSize(progressInfo.readBytes)} / {formatSize(progressInfo.totalBytes)}
+                </span>
+              )}
+            </div>
+
+            {/* Progress bar line */}
+            <div className="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden">
+              <div 
+                className="bg-gradient-to-r from-cyan-500 to-blue-500 h-full rounded-full transition-all duration-300 shadow-sm shadow-cyan-400/50"
+                style={{ width: `${Math.max(5, progress)}%` }}
+              />
+            </div>
+            <p className="text-[11px] text-slate-400">
+              You can keep using Dockit while the update is applied smoothly in the background.
+            </p>
+          </div>
+        )}
+
+        {/* Ready to restart prompt */}
+        {installState === 'ready' && (
+          <div className="p-4 rounded-xl bg-emerald-950/20 border border-emerald-800/40 text-xs text-emerald-300 flex items-start gap-3 mb-6">
+            <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p className="font-bold text-slate-100">Update Installed Successfully!</p>
+              <p className="text-slate-300 leading-relaxed">
+                Dockit has updated to <strong>v{String(updateInfo?.latestVersion).replace(/^v/, '')}</strong>. Restart now to load the new version immediately, or restart later at your convenience.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Error state alert */}
+        {installState === 'error' && (
+          <div className="p-4 rounded-xl bg-rose-950/30 border border-rose-800/50 text-xs text-rose-300 flex items-start gap-3 mb-6">
+            <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p className="font-bold text-rose-200">Update Failed</p>
+              <p className="text-rose-300 leading-relaxed font-mono text-[11px]">
+                {errorMessage || 'An error occurred during update.'}
+              </p>
+              <button
+                onClick={handleManualBrowserDownload}
+                className="mt-1 text-cyan-400 underline hover:text-cyan-300 block"
+              >
+                Download manually from browser instead
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Release Notes (Shown when idle) */}
+        {hasUpdate && installState === 'idle' && (
           <div className="space-y-4 mb-6">
             <div className="space-y-1.5">
               <div className="flex items-center justify-between text-xs">
@@ -129,7 +299,7 @@ export default function UpdateModal({
             {updateInfo?.assetFileName && (
               <div className="p-3 rounded-lg bg-cyan-950/30 border border-cyan-800/40 flex items-center justify-between gap-3 text-xs">
                 <div className="truncate">
-                  <span className="text-slate-400 block text-[11px]">Recommended for your platform:</span>
+                  <span className="text-slate-400 block text-[11px]">In-place binary package:</span>
                   <span className="font-mono text-cyan-300 font-medium truncate block">
                     {updateInfo.assetFileName}
                   </span>
@@ -140,7 +310,9 @@ export default function UpdateModal({
               </div>
             )}
           </div>
-        ) : (
+        )}
+
+        {!hasUpdate && installState === 'idle' && (
           <div className="p-4 rounded-xl bg-emerald-950/20 border border-emerald-800/30 text-xs text-emerald-300 flex items-start gap-2.5 mb-6">
             <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
             <p className="leading-relaxed">
@@ -153,7 +325,7 @@ export default function UpdateModal({
         <div className="flex items-center justify-between gap-3 pt-2 border-t border-slate-800/80">
           <button
             onClick={onCheckAgain}
-            disabled={isChecking}
+            disabled={isChecking || installState === 'downloading' || installState === 'applying'}
             className="text-xs text-slate-400 hover:text-slate-200 transition-colors disabled:opacity-50"
           >
             {isChecking ? 'Checking...' : 'Check again'}
@@ -165,16 +337,27 @@ export default function UpdateModal({
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors"
             >
               <ExternalLink className="w-3.5 h-3.5" />
-              <span>Release Notes</span>
+              <span>Notes</span>
             </button>
 
-            {hasUpdate && (
+            {hasUpdate && installState === 'idle' && (
               <button
-                onClick={handleDownload}
+                onClick={handleStartInAppUpdate}
                 className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 text-xs font-bold shadow-md shadow-cyan-500/20 hover:brightness-110 transition-all"
               >
                 <Download className="w-4 h-4 stroke-[2.5]" />
-                <span>Download Update</span>
+                <span>Update Now</span>
+              </button>
+            )}
+
+            {installState === 'ready' && (
+              <button
+                onClick={handleRestartNow}
+                disabled={isRestarting}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 text-xs font-bold shadow-md shadow-emerald-500/20 hover:brightness-110 transition-all"
+              >
+                <RotateCcw className={`w-4 h-4 stroke-[2.5] ${isRestarting ? 'animate-spin' : ''}`} />
+                <span>{isRestarting ? 'Restarting...' : 'Restart Now'}</span>
               </button>
             )}
           </div>
