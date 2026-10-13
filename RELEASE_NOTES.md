@@ -22,6 +22,13 @@ Dockit **v0.3.2** delivers the complete in-place background self-updater (VS Cod
   - **Disk & Tasks**: Total block I/O bytes read/written and active OS process/thread counts (PIDs).
 - **Smooth Auto-Polling**: Metrics stream every 2 seconds while the container is running and pause cleanly when stopped.
 
+#### 📜 Container Log Explorer & Filtering
+- **Interactive Log Filtering**: Quick search with real-time text matching across log streams.
+- **Log Level Badges**: Filter logs instantly by level (`All`, `Error`, `Warn`, `Info`).
+- **Timestamp Toggle**: Show or hide ISO timestamps on demand.
+- **Smart Auto-Follow**: Auto-scrolls to the newest log entries as they arrive.
+- **Match Counter**: Live counter showing filtered vs. total lines.
+
 #### 🎨 Theme & UI Enhancements
 - Fixed Light Mode styling for the Compose Down options dialog, Update modal, release notes box, and version indicator pills.
 
