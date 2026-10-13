@@ -119,6 +119,11 @@ dockit/
    ```bash
    wails dev
    ```
+   > **Note for Linux (Ubuntu 24.04+, Linux Mint 22+, or WebKitGTK 4.1 users)**:  
+   > If your distro uses `libwebkit2gtk-4.1-dev`, run with:  
+   > ```bash
+   > wails dev -tags webkit2_41
+   > ```
    This spins up Vite with hot-reloading for the React UI and binds your Go methods in real time.
 
 4. **Run Unit Tests**:
@@ -135,6 +140,8 @@ To compile a self-contained desktop binary for your current operating system:
 ```bash
 wails build
 ```
+
+*(On Linux systems with WebKitGTK 4.1, use `wails build -tags webkit2_41`)*
 
 The compiled binary will be placed inside the `build/bin/` directory.
 
