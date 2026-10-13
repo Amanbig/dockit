@@ -284,16 +284,21 @@ export default function RegistryView({
                 <div
                   key={`${res.registry}-${res.name}`}
                   onClick={() => handleSelectImage(res)}
-                  className={`p-4 rounded-xl border cursor-pointer transition-all ${
+                  className={`p-4 rounded-xl border cursor-pointer transition-all min-w-0 overflow-hidden ${
                     isSelected
                       ? 'bg-slate-900 border-cyan-500/60 shadow-md shadow-cyan-500/10'
                       : 'bg-slate-950/70 border-slate-800 hover:border-slate-700'
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start justify-between gap-2 min-w-0">
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-bold text-slate-100 text-sm truncate">{res.name}</span>
+                      <div className="flex items-center gap-2 flex-wrap min-w-0 mb-1">
+                        <span 
+                          className="font-bold text-slate-100 text-sm truncate block max-w-full"
+                          title={res.name}
+                        >
+                          {res.name}
+                        </span>
                         {res.isOfficial && (
                           <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-semibold flex items-center gap-1 shrink-0 whitespace-nowrap">
                             <ShieldCheck className="w-3 h-3" />
@@ -304,7 +309,7 @@ export default function RegistryView({
                           {res.registry}
                         </span>
                       </div>
-                      <p className="text-xs text-slate-400 mt-1 line-clamp-2">
+                      <p className="text-xs text-slate-400 mt-1 line-clamp-2 break-words">
                         {res.description || 'No description provided.'}
                       </p>
                     </div>
@@ -314,7 +319,7 @@ export default function RegistryView({
                         e.stopPropagation();
                         toggleFavorite(res.name);
                       }}
-                      className="p-1 text-slate-500 hover:text-amber-400 transition-colors shrink-0"
+                      className="p-1 text-slate-500 hover:text-amber-400 transition-colors shrink-0 cursor-pointer"
                       title={fav ? 'Remove from favorites' : 'Add to favorites'}
                     >
                       <Star className={`w-4 h-4 ${fav ? 'text-amber-400 fill-amber-400' : ''}`} />

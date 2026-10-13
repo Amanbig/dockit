@@ -49,13 +49,14 @@ html.light .bg-slate-950 {
 /* Primary cards, panels, sub-bars, headers */
 html.light .bg-slate-900,
 html.light .bg-slate-900\/20,
+html.light .bg-slate-900\/30,
 html.light .bg-slate-900\/40,
 html.light .bg-slate-900\/50,
 html.light .bg-slate-900\/60,
+html.light .bg-slate-900\/70,
 html.light .bg-slate-900\/80,
 html.light .bg-slate-900\/90,
-html.light .bg-slate-950\/20,
-html.light .bg-slate-950\/40,
+html.light .bg-slate-950\/50,
 html.light .bg-slate-950\/60,
 html.light .bg-slate-950\/70,
 html.light .bg-slate-950\/80,
@@ -63,6 +64,18 @@ html.light .bg-slate-950\/90,
 html.light header,
 html.light aside {
     background-color: #ffffff !important;
+}
+
+/* Gradients in light mode */
+html.light div[class*="from-slate-900"] {
+    background: #ffffff !important;
+}
+
+/* Metadata badges in light mode */
+html.light span[class*="bg-slate-950"] {
+    background-color: #f1f5f9 !important;
+    border-color: #cbd5e1 !important;
+    color: #475569 !important;
 }
 
 /* Sub tabs and secondary toolbars */

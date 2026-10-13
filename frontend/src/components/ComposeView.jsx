@@ -410,7 +410,7 @@ export default function ComposeView({
           {/* Welcome Callout Hero - Only shown if no projects exist yet */}
           {recentProjects.length === 0 ? (
             <div className="max-w-3xl mx-auto my-6">
-              <div className="relative rounded-2xl bg-gradient-to-b from-slate-900/90 to-slate-950/90 border border-slate-800 p-8 md:p-10 shadow-2xl overflow-hidden text-center">
+              <div className="relative rounded-2xl bg-slate-900/95 border border-slate-800 p-8 md:p-10 shadow-2xl overflow-hidden text-center">
                 {/* Decorative glow */}
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-28 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
 
@@ -504,17 +504,17 @@ export default function ComposeView({
                   <div
                     key={p.workingDir}
                     onClick={() => loadProjectFromPath(p.workingDir)}
-                    className="p-4 rounded-xl border border-slate-800 bg-slate-900/70 hover:border-cyan-500/50 hover:bg-slate-900 transition-all cursor-pointer flex flex-col justify-between group shadow-sm"
+                    className="p-4 rounded-xl border border-slate-800 bg-slate-900 hover:border-cyan-500/50 transition-all cursor-pointer flex flex-col justify-between group shadow-sm min-w-0 overflow-hidden"
                   >
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-bold text-slate-100 text-sm group-hover:text-cyan-400 transition-colors flex items-center gap-2">
-                          <Layers className="w-4 h-4 text-cyan-400" />
-                          {p.name}
+                    <div className="min-w-0">
+                      <div className="flex items-center justify-between mb-2 gap-2 min-w-0">
+                        <span className="font-bold text-slate-100 text-sm group-hover:text-cyan-400 transition-colors flex items-center gap-2 truncate min-w-0" title={p.name}>
+                          <Layers className="w-4 h-4 text-cyan-400 shrink-0" />
+                          <span className="truncate block max-w-full">{p.name}</span>
                         </span>
                         <button
                           onClick={(e) => removeRecentProject(p.workingDir, e)}
-                          className="p-1 text-slate-500 hover:text-rose-400 transition-colors opacity-0 group-hover:opacity-100 cursor-pointer"
+                          className="p-1 text-slate-500 hover:text-rose-400 transition-colors opacity-0 group-hover:opacity-100 cursor-pointer shrink-0"
                           title="Remove from recents"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -525,11 +525,11 @@ export default function ComposeView({
                         {p.workingDir}
                       </div>
 
-                      <div className="flex items-center gap-2 text-xs text-slate-500">
-                        <span className="px-2 py-0.5 rounded bg-slate-950 border border-slate-800 text-slate-400">
+                      <div className="flex items-center gap-2 text-xs text-slate-500 flex-wrap min-w-0">
+                        <span className="px-2 py-0.5 rounded bg-slate-950/60 border border-slate-800 text-slate-400 font-medium shrink-0">
                           {p.servicesCount || 0} services
                         </span>
-                        <span>Opened {new Date(p.lastOpened).toLocaleDateString()}</span>
+                        <span className="truncate">Opened {new Date(p.lastOpened).toLocaleDateString()}</span>
                       </div>
                     </div>
 
