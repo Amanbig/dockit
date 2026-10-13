@@ -26,6 +26,10 @@ export function ComposeRefresh(arg1:string):Promise<compose.Project>;
 
 export function ComposeRestart(arg1:string,arg2:Array<string>):Promise<string>;
 
+export function ComposeRestoreSnapshot(arg1:string,arg2:string):Promise<compose.Project>;
+
+export function ComposeSaveSnapshot(arg1:string,arg2:string):Promise<compose.Snapshot>;
+
 export function ComposeStageChanges(arg1:string,arg2:string):Promise<void>;
 
 export function ComposeStart(arg1:string,arg2:Array<string>):Promise<string>;
@@ -45,6 +49,8 @@ export function CreateVolume(arg1:runtime.VolumeCreateOptions):Promise<volumes.V
 export function DetectRuntimes():Promise<types.DetectionResult>;
 
 export function DisconnectContainerFromNetwork(arg1:string,arg2:string,arg3:boolean):Promise<void>;
+
+export function ExecContainer(arg1:string,arg2:Array<string>):Promise<string>;
 
 export function GetActiveRuntime():Promise<string>;
 

@@ -32,6 +32,14 @@ type ServiceInfo struct {
 	Status        string   `json:"status"` // "running", "exited", "created", "disabled"
 }
 
+// Snapshot represents a versioned revision of a compose project using Git-style blob hashing.
+type Snapshot struct {
+	Hash      string `json:"hash"`
+	Message   string `json:"message"`
+	Timestamp string `json:"timestamp"`
+	Content   string `json:"content"`
+}
+
 // Project represents a managed Docker Compose project.
 type Project struct {
 	ID               string        `json:"id"`
@@ -39,12 +47,15 @@ type Project struct {
 	WorkingDir       string        `json:"workingDir"`
 	FilePath         string        `json:"filePath"`
 	Content          string        `json:"content"`
+	ContentHash      string        `json:"contentHash"`
 	TemporaryContent string        `json:"temporaryContent,omitempty"`
+	TemporaryHash    string        `json:"temporaryHash,omitempty"`
 	HasStagedChanges bool          `json:"hasStagedChanges"`
 	Services         []ServiceInfo `json:"services"`
 	Networks         []string      `json:"networks"`
 	Volumes          []string      `json:"volumes"`
 	Status           string        `json:"status"` // "running", "partial", "stopped"
+	Snapshots        []Snapshot    `json:"snapshots,omitempty"`
 }
 
 // UpOptions defines options when launching a compose project.

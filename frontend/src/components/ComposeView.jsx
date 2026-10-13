@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   FolderOpen, 
   Link as LinkIcon, 
@@ -8,15 +8,25 @@ import {
   Code, 
   CheckCircle2, 
   AlertTriangle, 
-  FileEdit, 
   Save, 
   Undo2, 
   FlaskConical, 
-  Activity, 
   Server,
   Layers,
-  ChevronRight
+  ChevronRight,
+  GitBranch,
+  GitCommit,
+  History,
+  Terminal,
+  Trash2,
+  ArrowLeft,
+  FileCheck,
+  Check,
+  Copy,
+  Plus
 } from 'lucide-react';
+
+const RECENT_PROJECTS_STORAGE_KEY = 'dockit_recent_compose_projects';
 
 export default function ComposeView({
   onOpenLocal,
@@ -30,16 +40,62 @@ export default function ComposeView({
   onStageChanges,
   onApplyChanges,
   onDiscardChanges,
-  onRefreshProject
+  onRefreshProject,
+  onSaveSnapshot,
+  onRestoreSnapshot
 }) {
   const [project, setProject] = useState(null);
+  const [recentProjects, setRecentProjects] = useState([]);
   const [localPathInput, setLocalPathInput] = useState('');
   const [urlInput, setUrlInput] = useState('');
-  const [activeTab, setActiveTab] = useState('services'); // 'services' | 'editor' | 'logs'
+  const [activeTab, setActiveTab] = useState('services'); // 'services' | 'editor' | 'snapshots' | 'output'
   const [editorYaml, setEditorYaml] = useState('');
   const [loading, setLoading] = useState(false);
   const [actionOutput, setActionOutput] = useState('');
   const [showUrlDialog, setShowUrlDialog] = useState(false);
+  const [snapshotMsg, setSnapshotMsg] = useState('');
+  const [showSnapshotModal, setShowSnapshotModal] = useState(false);
+  const [selectedSnapshot, setSelectedSnapshot] = useState(null);
+
+  // Load saved projects list from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(RECENT_PROJECTS_STORAGE_KEY);
+      if (saved) {
+        setRecentProjects(JSON.parse(saved));
+      }
+    } catch (e) {
+      console.error('Failed to parse recent compose projects:', e);
+    }
+  }, []);
+
+  const saveRecentProject = (proj) => {
+    if (!proj || !proj.workingDir) return;
+    try {
+      const existing = recentProjects.filter(p => p.workingDir !== proj.workingDir);
+      const updated = [
+        {
+          name: proj.name,
+          workingDir: proj.workingDir,
+          filePath: proj.filePath,
+          servicesCount: Array.isArray(proj.services) ? proj.services.length : 0,
+          lastOpened: new Date().toISOString()
+        },
+        ...existing
+      ].slice(0, 15);
+      setRecentProjects(updated);
+      localStorage.setItem(RECENT_PROJECTS_STORAGE_KEY, JSON.stringify(updated));
+    } catch (e) {
+      console.error('Failed to save recent projects:', e);
+    }
+  };
+
+  const removeRecentProject = (workingDir, e) => {
+    if (e) e.stopPropagation();
+    const updated = recentProjects.filter(p => p.workingDir !== workingDir);
+    setRecentProjects(updated);
+    localStorage.setItem(RECENT_PROJECTS_STORAGE_KEY, JSON.stringify(updated));
+  };
 
   const loadProjectFromPath = async (dirPath) => {
     if (!dirPath || !dirPath.trim()) return;
@@ -48,8 +104,10 @@ export default function ComposeView({
       const proj = await onOpenLocal(dirPath.trim());
       setProject(proj);
       setEditorYaml(proj.temporaryContent || proj.content || '');
+      setActiveTab('services');
+      saveRecentProject(proj);
     } catch (err) {
-      alert(`Failed to load project: ${err}`);
+      alert(`Failed to load compose project: ${err}`);
     } finally {
       setLoading(false);
     }
@@ -81,7 +139,9 @@ export default function ComposeView({
       const proj = await onOpenURL(urlInput.trim(), 'dockit-remote-project');
       setProject(proj);
       setEditorYaml(proj.temporaryContent || proj.content || '');
+      setActiveTab('services');
       setShowUrlDialog(false);
+      saveRecentProject(proj);
     } catch (err) {
       alert(`Failed to clone project: ${err}`);
     } finally {
@@ -98,7 +158,7 @@ export default function ComposeView({
       const refreshed = await onRefreshProject(projectKey);
       setProject(refreshed);
       setEditorYaml(refreshed.temporaryContent || refreshed.content || '');
-      alert('Changes staged! You can now test run them safely without touching your disk file.');
+      alert('Changes staged! Testing sandbox updated with Git blob hash.');
     } catch (err) {
       alert(`Stage failed: ${err}`);
     }
@@ -112,7 +172,7 @@ export default function ComposeView({
       const refreshed = await onRefreshProject(projectKey);
       setProject(refreshed);
       setEditorYaml(refreshed.temporaryContent || refreshed.content || '');
-      alert('Staged changes permanently applied to disk!');
+      alert('Staged changes permanently committed to disk!');
     } catch (err) {
       alert(`Apply failed: ${err}`);
     }
@@ -125,9 +185,38 @@ export default function ComposeView({
       const refreshed = await onRefreshProject(projectKey);
       setProject(refreshed);
       setEditorYaml(refreshed.content || '');
-      alert('Staged changes discarded.');
+      alert('Staged sandbox changes discarded. Restored clean disk version.');
     } catch (err) {
       alert(`Discard failed: ${err}`);
+    }
+  };
+
+  const handleSaveSnapshot = async (e) => {
+    if (e) e.preventDefault();
+    if (!project || !projectKey || !onSaveSnapshot) return;
+    try {
+      await onSaveSnapshot(projectKey, snapshotMsg || 'Manual snapshot');
+      const refreshed = await onRefreshProject(projectKey);
+      setProject(refreshed);
+      setSnapshotMsg('');
+      setShowSnapshotModal(false);
+      alert('Git-like SHA-256 snapshot revision successfully saved!');
+    } catch (err) {
+      alert(`Failed to save snapshot: ${err}`);
+    }
+  };
+
+  const handleRestoreSnapshot = async (hash) => {
+    if (!project || !projectKey || !onRestoreSnapshot) return;
+    if (!window.confirm(`Restore YAML revision ${hash.slice(0, 8)} into testing sandbox?`)) return;
+    try {
+      const restored = await onRestoreSnapshot(projectKey, hash);
+      setProject(restored);
+      setEditorYaml(restored.temporaryContent || restored.content || '');
+      setActiveTab('editor');
+      alert(`Snapshot ${hash.slice(0, 8)} staged into sandbox. You can now test run or apply it to disk.`);
+    } catch (err) {
+      alert(`Failed to restore snapshot: ${err}`);
     }
   };
 
@@ -143,6 +232,7 @@ export default function ComposeView({
       setActionOutput(out);
       const refreshed = await onRefreshProject(projectKey);
       setProject(refreshed);
+      setActiveTab('output');
     } catch (err) {
       alert(`Compose Up failed: ${err}`);
     } finally {
@@ -158,6 +248,7 @@ export default function ComposeView({
       setActionOutput(out);
       const refreshed = await onRefreshProject(projectKey);
       setProject(refreshed);
+      setActiveTab('output');
     } catch (err) {
       alert(`Compose Down failed: ${err}`);
     } finally {
@@ -167,37 +258,51 @@ export default function ComposeView({
 
   return (
     <div className="flex-1 flex flex-col h-full bg-slate-900/60 overflow-hidden">
-      {/* Action Header */}
+      {/* Top Header Bar */}
       <div className="p-6 border-b border-slate-800 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-            <span>Compose Management & Testing Studio</span>
-            {project?.hasStagedChanges && (
-              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30 flex items-center gap-1">
-                <FlaskConical className="w-3 h-3" />
-                Staged Testing Active
-              </span>
-            )}
-          </h1>
+          <div className="flex items-center gap-2">
+            {project ? (
+              <button
+                onClick={() => setProject(null)}
+                className="text-cyan-400 hover:text-cyan-300 font-semibold text-xs flex items-center gap-1 transition-colors cursor-pointer mr-1"
+                title="Return to Compose Projects list"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>All Projects</span>
+              </button>
+            ) : null}
+            <h1 className="text-xl font-bold text-slate-100 flex items-center gap-2">
+              <span>{project ? project.name : 'Docker Compose Studio'}</span>
+              {project?.hasStagedChanges && (
+                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30 flex items-center gap-1">
+                  <FlaskConical className="w-3 h-3" />
+                  Staged Testing Active
+                </span>
+              )}
+            </h1>
+          </div>
           <p className="text-xs text-slate-400 mt-0.5">
-            Test YAML tweaks temporarily, run selective services, and persist changes to disk only when verified.
+            {project 
+              ? `Workspace: ${project.workingDir}`
+              : 'Open multi-container projects, test YAML non-destructively with Git-style blob hashing, and manage services.'}
           </p>
         </div>
 
-        {/* Project Selector / Loader */}
+        {/* Global Directory Loader */}
         <div className="flex items-center gap-3">
           <form onSubmit={handleOpenLocal} className="flex items-center gap-2">
             <input
               type="text"
-              placeholder="/path/to/project with compose"
+              placeholder="/path/to/project folder"
               value={localPathInput}
               onChange={(e) => setLocalPathInput(e.target.value)}
-              className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 w-64 font-mono transition-colors"
+              className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 w-56 md:w-72 font-mono transition-colors"
             />
             <button
               type="button"
               onClick={handleBrowseDir}
-              className="px-3 py-1.5 rounded-lg bg-slate-850 hover:bg-slate-800 text-slate-200 text-xs font-semibold border border-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer"
+              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-semibold border border-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer"
               title="Open native file explorer to select folder"
             >
               <FolderOpen className="w-3.5 h-3.5 text-cyan-400" />
@@ -205,7 +310,7 @@ export default function ComposeView({
             </button>
             <button
               type="submit"
-              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-semibold border border-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer"
+              className="px-3.5 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold transition-all cursor-pointer"
             >
               <span>Load</span>
             </button>
@@ -213,53 +318,121 @@ export default function ComposeView({
 
           <button
             onClick={() => setShowUrlDialog(true)}
-            className="px-3 py-1.5 rounded-lg bg-slate-850 hover:bg-slate-800 text-slate-300 text-xs font-semibold border border-slate-700 flex items-center gap-1.5 transition-colors"
+            className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-300 text-xs font-semibold border border-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer"
           >
-            <LinkIcon className="w-3.5 h-3.5 text-blue-400" />
+            <LinkIcon className="w-3.5 h-3.5 text-cyan-400" />
             <span>Git URL</span>
           </button>
         </div>
       </div>
 
+      {/* VIEW 1: Projects Library (when no project is open) */}
       {!project ? (
-        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-slate-500">
-          <div className="w-16 h-16 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-center mb-4 text-cyan-400 shadow-xl">
-            <Layers className="w-8 h-8" />
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* Action Callout Hero */}
+          <div className="p-6 rounded-2xl bg-gradient-to-r from-slate-900 to-slate-950 border border-slate-800 flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 shrink-0">
+                <Layers className="w-7 h-7" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-slate-100">Select or Open a Compose Folder</h2>
+                <p className="text-xs text-slate-400 max-w-xl mt-1">
+                  Choose a directory containing <code className="text-cyan-400 font-mono">docker-compose.yml</code>. Dockit will create a dedicated project workspace with service inspection, Git-style blob hashing, and isolated testing sandboxes.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 shrink-0">
+              <button
+                onClick={handleBrowseDir}
+                className="text-xs px-4 py-2.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold flex items-center gap-2 shadow-lg shadow-cyan-500/20 transition-all cursor-pointer"
+              >
+                <FolderOpen className="w-4 h-4" />
+                <span>Browse Folder in Explorer</span>
+              </button>
+              <button
+                onClick={() => {
+                  setLocalPathInput('.');
+                  loadProjectFromPath('.');
+                }}
+                className="text-xs px-3.5 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-300 border border-slate-700 font-mono transition-colors cursor-pointer"
+              >
+                Use Current Workspace (.)
+              </button>
+            </div>
           </div>
-          <h2 className="text-base font-semibold text-slate-200">No Compose Project Open</h2>
-          <p className="text-xs text-slate-400 max-w-md mt-1 mb-6">
-            Select a project folder with your file explorer, enter a local directory path containing a <code className="text-cyan-400 font-mono">docker-compose.yml</code> file, or clone directly from GitHub.
-          </p>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleBrowseDir}
-              className="text-xs px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold flex items-center gap-2 shadow-lg shadow-cyan-500/20 transition-all cursor-pointer"
-            >
-              <FolderOpen className="w-4 h-4" />
-              Browse Folder...
-            </button>
-            <button
-              onClick={() => {
-                setLocalPathInput('.');
-                loadProjectFromPath('.');
-              }}
-              className="text-xs px-3.5 py-2 rounded-lg bg-slate-900 hover:bg-slate-850 text-slate-300 border border-slate-800 font-mono transition-colors cursor-pointer"
-            >
-              Use Current Workspace (.)
-            </button>
+
+          {/* Recent Projects List */}
+          <div>
+            <h3 className="text-xs uppercase font-semibold text-slate-400 tracking-wider mb-3 flex items-center gap-2">
+              <History className="w-3.5 h-3.5 text-cyan-400" />
+              Recent Compose Projects ({recentProjects.length})
+            </h3>
+
+            {recentProjects.length === 0 ? (
+              <div className="p-8 border border-dashed border-slate-800 rounded-xl text-center text-xs text-slate-500">
+                No recent projects opened yet. Use the Browse button above to open your first compose project.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {recentProjects.map((p) => (
+                  <div
+                    key={p.workingDir}
+                    onClick={() => loadProjectFromPath(p.workingDir)}
+                    className="p-4 rounded-xl border border-slate-800 bg-slate-900/70 hover:border-cyan-500/50 hover:bg-slate-900 transition-all cursor-pointer flex flex-col justify-between group shadow-sm"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-bold text-slate-100 text-sm group-hover:text-cyan-400 transition-colors flex items-center gap-2">
+                          <Layers className="w-4 h-4 text-cyan-400" />
+                          {p.name}
+                        </span>
+                        <button
+                          onClick={(e) => removeRecentProject(p.workingDir, e)}
+                          className="p-1 text-slate-500 hover:text-rose-400 transition-colors opacity-0 group-hover:opacity-100 cursor-pointer"
+                          title="Remove from recents"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      <div className="font-mono text-xs text-slate-400 truncate mb-3" title={p.workingDir}>
+                        {p.workingDir}
+                      </div>
+
+                      <div className="flex items-center gap-2 text-xs text-slate-500">
+                        <span className="px-2 py-0.5 rounded bg-slate-950 border border-slate-800 text-slate-400">
+                          {p.servicesCount || 0} services
+                        </span>
+                        <span>Opened {new Date(p.lastOpened).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-xs">
+                      <span className="text-cyan-400 font-semibold group-hover:translate-x-1 transition-transform flex items-center gap-1">
+                        Open Project Workspace
+                        <ChevronRight className="w-3 h-3" />
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       ) : (
+        /* VIEW 2: Dedicated Compose Project Workspace */
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Subheader Toolbar */}
-          <div className="px-6 py-3 border-b border-slate-800 bg-slate-950/40 flex items-center justify-between">
+          <div className="px-6 py-3 border-b border-slate-800 bg-slate-950/40 flex flex-wrap items-center justify-between gap-3">
             {/* View tabs */}
             <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded-lg p-1">
               <button
                 onClick={() => setActiveTab('services')}
-                className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
+                className={`px-3 py-1 rounded-md text-xs font-medium transition-all cursor-pointer ${
                   activeTab === 'services'
-                    ? 'bg-slate-800 text-slate-100 shadow-sm'
+                    ? 'bg-slate-800 text-cyan-400 font-semibold shadow-sm'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
@@ -267,24 +440,36 @@ export default function ComposeView({
               </button>
               <button
                 onClick={() => setActiveTab('editor')}
-                className={`px-3 py-1 rounded-md text-xs font-medium flex items-center gap-1.5 transition-all ${
+                className={`px-3 py-1 rounded-md text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
                   activeTab === 'editor'
-                    ? 'bg-slate-800 text-slate-100 shadow-sm'
+                    ? 'bg-slate-800 text-cyan-400 font-semibold shadow-sm'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
                 <Code className="w-3.5 h-3.5 text-cyan-400" />
-                YAML Testing Studio
+                <span>YAML Testing Studio</span>
               </button>
               <button
-                onClick={() => setActiveTab('output')}
-                className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
-                  activeTab === 'output'
-                    ? 'bg-slate-800 text-slate-100 shadow-sm'
+                onClick={() => setActiveTab('snapshots')}
+                className={`px-3 py-1 rounded-md text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
+                  activeTab === 'snapshots'
+                    ? 'bg-slate-800 text-cyan-400 font-semibold shadow-sm'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                Terminal Output
+                <GitCommit className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Git Snapshots ({project.snapshots?.length || 0})</span>
+              </button>
+              <button
+                onClick={() => setActiveTab('output')}
+                className={`px-3 py-1 rounded-md text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
+                  activeTab === 'output'
+                    ? 'bg-slate-800 text-cyan-400 font-semibold shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Terminal className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Terminal Output</span>
               </button>
             </div>
 
@@ -306,10 +491,17 @@ export default function ComposeView({
                 <Square className="w-3.5 h-3.5 fill-current" />
                 <span>Compose Down</span>
               </button>
+              <button
+                onClick={() => onRefreshProject(projectKey).then(setProject)}
+                className="p-1.5 text-slate-400 hover:text-slate-200 rounded transition-colors"
+                title="Refresh project status"
+              >
+                <RotateCw className="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
 
-          {/* Tab 1: Visual Services List */}
+          {/* TAB 1: Visual Services List */}
           {activeTab === 'services' && (
             <div className="flex-1 overflow-auto p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -321,7 +513,7 @@ export default function ComposeView({
                   return (
                     <div
                       key={sName}
-                      className="border border-slate-800 bg-slate-950/70 rounded-xl p-4 flex flex-col justify-between hover:border-slate-700 transition-colors"
+                      className="border border-slate-800 bg-slate-950/70 rounded-xl p-4 flex flex-col justify-between hover:border-slate-700 transition-colors shadow-sm"
                     >
                       <div>
                         <div className="flex items-center justify-between mb-2">
@@ -385,28 +577,37 @@ export default function ComposeView({
             </div>
           )}
 
-          {/* Tab 2: YAML Testing Studio */}
+          {/* TAB 2: YAML Testing Studio with Git-Style Hashing */}
           {activeTab === 'editor' && (
             <div className="flex-1 flex flex-col p-6 overflow-hidden">
               {/* Studio Toolbar */}
               <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2 text-xs min-w-0 max-w-full sm:max-w-md md:max-w-xl">
-                  <span className="text-slate-400 shrink-0">Target File:</span>
-                  <span className="font-mono text-cyan-400 truncate" title={project.filePath || `${project.workingDir}/docker-compose.yml`}>
-                    {project.filePath || `${project.workingDir}/docker-compose.yml`}
+                  <span className="text-slate-400 shrink-0">Git SHA-256:</span>
+                  <span className="font-mono text-cyan-400 truncate text-[11px] bg-slate-950 px-2 py-0.5 rounded border border-slate-800" title={project.contentHash}>
+                    {project.contentHash ? project.contentHash.slice(0, 16) + '...' : 'computing...'}
                   </span>
                   {project.hasStagedChanges ? (
                     <span className="shrink-0 px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[11px] font-semibold">
-                      Draft Testing Sandbox Active
+                      Staged Draft Active
                     </span>
                   ) : (
-                    <span className="shrink-0 px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 text-[11px]">
-                      Synced with Disk
+                    <span className="shrink-0 px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[11px] font-semibold">
+                      Clean & Synced
                     </span>
                   )}
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => setShowSnapshotModal(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 text-xs font-semibold transition-all cursor-pointer"
+                    title="Commit a Git-style hash snapshot"
+                  >
+                    <GitCommit className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Save Snapshot</span>
+                  </button>
+
                   <button
                     onClick={handleStage}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border border-amber-500/30 text-xs font-semibold transition-all cursor-pointer"
@@ -433,7 +634,7 @@ export default function ComposeView({
                         title="Permanently overwrite docker-compose.yml on disk"
                       >
                         <Save className="w-3.5 h-3.5" />
-                        <span>Apply to Disk File</span>
+                        <span>Apply to Disk</span>
                       </button>
 
                       <button
@@ -454,21 +655,135 @@ export default function ComposeView({
                 <textarea
                   value={editorYaml}
                   onChange={(e) => setEditorYaml(e.target.value)}
-                  className="flex-1 w-full p-4 bg-transparent font-mono text-xs text-slate-200 resize-none focus:outline-none"
+                  className="flex-1 w-full p-4 bg-transparent font-mono text-xs text-slate-200 resize-none focus:outline-none leading-relaxed"
                   spellCheck={false}
                 />
               </div>
             </div>
           )}
 
-          {/* Tab 3: Terminal Output */}
+          {/* TAB 3: Git Revisions & Snapshots */}
+          {activeTab === 'snapshots' && (
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
+                    <GitBranch className="w-4 h-4 text-cyan-400" />
+                    <span>Revision History & Git-Style Blob Hashes</span>
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Every snapshot creates an immutable Git blob SHA-256 hash snapshot for versioning and safe rollback.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowSnapshotModal(true)}
+                  className="px-3 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>New Snapshot</span>
+                </button>
+              </div>
+
+              {!project.snapshots || project.snapshots.length === 0 ? (
+                <div className="p-12 border border-dashed border-slate-800 rounded-xl text-center text-xs text-slate-500">
+                  <GitCommit className="w-8 h-8 text-slate-700 mx-auto mb-2" />
+                  <p className="font-medium text-slate-400">No revisions saved yet</p>
+                  <p className="mt-1">Click &ldquo;New Snapshot&rdquo; to capture a versioned hash checkpoint of your compose configuration.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {project.snapshots.map((snap) => (
+                    <div
+                      key={snap.hash}
+                      className="p-4 rounded-xl border border-slate-800 bg-slate-900/60 flex items-center justify-between gap-4 text-xs"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-bold text-cyan-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                            sha256:{snap.hash.slice(0, 10)}...
+                          </span>
+                          <span className="font-semibold text-slate-200">{snap.message}</span>
+                        </div>
+                        <div className="text-[11px] text-slate-400 flex items-center gap-2">
+                          <span>Recorded: {snap.timestamp}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleRestoreSnapshot(snap.hash)}
+                          className="px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 text-xs font-medium transition-colors cursor-pointer"
+                        >
+                          Restore to Sandbox
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 4: Terminal Output */}
           {activeTab === 'output' && (
             <div className="flex-1 p-6 flex flex-col overflow-hidden">
-              <div className="flex-1 bg-slate-950 border border-slate-800 rounded-xl p-4 font-mono text-xs text-emerald-400 overflow-auto whitespace-pre-wrap">
-                {actionOutput || 'No command execution output yet. Run Compose Up or Down to see output stream.'}
+              <div className="flex-1 bg-slate-950 border border-slate-800 rounded-xl p-4 font-mono text-xs text-emerald-400 overflow-auto whitespace-pre-wrap leading-relaxed select-text">
+                {actionOutput || 'No command execution output yet. Run Compose Up or Down to inspect the live CLI stream.'}
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Snapshot Commit Modal */}
+      {showSnapshotModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-md overflow-hidden shadow-2xl">
+            <div className="p-5 border-b border-slate-800 flex justify-between items-center">
+              <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
+                <GitCommit className="w-4 h-4 text-cyan-400" />
+                Commit Git-Style Hash Snapshot
+              </h2>
+              <button
+                onClick={() => setShowSnapshotModal(false)}
+                className="text-slate-400 hover:text-slate-200 text-sm"
+              >
+                ✕
+              </button>
+            </div>
+            <form onSubmit={handleSaveSnapshot} className="p-5 space-y-4 text-xs">
+              <div>
+                <label className="block text-slate-300 font-medium mb-1">Snapshot Message / Description *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Added redis cache and mounted pgdata volume"
+                  value={snapshotMsg}
+                  onChange={(e) => setSnapshotMsg(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500 font-sans"
+                />
+                <p className="text-[11px] text-slate-500 mt-1.5">
+                  Computes an immutable SHA-256 Git blob hash of the YAML content for instant rollback at any time.
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowSnapshotModal(false)}
+                  className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-300 font-medium cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold cursor-pointer"
+                >
+                  Save Snapshot
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
@@ -515,7 +830,7 @@ export default function ComposeView({
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-4 py-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-bold hover:brightness-110 disabled:opacity-50"
+                  className="px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold hover:brightness-110 disabled:opacity-50 cursor-pointer"
                 >
                   {loading ? 'Cloning...' : 'Clone & Load'}
                 </button>

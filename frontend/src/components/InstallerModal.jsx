@@ -185,6 +185,11 @@ export default function InstallerModal({
                   </p>
                   <div className="text-[11px] text-slate-400 font-mono">
                     {detection?.podman?.version || 'Binary not found'}
+                    {detection?.os === 'windows' && (
+                      <span className="block mt-1 text-[10px] text-amber-400/90 font-sans">
+                        Requires WSL2 VM backend
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>

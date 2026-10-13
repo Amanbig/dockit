@@ -13,6 +13,8 @@ import {
 
 export default function ContainersView({
   containers = [],
+  networks = [],
+  volumes = [],
   loading,
   onRefresh,
   onStart,
@@ -23,7 +25,8 @@ export default function ContainersView({
   onRemove,
   onOpenLogs,
   onInspect,
-  onSelectContainer
+  onSelectContainer,
+  onCreate
 }) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -33,7 +36,10 @@ export default function ContainersView({
     image: '',
     cmd: '',
     ports: '',
-    env: ''
+    env: '',
+    network: '',
+    volume: '',
+    restartPolicy: 'no'
   });
 
   const getContainerState = (c) => {
@@ -107,25 +113,48 @@ export default function ContainersView({
       });
     }
 
-    const envMap = {};
+    const envList = [];
     if (createForm.env.trim()) {
       createForm.env.split(',').forEach(kv => {
-        const [k, v] = kv.trim().split('=');
-        if (k) envMap[k] = v || '';
+        if (kv.trim()) envList.push(kv.trim());
       });
     }
 
+    const portList = [];
+    if (createForm.ports.trim()) {
+      createForm.ports.split(',').forEach(p => {
+        if (p.trim()) portList.push(p.trim());
+      });
+    }
+
+    const volumeList = [];
+    if (createForm.volume.trim()) {
+      createForm.volume.split(',').forEach(v => {
+        if (v.trim()) volumeList.push(v.trim());
+      });
+    }
+
+    const networkList = [];
+    if (createForm.network.trim()) {
+      networkList.push(createForm.network.trim());
+    }
+
     const payload = {
-      name: createForm.name || undefined,
-      image: createForm.image,
-      cmd: createForm.cmd ? createForm.cmd.split(' ') : undefined,
-      ports: portMap,
-      env: envMap
+      name: createForm.name.trim() || undefined,
+      image: createForm.image.trim(),
+      command: createForm.cmd.trim() ? createForm.cmd.trim().split(' ') : undefined,
+      portMappings: portList.length > 0 ? portList : undefined,
+      env: envList.length > 0 ? envList : undefined,
+      volumes: volumeList.length > 0 ? volumeList : undefined,
+      networks: networkList.length > 0 ? networkList : undefined,
+      restartPolicy: createForm.restartPolicy !== 'no' ? createForm.restartPolicy : undefined
     };
 
-    await onCreate(payload);
+    if (onCreate) {
+      await onCreate(payload);
+    }
     setShowCreateModal(false);
-    setCreateForm({ name: '', image: '', cmd: '', ports: '', env: '' });
+    setCreateForm({ name: '', image: '', cmd: '', ports: '', env: '', network: '', volume: '', restartPolicy: 'no' });
   };
 
   return (
@@ -395,8 +424,70 @@ export default function ContainersView({
                   placeholder="e.g. echo hello"
                   value={createForm.cmd}
                   onChange={(e) => setCreateForm({ ...createForm, cmd: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500 font-mono"
                 />
+              </div>
+
+              {/* Advanced Network Attachment */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                <div>
+                  <label className="block text-slate-300 font-medium mb-1">Attach Network</label>
+                  <select
+                    value={createForm.network}
+                    onChange={(e) => setCreateForm({ ...createForm, network: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500 font-mono text-xs"
+                  >
+                    <option value="">Default (bridge / engine default)</option>
+                    {networks.map(net => (
+                      <option key={net.id || net.name} value={net.name}>
+                        {net.name} ({net.driver || 'bridge'})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 font-medium mb-1">Restart Policy</label>
+                  <select
+                    value={createForm.restartPolicy}
+                    onChange={(e) => setCreateForm({ ...createForm, restartPolicy: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500 font-mono text-xs"
+                  >
+                    <option value="no">no (do not restart)</option>
+                    <option value="always">always</option>
+                    <option value="unless-stopped">unless-stopped</option>
+                    <option value="on-failure">on-failure</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Volume & Mount Binding */}
+              <div>
+                <label className="block text-slate-300 font-medium mb-1">
+                  Volume / Bind Mount (volume_or_host:container_path)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. my-volume:/data or /home/user/app:/app"
+                  value={createForm.volume}
+                  onChange={(e) => setCreateForm({ ...createForm, volume: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500 font-mono text-xs"
+                />
+                {volumes.length > 0 && (
+                  <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                    <span className="text-[11px] text-slate-500">Available volumes:</span>
+                    {volumes.slice(0, 4).map(v => (
+                      <button
+                        key={v.name}
+                        type="button"
+                        onClick={() => setCreateForm({ ...createForm, volume: `${v.name}:/data` })}
+                        className="text-[10px] px-1.5 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-cyan-400 border border-slate-800 font-mono transition cursor-pointer"
+                      >
+                        {v.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="flex justify-end gap-3 pt-3 border-t border-slate-800">

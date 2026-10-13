@@ -2,6 +2,8 @@ package compose
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,6 +15,16 @@ import (
 )
 
 const TestComposeFileName = ".dockit.compose.test.yml"
+
+// ComputeGitBlobHash calculates a Git-compatible SHA-256 blob hash for the given file content.
+func ComputeGitBlobHash(content string) string {
+	data := []byte(content)
+	header := fmt.Sprintf("blob %d\x00", len(data))
+	h := sha256.New()
+	h.Write([]byte(header))
+	h.Write(data)
+	return hex.EncodeToString(h.Sum(nil))
+}
 
 // Manager coordinates project-level Docker Compose operations and testing workflows.
 type Manager struct {
@@ -71,21 +83,23 @@ func (m *Manager) OpenProject(path string) (*Project, error) {
 	}
 
 	proj := &Project{
-		ID:         filePath,
-		Name:       projectName,
-		WorkingDir: workingDir,
-		FilePath:   filePath,
-		Content:    content,
-		Services:   ExtractServices(parsed),
-		Networks:   ExtractNetworks(parsed),
-		Volumes:    ExtractVolumes(parsed),
-		Status:     "stopped",
+		ID:          filePath,
+		Name:        projectName,
+		WorkingDir:  workingDir,
+		FilePath:    filePath,
+		Content:     content,
+		ContentHash: ComputeGitBlobHash(content),
+		Services:    ExtractServices(parsed),
+		Networks:    ExtractNetworks(parsed),
+		Volumes:     ExtractVolumes(parsed),
+		Status:      "stopped",
 	}
 
 	// Check if a staged test file already exists from a previous session
 	testPath := filepath.Join(workingDir, TestComposeFileName)
 	if stagedBytes, err := os.ReadFile(testPath); err == nil && len(stagedBytes) > 0 {
 		proj.TemporaryContent = string(stagedBytes)
+		proj.TemporaryHash = ComputeGitBlobHash(proj.TemporaryContent)
 		proj.HasStagedChanges = true
 	}
 
@@ -150,6 +164,7 @@ func (m *Manager) StageChanges(projectID string, newContent string) error {
 	}
 
 	proj.TemporaryContent = newContent
+	proj.TemporaryHash = ComputeGitBlobHash(newContent)
 	proj.HasStagedChanges = true
 	return nil
 }
@@ -178,7 +193,9 @@ func (m *Manager) ApplyChanges(projectID string) error {
 	_ = os.Remove(testPath)
 
 	proj.Content = proj.TemporaryContent
+	proj.ContentHash = ComputeGitBlobHash(proj.Content)
 	proj.TemporaryContent = ""
+	proj.TemporaryHash = ""
 	proj.HasStagedChanges = false
 
 	// Refresh parsed metadata
@@ -205,8 +222,81 @@ func (m *Manager) DiscardChanges(projectID string) error {
 	_ = os.Remove(testPath)
 
 	proj.TemporaryContent = ""
+	proj.TemporaryHash = ""
 	proj.HasStagedChanges = false
 	return nil
+}
+
+// SaveSnapshot records a revision snapshot of the compose YAML using Git blob SHA-256.
+func (m *Manager) SaveSnapshot(projectID, message string) (*Snapshot, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	proj, exists := m.projects[projectID]
+	if !exists {
+		return nil, fmt.Errorf("project %q not found", projectID)
+	}
+
+	contentToSave := proj.Content
+	if proj.HasStagedChanges && proj.TemporaryContent != "" {
+		contentToSave = proj.TemporaryContent
+	}
+
+	hash := ComputeGitBlobHash(contentToSave)
+	if message == "" {
+		shortHash := hash
+		if len(shortHash) > 8 {
+			shortHash = shortHash[:8]
+		}
+		message = fmt.Sprintf("Snapshot %s", shortHash)
+	}
+
+	snap := Snapshot{
+		Hash:      hash,
+		Message:   message,
+		Timestamp: time.Now().Format("2006-01-02 15:04:05"),
+		Content:   contentToSave,
+	}
+
+	proj.Snapshots = append([]Snapshot{snap}, proj.Snapshots...)
+	return &snap, nil
+}
+
+// RestoreSnapshot restores project content from a previous snapshot hash into the testing sandbox.
+func (m *Manager) RestoreSnapshot(projectID, hash string) (*Project, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	proj, exists := m.projects[projectID]
+	if !exists {
+		return nil, fmt.Errorf("project %q not found", projectID)
+	}
+
+	var targetContent string
+	found := false
+	for _, s := range proj.Snapshots {
+		if s.Hash == hash {
+			targetContent = s.Content
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return nil, fmt.Errorf("snapshot hash %q not found", hash)
+	}
+
+	// Stage the restored content so the user can inspect/test it
+	testPath := filepath.Join(proj.WorkingDir, TestComposeFileName)
+	if err := os.WriteFile(testPath, []byte(targetContent), 0644); err != nil {
+		return nil, fmt.Errorf("failed to write test compose file: %w", err)
+	}
+
+	proj.TemporaryContent = targetContent
+	proj.TemporaryHash = ComputeGitBlobHash(targetContent)
+	proj.HasStagedChanges = true
+
+	return proj, nil
 }
 
 // Up runs the project or selected services, optionally using staged changes.

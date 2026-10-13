@@ -36,6 +36,7 @@ type Runtime interface {
 	GetContainerLogs(ctx context.Context, containerID string) (string, error)
 	GetContainerLogsStream(ctx context.Context, containerID string, opts ContainerLogsOptions) (io.ReadCloser, error)
 	GetContainerStats(ctx context.Context, containerID string, stream bool) (io.ReadCloser, error)
+	ExecContainer(ctx context.Context, containerID string, cmd []string) (string, error)
 
 	// Image operations
 	ListImages(ctx context.Context, opts ...ImageListOptions) ([]ImageSummary, error)

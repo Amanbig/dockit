@@ -29,7 +29,8 @@ import {
   RestartContainer, 
   PauseContainer, 
   UnpauseContainer, 
-  RemoveContainer 
+  RemoveContainer,
+  ExecContainer
 } from '../../wailsjs/go/main/App';
 
 export default function ContainerDetailsView({ containerId, onBack, onRefreshList }) {
@@ -37,9 +38,82 @@ export default function ContainerDetailsView({ containerId, onBack, onRefreshLis
   const [logs, setLogs] = useState('');
   const [loading, setLoading] = useState(true);
   const [logsLoading, setLogsLoading] = useState(false);
-  const [activeSubTab, setActiveSubTab] = useState('overview'); // 'overview' | 'logs' | 'env' | 'mounts' | 'raw'
+  const [activeSubTab, setActiveSubTab] = useState('overview'); // 'overview' | 'terminal' | 'logs' | 'env' | 'mounts' | 'raw'
   const [copiedKey, setCopiedKey] = useState(null);
   const [actionInProgress, setActionInProgress] = useState(false);
+
+  // Terminal state
+  const [commandInput, setCommandInput] = useState('');
+  const [terminalHistory, setTerminalHistory] = useState([
+    { type: 'system', text: 'Dockit Container Shell (bash/sh)\nType any command or "clear" to clear screen.' }
+  ]);
+  const [historyList, setHistoryList] = useState([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const [executing, setExecuting] = useState(false);
+  const terminalBottomRef = React.useRef(null);
+  const terminalInputRef = React.useRef(null);
+
+  // Auto-scroll terminal to bottom when new output arrives
+  React.useEffect(() => {
+    if (activeSubTab === 'terminal') {
+      terminalBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [terminalHistory, executing, activeSubTab]);
+
+  const handleRunCommand = async (e) => {
+    e.preventDefault();
+    const cmdStr = commandInput.trim();
+    if (!cmdStr || executing) return;
+
+    if (cmdStr === 'clear') {
+      setTerminalHistory([]);
+      setCommandInput('');
+      setHistoryList(prev => [...prev, 'clear']);
+      setHistoryIndex(-1);
+      return;
+    }
+
+    setExecuting(true);
+    setTerminalHistory(prev => [...prev, { type: 'cmd', text: cmdStr }]);
+    setHistoryList(prev => [...prev, cmdStr]);
+    setHistoryIndex(-1);
+    setCommandInput('');
+
+    try {
+      const out = await ExecContainer(containerId, ['sh', '-c', cmdStr]);
+      setTerminalHistory(prev => [...prev, { type: 'out', text: out || '' }]);
+    } catch (err) {
+      setTerminalHistory(prev => [...prev, { type: 'err', text: `Error: ${err}` }]);
+    } finally {
+      setExecuting(false);
+      setTimeout(() => terminalInputRef.current?.focus(), 50);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (historyList.length === 0) return;
+      const nextIdx = historyIndex === -1 ? historyList.length - 1 : Math.max(0, historyIndex - 1);
+      setHistoryIndex(nextIdx);
+      setCommandInput(historyList[nextIdx] || '');
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (historyIndex === -1) return;
+      const nextIdx = historyIndex + 1;
+      if (nextIdx >= historyList.length) {
+        setHistoryIndex(-1);
+        setCommandInput('');
+      } else {
+        setHistoryIndex(nextIdx);
+        setCommandInput(historyList[nextIdx] || '');
+      }
+    }
+  };
+
+  // Enhanced Logs state
+  const [logFilter, setLogFilter] = useState('');
+  const [autoTail, setAutoTail] = useState(true);
 
   const fetchDetails = async () => {
     try {
@@ -64,6 +138,19 @@ export default function ContainerDetailsView({ containerId, onBack, onRefreshLis
       setLogsLoading(false);
     }
   };
+
+  // Auto-poll logs when on logs tab and autoTail is on
+  useEffect(() => {
+    let timer;
+    if (activeSubTab === 'logs' && autoTail && details?.state?.running) {
+      timer = setInterval(() => {
+        GetContainerLogs(containerId).then(out => {
+          if (out) setLogs(out);
+        }).catch(() => {});
+      }, 3000);
+    }
+    return () => clearInterval(timer);
+  }, [activeSubTab, autoTail, containerId, details?.state?.running]);
 
   useEffect(() => {
     if (containerId) {
@@ -267,7 +354,8 @@ export default function ContainerDetailsView({ containerId, onBack, onRefreshLis
       <div className="px-6 py-2.5 border-b border-slate-800 bg-slate-950/20 flex items-center gap-1 overflow-x-auto select-none">
         {[
           { id: 'overview', label: 'Overview & Health', icon: Sliders },
-          { id: 'logs', label: 'Live Logs', icon: Terminal },
+          { id: 'terminal', label: 'Terminal Exec', icon: Terminal },
+          { id: 'logs', label: 'Live Logs', icon: Clock },
           { id: 'env', label: 'Environment Variables', icon: Sliders },
           { id: 'mounts', label: 'Volumes & Mounts', icon: HardDrive },
           { id: 'raw', label: 'Raw JSON Inspect', icon: Code },
@@ -394,15 +482,131 @@ export default function ContainerDetailsView({ containerId, onBack, onRefreshLis
           </div>
         )}
 
+        {/* Tab: Terminal Exec */}
+        {activeSubTab === 'terminal' && (
+          <div 
+            onClick={() => terminalInputRef.current?.focus()}
+            className="terminal-window flex flex-col h-[560px] rounded-xl border border-slate-800 bg-[#0c1017] overflow-hidden shadow-2xl font-mono cursor-text"
+          >
+            {/* Terminal Window Titlebar */}
+            <div className="px-4 py-2.5 bg-[#161b22] border-b border-slate-800 flex items-center justify-between text-xs select-none">
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-rose-500/80 inline-block"></span>
+                <span className="w-3 h-3 rounded-full bg-amber-500/80 inline-block"></span>
+                <span className="w-3 h-3 rounded-full bg-emerald-500/80 inline-block"></span>
+                <span className="ml-2 text-slate-400 font-semibold text-[11px]">
+                  root@{details?.name || 'container'}: ~
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] text-slate-500">
+                  {isRunning ? 'Connected via Docker Exec' : 'Container Offline'}
+                </span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setTerminalHistory([]);
+                  }}
+                  className="text-[10px] px-2 py-0.5 rounded bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition cursor-pointer"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+
+            {/* Terminal Output & Inline Prompt Area */}
+            <div className="flex-1 p-4 overflow-y-auto text-xs space-y-1.5 select-text leading-relaxed">
+              {!isRunning && (
+                <div className="p-3 mb-2 rounded bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs">
+                  ⚠️ Container is currently stopped. Start the container to begin a terminal session.
+                </div>
+              )}
+
+              {terminalHistory.map((item, idx) => (
+                <div key={idx} className="whitespace-pre-wrap break-all">
+                  {item.type === 'cmd' ? (
+                    <div className="flex items-center gap-2 text-slate-200 font-bold mt-1">
+                      <span className="text-emerald-400 font-bold">root@{details?.name || 'container'}:~#</span>
+                      <span>{item.text}</span>
+                    </div>
+                  ) : item.type === 'err' ? (
+                    <div className="text-rose-400 pl-2">{item.text}</div>
+                  ) : item.type === 'system' ? (
+                    <div className="text-slate-500 text-[11px] mb-2">{item.text}</div>
+                  ) : (
+                    <div className="text-slate-300 font-mono pl-1">{item.text}</div>
+                  )}
+                </div>
+              ))}
+
+              {executing && (
+                <div className="flex items-center gap-2 text-slate-400 text-xs py-1">
+                  <RefreshCw className="w-3 h-3 animate-spin text-cyan-400" />
+                  <span>Executing...</span>
+                </div>
+              )}
+
+              {/* Seamless Inline CLI Prompt */}
+              {isRunning && (
+                <form onSubmit={handleRunCommand} className="flex items-center gap-2 pt-1">
+                  <span className="text-emerald-400 font-bold text-xs shrink-0 select-none">
+                    root@{details?.name || 'container'}:~#
+                  </span>
+                  <input
+                    ref={terminalInputRef}
+                    type="text"
+                    disabled={executing}
+                    autoFocus
+                    value={commandInput}
+                    onChange={(e) => setCommandInput(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    className="terminal-prompt-input flex-1 bg-transparent text-xs text-slate-100 font-mono border-none outline-none focus:ring-0 p-0 shadow-none ring-0 focus:outline-none"
+                    placeholder={executing ? "" : ""}
+                    spellCheck={false}
+                    autoComplete="off"
+                  />
+                </form>
+              )}
+
+              <div ref={terminalBottomRef} />
+            </div>
+          </div>
+        )}
+
         {/* Tab 2: Live Logs */}
         {activeSubTab === 'logs' && (
-          <div className="flex flex-col h-[520px] rounded-xl border border-slate-800 bg-slate-950 overflow-hidden shadow-inner">
-            <div className="px-4 py-2.5 bg-slate-900/80 border-b border-slate-800 flex items-center justify-between text-xs">
-              <span className="font-mono text-slate-400">Standard Output & Stderr</span>
+          <div className="flex flex-col h-[540px] rounded-xl border border-slate-800 bg-slate-950 overflow-hidden shadow-inner">
+            <div className="px-4 py-2.5 bg-slate-900 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
               <div className="flex items-center gap-2">
+                <span className="font-mono text-slate-300 font-semibold">Container Logs</span>
+                <button
+                  onClick={() => setAutoTail(!autoTail)}
+                  className={`text-[11px] px-2 py-0.5 rounded-full border transition flex items-center gap-1 cursor-pointer ${
+                    autoTail 
+                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' 
+                      : 'bg-slate-800 text-slate-400 border-slate-700'
+                  }`}
+                  title="Toggle automatic log streaming"
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${autoTail ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`}></span>
+                  <span>{autoTail ? 'Live Auto-Tail (3s)' : 'Manual Refresh'}</span>
+                </button>
+              </div>
+
+              {/* Log Search Filter */}
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  placeholder="Filter logs (e.g. error, warn)..."
+                  value={logFilter}
+                  onChange={(e) => setLogFilter(e.target.value)}
+                  className="bg-slate-950 border border-slate-800 rounded px-2.5 py-1 text-xs text-slate-200 font-mono placeholder-slate-500 focus:outline-none focus:border-cyan-500 w-44"
+                />
+
                 <button
                   onClick={() => copyText(logs, 'logs')}
-                  className="p-1 text-slate-400 hover:text-slate-200 transition"
+                  className="p-1.5 text-slate-400 hover:text-slate-200 transition cursor-pointer"
                   title="Copy logs"
                 >
                   {copiedKey === 'logs' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
@@ -410,15 +614,34 @@ export default function ContainerDetailsView({ containerId, onBack, onRefreshLis
                 <button
                   onClick={fetchLogs}
                   disabled={logsLoading}
-                  className="p-1 text-slate-400 hover:text-slate-200 transition"
+                  className="p-1.5 text-slate-400 hover:text-slate-200 transition cursor-pointer"
                   title="Refresh logs"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${logsLoading ? 'animate-spin text-cyan-400' : ''}`} />
                 </button>
               </div>
             </div>
-            <div className="flex-1 p-4 overflow-y-auto font-mono text-xs text-slate-300 whitespace-pre-wrap select-text leading-relaxed">
-              {logs}
+
+            <div className="flex-1 p-4 overflow-y-auto font-mono text-xs space-y-0.5 select-text leading-relaxed">
+              {(logs || '').split('\n').filter(line => !logFilter || line.toLowerCase().includes(logFilter.toLowerCase())).map((line, idx) => {
+                const lower = line.toLowerCase();
+                const isErr = lower.includes('error') || lower.includes('fatal') || lower.includes('panic');
+                const isWarn = lower.includes('warn');
+                return (
+                  <div 
+                    key={idx} 
+                    className={`whitespace-pre-wrap break-all ${
+                      isErr 
+                        ? 'text-rose-400 bg-rose-500/5 px-1 py-0.5 rounded' 
+                        : isWarn 
+                          ? 'text-amber-400 bg-amber-500/5 px-1 py-0.5 rounded' 
+                          : 'text-slate-300'
+                    }`}
+                  >
+                    {line}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

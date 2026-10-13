@@ -323,6 +323,17 @@ func (a *App) GetContainerLogs(id string) (string, error) {
 	return svc.Logs(a.ctx, id)
 }
 
+// ExecContainer executes a command inside a running container and returns output.
+func (a *App) ExecContainer(id string, cmd []string) (string, error) {
+	a.mu.RLock()
+	svc := a.containerSvc
+	a.mu.RUnlock()
+	if svc == nil {
+		return "", fmt.Errorf("container runtime not connected")
+	}
+	return svc.Exec(a.ctx, id, cmd)
+}
+
 // ==========================================
 // Images Methods
 // ==========================================
@@ -596,6 +607,16 @@ func (a *App) ComposeDiscardChanges(projectID string) error {
 // ComposeRefresh updates live status of all services in the project.
 func (a *App) ComposeRefresh(projectID string) (*compose.Project, error) {
 	return a.composeMgr.Refresh(a.ctx, projectID)
+}
+
+// ComposeSaveSnapshot records a Git-style blob hash revision of the compose file.
+func (a *App) ComposeSaveSnapshot(projectID, message string) (*compose.Snapshot, error) {
+	return a.composeMgr.SaveSnapshot(projectID, message)
+}
+
+// ComposeRestoreSnapshot restores a previous Git hash snapshot into the testing sandbox.
+func (a *App) ComposeRestoreSnapshot(projectID, hash string) (*compose.Project, error) {
+	return a.composeMgr.RestoreSnapshot(projectID, hash)
 }
 
 // ==========================================

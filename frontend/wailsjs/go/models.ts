@@ -38,6 +38,24 @@ export namespace compose {
 	        this.removeOrphans = source["removeOrphans"];
 	    }
 	}
+	export class Snapshot {
+	    hash: string;
+	    message: string;
+	    timestamp: string;
+	    content: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Snapshot(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.hash = source["hash"];
+	        this.message = source["message"];
+	        this.timestamp = source["timestamp"];
+	        this.content = source["content"];
+	    }
+	}
 	export class ServiceInfo {
 	    name: string;
 	    image: string;
@@ -64,12 +82,15 @@ export namespace compose {
 	    workingDir: string;
 	    filePath: string;
 	    content: string;
+	    contentHash: string;
 	    temporaryContent?: string;
+	    temporaryHash?: string;
 	    hasStagedChanges: boolean;
 	    services: ServiceInfo[];
 	    networks: string[];
 	    volumes: string[];
 	    status: string;
+	    snapshots?: Snapshot[];
 	
 	    static createFrom(source: any = {}) {
 	        return new Project(source);
@@ -82,12 +103,15 @@ export namespace compose {
 	        this.workingDir = source["workingDir"];
 	        this.filePath = source["filePath"];
 	        this.content = source["content"];
+	        this.contentHash = source["contentHash"];
 	        this.temporaryContent = source["temporaryContent"];
+	        this.temporaryHash = source["temporaryHash"];
 	        this.hasStagedChanges = source["hasStagedChanges"];
 	        this.services = this.convertValues(source["services"], ServiceInfo);
 	        this.networks = source["networks"];
 	        this.volumes = source["volumes"];
 	        this.status = source["status"];
+	        this.snapshots = this.convertValues(source["snapshots"], Snapshot);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -108,6 +132,7 @@ export namespace compose {
 		    return a;
 		}
 	}
+	
 	
 	export class UpOptions {
 	    services?: string[];

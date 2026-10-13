@@ -106,6 +106,11 @@ func (s *Service) Stats(ctx context.Context, id string, stream bool) (io.ReadClo
 	return s.rt.GetContainerStats(ctx, id, stream)
 }
 
+// Exec executes a command inside a running container and returns output.
+func (s *Service) Exec(ctx context.Context, id string, cmd []string) (string, error) {
+	return s.rt.ExecContainer(ctx, id, cmd)
+}
+
 func formatSummary(c runtime.ContainerSummary) Container {
 	name := ""
 	if len(c.Names) > 0 {

@@ -18,13 +18,22 @@ html, body {
 
 /* Default Dark Mode Select and Options */
 select {
-    background-color: #020617;
-    color: #e2e8f0;
+    color-scheme: dark;
+    background-color: #020617 !important;
+    color: #e2e8f0 !important;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 1rem;
+    padding-right: 2.25rem !important;
 }
 
 select option {
-    background-color: #020617;
-    color: #e2e8f0;
+    background-color: #0f172a !important;
+    color: #f1f5f9 !important;
 }
 
 /* -------------------------------------------------------------
@@ -44,11 +53,13 @@ html.light .bg-slate-900\/40,
 html.light .bg-slate-900\/50,
 html.light .bg-slate-900\/60,
 html.light .bg-slate-900\/80,
+html.light .bg-slate-900\/90,
 html.light .bg-slate-950\/20,
 html.light .bg-slate-950\/40,
 html.light .bg-slate-950\/60,
 html.light .bg-slate-950\/70,
 html.light .bg-slate-950\/80,
+html.light .bg-slate-950\/90,
 html.light header,
 html.light aside {
     background-color: #ffffff !important;
@@ -107,23 +118,35 @@ html.light button[class*="bg-slate-900"]:hover {
     color: #0f172a !important;
 }
 
-/* Status Badges in light mode */
+/* Status Badges & Buttons in light mode */
 html.light span[class*="bg-slate-800 text-slate-400"] {
     background-color: #f1f5f9 !important;
     color: #64748b !important;
     border-color: #cbd5e1 !important;
 }
 
-html.light span[class*="bg-emerald-500/15"] {
+html.light span[class*="bg-emerald-500"],
+html.light button[class*="bg-emerald-500"] {
     background-color: #ecfdf5 !important;
     color: #059669 !important;
     border-color: #a7f3d0 !important;
 }
 
-html.light span[class*="bg-amber-500/15"] {
+html.light span[class*="bg-amber-500"],
+html.light button[class*="bg-amber-500"],
+html.light div[class*="bg-amber-500/10"],
+html.light div[class*="bg-amber-500/5"] {
     background-color: #fffbeb !important;
-    color: #d97706 !important;
+    color: #b45309 !important; /* Rich readable amber in light mode */
     border-color: #fde68a !important;
+}
+
+html.light div[class*="bg-rose-500/5"],
+html.light div[class*="bg-rose-500/10"],
+html.light span[class*="bg-rose-500"] {
+    background-color: #fff1f2 !important;
+    color: #be123c !important; /* Rich readable rose/red in light mode */
+    border-color: #fecdd3 !important;
 }
 
 /* Danger action buttons in light mode */
@@ -161,6 +184,23 @@ html.light .text-slate-400 {
 
 html.light .text-slate-500 {
     color: #64748b !important;
+}
+
+/* High-contrast accent colors for light mode (WCAG AA compliant) */
+html.light .text-cyan-400 {
+    color: #0891b2 !important; /* Rich deep cyan/teal in light mode */
+}
+
+html.light .text-emerald-400 {
+    color: #059669 !important; /* Crisp emerald green */
+}
+
+html.light .text-amber-400 {
+    color: #b45309 !important; /* Rich amber/orange */
+}
+
+html.light .text-rose-400 {
+    color: #be123c !important; /* Vivid rose/red */
 }
 
 /* Sidebar Active & Inactive Links */
@@ -202,7 +242,7 @@ html.light label[class*="border-purple-500"] {
 }
 
 /* Form Inputs, Selects, and Textareas */
-html.light input,
+html.light input:not(.terminal-prompt-input),
 html.light select,
 html.light textarea {
     background-color: #ffffff !important;
@@ -211,9 +251,63 @@ html.light textarea {
     box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
 
-html.light input::placeholder,
+/* Terminal Console stays true dark across both light & dark mode */
+.terminal-window,
+html.light .terminal-window {
+    background-color: #0c1017 !important;
+    border-color: #30363d !important;
+    color: #e6edf3 !important;
+}
+
+.terminal-window * {
+    color-scheme: dark;
+}
+
+html.light .terminal-window .text-slate-100,
+html.light .terminal-window .text-slate-200,
+html.light .terminal-window .text-slate-300 {
+    color: #f0f6fc !important;
+}
+
+html.light .terminal-window .text-slate-400,
+html.light .terminal-window .text-slate-500 {
+    color: #8b949e !important;
+}
+
+html.light .terminal-window .text-cyan-400 {
+    color: #58a6ff !important;
+}
+
+html.light .terminal-window .text-emerald-400 {
+    color: #3fb950 !important;
+}
+
+html.light .terminal-window .text-amber-400 {
+    color: #d29922 !important;
+}
+
+html.light .terminal-window .text-rose-400 {
+    color: #f85149 !important;
+}
+
+.terminal-prompt-input,
+html.light .terminal-prompt-input {
+    background-color: transparent !important;
+    color: #58a6ff !important; /* Vivid terminal cyan-blue text while typing */
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+    caret-color: #58a6ff !important;
+}
+
+html.light input:not(.terminal-prompt-input)::placeholder,
 html.light textarea::placeholder {
     color: #94a3b8 !important;
+}
+
+html.light select {
+    color-scheme: light;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E") !important;
 }
 
 html.light select option {

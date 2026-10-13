@@ -34,6 +34,14 @@ export function ComposeRestart(arg1, arg2) {
   return window['go']['main']['App']['ComposeRestart'](arg1, arg2);
 }
 
+export function ComposeRestoreSnapshot(arg1, arg2) {
+  return window['go']['main']['App']['ComposeRestoreSnapshot'](arg1, arg2);
+}
+
+export function ComposeSaveSnapshot(arg1, arg2) {
+  return window['go']['main']['App']['ComposeSaveSnapshot'](arg1, arg2);
+}
+
 export function ComposeStageChanges(arg1, arg2) {
   return window['go']['main']['App']['ComposeStageChanges'](arg1, arg2);
 }
@@ -72,6 +80,10 @@ export function DetectRuntimes() {
 
 export function DisconnectContainerFromNetwork(arg1, arg2, arg3) {
   return window['go']['main']['App']['DisconnectContainerFromNetwork'](arg1, arg2, arg3);
+}
+
+export function ExecContainer(arg1, arg2) {
+  return window['go']['main']['App']['ExecContainer'](arg1, arg2);
 }
 
 export function GetActiveRuntime() {

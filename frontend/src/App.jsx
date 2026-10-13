@@ -54,9 +54,12 @@ import {
   ComposeApplyChanges,
   ComposeDiscardChanges,
   ComposeRefresh,
+  ComposeSaveSnapshot,
+  ComposeRestoreSnapshot,
   SearchRegistry,
   SearchAllRegistries,
   GetRegistryTags,
+  GetRegistryMetadata,
   GetFavorites,
   AddFavorite,
   RemoveFavorite,
@@ -402,6 +405,8 @@ export default function App() {
             ) : (
               <ContainersView
                 containers={containers}
+                networks={networks}
+                volumes={volumes}
                 loading={isRefreshing}
                 onRefresh={refreshAll}
                 onStart={handleStartContainer}
@@ -467,6 +472,8 @@ export default function App() {
               onApplyChanges={ComposeApplyChanges}
               onDiscardChanges={ComposeDiscardChanges}
               onRefreshProject={ComposeRefresh}
+              onSaveSnapshot={ComposeSaveSnapshot}
+              onRestoreSnapshot={ComposeRestoreSnapshot}
             />
           )}
 
@@ -475,6 +482,7 @@ export default function App() {
               onSearch={SearchRegistry}
               onSearchAll={SearchAllRegistries}
               onGetTags={GetRegistryTags}
+              onGetMetadata={GetRegistryMetadata}
               onPull={handlePullImage}
               onAddFavorite={handleAddFavorite}
               onRemoveFavorite={handleRemoveFavorite}

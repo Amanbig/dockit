@@ -423,3 +423,36 @@ func (e *Engine) GetContainerStats(ctx context.Context, containerID string, stre
 	}
 	return res.Body, nil
 }
+
+// ExecContainer creates and executes a command inside a running container, returning the output.
+func (e *Engine) ExecContainer(ctx context.Context, containerID string, cmd []string) (string, error) {
+	if len(cmd) == 0 {
+		return "", fmt.Errorf("no command provided")
+	}
+
+	execCreateResp, err := e.api.ExecCreate(ctx, containerID, client.ExecCreateOptions{
+		Cmd:          cmd,
+		AttachStdout: true,
+		AttachStderr: true,
+		TTY:          true,
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to create exec instance: %w", err)
+	}
+
+	attachResp, err := e.api.ExecAttach(ctx, execCreateResp.ID, client.ExecAttachOptions{
+		TTY: true,
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to attach to exec instance: %w", err)
+	}
+	defer attachResp.Close()
+
+	var buf bytes.Buffer
+	_, err = io.Copy(&buf, attachResp.Reader)
+	if err != nil && err != io.EOF {
+		return buf.String(), fmt.Errorf("reading exec output: %w", err)
+	}
+
+	return buf.String(), nil
+}
