@@ -57,6 +57,12 @@ export default function ComposeView({
   const [showSnapshotModal, setShowSnapshotModal] = useState(false);
   const [selectedSnapshot, setSelectedSnapshot] = useState(null);
   const [serviceLoading, setServiceLoading] = useState({});
+  const [showDownModal, setShowDownModal] = useState(false);
+  const [downOptions, setDownOptions] = useState({
+    removeVolumes: false,
+    removeOrphans: true,
+    removeImages: false
+  });
 
   // Load saved projects list from localStorage on mount
   useEffect(() => {
@@ -289,17 +295,38 @@ export default function ComposeView({
     }
   };
 
-  const handleDown = async () => {
+  const handleOpenDownModal = () => {
+    setShowDownModal(true);
+  };
+
+  const executeDown = async () => {
     if (!project || !projectKey) return;
     try {
       setLoading(true);
-      const out = await onDown(projectKey, { removeVolumes: false });
+      setShowDownModal(false);
+      const out = await onDown(projectKey, downOptions);
       setActionOutput(out);
       const refreshed = await onRefreshProject(projectKey);
       setProject(refreshed);
       setActiveTab('output');
     } catch (err) {
       alert(`Compose Down failed: ${err}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRestartStack = async () => {
+    if (!project || !projectKey) return;
+    try {
+      setLoading(true);
+      const out = await onRestart(projectKey, []);
+      setActionOutput(out);
+      const refreshed = await onRefreshProject(projectKey);
+      setProject(refreshed);
+      setActiveTab('output');
+    } catch (err) {
+      alert(`Restart stack failed: ${err}`);
     } finally {
       setLoading(false);
     }
@@ -524,25 +551,45 @@ export default function ComposeView({
 
             {/* Quick Action buttons */}
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => handleUp(false)}
-                disabled={loading}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 text-xs font-semibold transition-all disabled:opacity-50 cursor-pointer"
-              >
-                <Play className="w-3.5 h-3.5 fill-current" />
-                <span>Compose Up</span>
-              </button>
-              <button
-                onClick={handleDown}
-                disabled={loading}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 border border-rose-500/30 text-xs font-semibold transition-all disabled:opacity-50 cursor-pointer"
-              >
-                <Square className="w-3.5 h-3.5 fill-current" />
-                <span>Compose Down</span>
-              </button>
+              {(() => {
+                const isStackActive = project.status === 'running' || project.status === 'partial' || (project.services || []).some(s => (s.status || '').toLowerCase() === 'running');
+                return isStackActive ? (
+                  <>
+                    <button
+                      onClick={handleOpenDownModal}
+                      disabled={loading}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 border border-rose-500/30 text-xs font-semibold transition-all disabled:opacity-50 cursor-pointer"
+                      title="Stop stack and choose cleanup options"
+                    >
+                      {loading ? <RotateCw className="w-3.5 h-3.5 animate-spin" /> : <Square className="w-3.5 h-3.5 fill-current" />}
+                      <span>Compose Down</span>
+                    </button>
+                    <button
+                      onClick={handleRestartStack}
+                      disabled={loading}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-300 border border-slate-700 text-xs font-medium transition-all disabled:opacity-50 cursor-pointer"
+                      title="Restart entire stack"
+                    >
+                      <RotateCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-cyan-400' : ''}`} />
+                      <span>Restart Stack</span>
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => handleUp(false)}
+                    disabled={loading}
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 text-xs font-bold transition-all disabled:opacity-50 cursor-pointer shadow-sm shadow-emerald-500/10"
+                    title="Launch compose stack"
+                  >
+                    {loading ? <RotateCw className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5 fill-current" />}
+                    <span>Compose Up</span>
+                  </button>
+                );
+              })()}
               <button
                 onClick={() => onRefreshProject(projectKey).then(setProject)}
-                className="p-1.5 text-slate-400 hover:text-slate-200 rounded transition-colors"
+                disabled={loading}
+                className="p-1.5 text-slate-400 hover:text-slate-200 rounded transition-colors cursor-pointer"
                 title="Refresh project status"
               >
                 <RotateCw className="w-3.5 h-3.5" />
@@ -914,6 +961,109 @@ export default function ComposeView({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Compose Down Options */}
+      {showDownModal && project && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-md overflow-hidden shadow-2xl">
+            <div className="p-5 border-b border-slate-800 flex justify-between items-center">
+              <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
+                <Square className="w-4 h-4 text-rose-400 fill-rose-400" />
+                <span>Compose Down: {project.name}</span>
+              </h2>
+              <button
+                onClick={() => setShowDownModal(false)}
+                className="text-slate-400 hover:text-slate-200 text-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4 text-xs">
+              <p className="text-slate-300">
+                Stop and remove containers, networks, and internal resources created for this compose stack.
+              </p>
+
+              <div className="space-y-3 pt-1">
+                {/* Option 1: Remove Volumes */}
+                <label className="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-950 hover:border-slate-700 cursor-pointer transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={downOptions.removeVolumes}
+                    onChange={(e) => setDownOptions({ ...downOptions, removeVolumes: e.target.checked })}
+                    className="mt-0.5 rounded border-slate-700 text-rose-500 focus:ring-rose-500"
+                  />
+                  <div>
+                    <span className="font-semibold text-slate-200 flex items-center gap-1.5">
+                      <span>Remove Named & Anonymous Volumes</span>
+                      <code className="text-[10px] text-amber-400 bg-amber-500/10 px-1 py-0.2 rounded border border-amber-500/20">-v / --volumes</code>
+                    </span>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      Deletes persistent database storage, caches, and volumes declared in the Compose file.
+                    </p>
+                  </div>
+                </label>
+
+                {/* Option 2: Remove Orphans */}
+                <label className="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-950 hover:border-slate-700 cursor-pointer transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={downOptions.removeOrphans}
+                    onChange={(e) => setDownOptions({ ...downOptions, removeOrphans: e.target.checked })}
+                    className="mt-0.5 rounded border-slate-700 text-rose-500 focus:ring-rose-500"
+                  />
+                  <div>
+                    <span className="font-semibold text-slate-200 flex items-center gap-1.5">
+                      <span>Remove Orphaned Containers</span>
+                      <code className="text-[10px] text-slate-400 bg-slate-800 px-1 py-0.2 rounded border border-slate-700">--remove-orphans</code>
+                    </span>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      Cleans up old containers previously created for services removed from the YAML.
+                    </p>
+                  </div>
+                </label>
+
+                {/* Option 3: Remove Images */}
+                <label className="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-950 hover:border-slate-700 cursor-pointer transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={downOptions.removeImages}
+                    onChange={(e) => setDownOptions({ ...downOptions, removeImages: e.target.checked })}
+                    className="mt-0.5 rounded border-slate-700 text-rose-500 focus:ring-rose-500"
+                  />
+                  <div>
+                    <span className="font-semibold text-slate-200 flex items-center gap-1.5">
+                      <span>Remove Associated Images</span>
+                      <code className="text-[10px] text-slate-400 bg-slate-800 px-1 py-0.2 rounded border border-slate-700">--rmi all</code>
+                    </span>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      Deletes images downloaded or locally built for this project to reclaim disk space.
+                    </p>
+                  </div>
+                </label>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowDownModal(false)}
+                  className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-300 font-medium cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={executeDown}
+                  disabled={loading}
+                  className="px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold transition-all cursor-pointer shadow-md shadow-rose-600/20"
+                >
+                  {loading ? 'Stopping...' : 'Confirm Compose Down'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
