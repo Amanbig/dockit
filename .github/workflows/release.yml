@@ -1,0 +1,119 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.platform }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux/amd64
+            output_name: dockit-linux-amd64
+            artifact_name: dockit-linux-amd64.tar.gz
+
+          - os: windows-latest
+            platform: windows/amd64
+            output_name: dockit-windows-amd64
+            artifact_name: dockit-windows-amd64.zip
+
+          - os: macos-latest
+            platform: darwin/universal
+            output_name: dockit-darwin-universal
+            artifact_name: dockit-darwin-universal.zip
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '>=1.24'
+          check-latest: true
+          cache: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+
+      - name: Install Linux Build Dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+
+      - name: Build Wails Application
+        run: wails build -platform ${{ matrix.platform }}
+
+      - name: Package Linux Binary
+        if: runner.os == 'Linux'
+        run: |
+          tar -czvf ${{ matrix.artifact_name }} -C build/bin dockit
+
+      - name: Package Windows Binary
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          cd build/bin && 7z a ../../${{ matrix.artifact_name }} dockit.exe
+
+      - name: Package macOS Application Bundle
+        if: runner.os == 'macOS'
+        run: |
+          cd build/bin && zip -r ../../${{ matrix.artifact_name }} dockit.app
+
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.output_name }}
+          path: ${{ matrix.artifact_name }}
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: List Artifacts
+        run: ls -la release-assets
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-assets/*
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
