@@ -243,7 +243,7 @@ html.light button[class*="bg-cyan-500/20"] {
     color: #0e7490 !important;
 }
 
-/* Radio Cards in Settings */
+/* Radio Cards & Selection Options (Settings & Compose Down) */
 html.light label[class*="border-cyan-500"] {
     background-color: #ecfeff !important;
     border-color: #06b6d4 !important;
@@ -252,6 +252,96 @@ html.light label[class*="border-cyan-500"] {
 html.light label[class*="border-purple-500"] {
     background-color: #faf5ff !important;
     border-color: #a855f7 !important;
+}
+
+/* Modal Dialogs in Light Mode */
+html.light .bg-slate-900\/95,
+html.light .bg-slate-900 {
+    background-color: #ffffff !important;
+    border-color: #e2e8f0 !important;
+}
+
+/* Modal and panel headers / footers */
+html.light .bg-slate-950\/60,
+html.light .bg-slate-950\/70,
+html.light .bg-slate-950\/80,
+html.light .bg-slate-950 {
+    background-color: #f8fafc !important;
+    border-color: #e2e8f0 !important;
+}
+
+/* Compose Down Options checklist cards */
+html.light label[class*="bg-slate-950"] {
+    background-color: #f8fafc !important;
+    border-color: #e2e8f0 !important;
+    color: #1e293b !important;
+}
+
+html.light label[class*="bg-slate-950"]:hover {
+    background-color: #f1f5f9 !important;
+    border-color: #cbd5e1 !important;
+}
+
+html.light code[class*="bg-amber-500/10"] {
+    background-color: #fef3c7 !important;
+    color: #b45309 !important;
+    border-color: #fde68a !important;
+}
+
+html.light code[class*="bg-slate-800"] {
+    background-color: #e2e8f0 !important;
+    color: #334155 !important;
+    border-color: #cbd5e1 !important;
+}
+
+/* Update Modal specific elements */
+html.light div[class*="bg-cyan-950/30"] {
+    background-color: #ecfeff !important;
+    border-color: #a5f3fc !important;
+}
+
+html.light div[class*="bg-cyan-950/30"] span.text-cyan-300 {
+    color: #0891b2 !important;
+}
+
+html.light div[class*="bg-emerald-950/20"] {
+    background-color: #ecfdf5 !important;
+    border-color: #a7f3d0 !important;
+    color: #065f46 !important;
+}
+
+html.light div[class*="bg-emerald-950/20"] p {
+    color: #047857 !important;
+}
+
+html.light div[class*="bg-rose-950/30"] {
+    background-color: #fff1f2 !important;
+    border-color: #fecdd3 !important;
+    color: #9f1239 !important;
+}
+
+html.light div[class*="bg-rose-950/30"] p {
+    color: #be123c !important;
+}
+
+/* Release notes box inside Update Modal */
+html.light div[class*="max-h-36"][class*="bg-slate-950/80"] {
+    background-color: #f8fafc !important;
+    color: #1e293b !important;
+    border-color: #e2e8f0 !important;
+}
+
+/* Floating Update Toast in Light Mode */
+html.light div[class*="fixed bottom-5 right-5"][class*="bg-slate-900/95"] {
+    background-color: #ffffff !important;
+    border-color: #06b6d4 !important;
+    box-shadow: 0 20px 25px -5px rgba(6, 182, 212, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+}
+
+html.light span[class*="bg-cyan-950 text-cyan-300"] {
+    background-color: #ecfeff !important;
+    color: #0891b2 !important;
+    border-color: #a5f3fc !important;
 }
 
 /* Form Inputs, Selects, and Textareas */
