@@ -56,6 +56,7 @@ export default function ComposeView({
   const [snapshotMsg, setSnapshotMsg] = useState('');
   const [showSnapshotModal, setShowSnapshotModal] = useState(false);
   const [selectedSnapshot, setSelectedSnapshot] = useState(null);
+  const [serviceLoading, setServiceLoading] = useState({});
 
   // Load saved projects list from localStorage on mount
   useEffect(() => {
@@ -101,7 +102,13 @@ export default function ComposeView({
     if (!dirPath || !dirPath.trim()) return;
     try {
       setLoading(true);
-      const proj = await onOpenLocal(dirPath.trim());
+      let proj = await onOpenLocal(dirPath.trim());
+      if (onRefreshProject) {
+        try {
+          const refreshed = await onRefreshProject(proj.id || proj.filePath || dirPath.trim());
+          if (refreshed) proj = refreshed;
+        } catch (_) {}
+      }
       setProject(proj);
       setEditorYaml(proj.temporaryContent || proj.content || '');
       setActiveTab('services');
@@ -110,6 +117,48 @@ export default function ComposeView({
       alert(`Failed to load compose project: ${err}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleServiceStart = async (sName) => {
+    if (!project || !projectKey) return;
+    try {
+      setServiceLoading(prev => ({ ...prev, [sName]: true }));
+      await onStart(projectKey, [sName]);
+      const refreshed = await onRefreshProject(projectKey);
+      if (refreshed) setProject(refreshed);
+    } catch (err) {
+      alert(`Failed to start ${sName}: ${err}`);
+    } finally {
+      setServiceLoading(prev => ({ ...prev, [sName]: false }));
+    }
+  };
+
+  const handleServiceStop = async (sName) => {
+    if (!project || !projectKey) return;
+    try {
+      setServiceLoading(prev => ({ ...prev, [sName]: true }));
+      await onStop(projectKey, [sName]);
+      const refreshed = await onRefreshProject(projectKey);
+      if (refreshed) setProject(refreshed);
+    } catch (err) {
+      alert(`Failed to stop ${sName}: ${err}`);
+    } finally {
+      setServiceLoading(prev => ({ ...prev, [sName]: false }));
+    }
+  };
+
+  const handleServiceRestart = async (sName) => {
+    if (!project || !projectKey) return;
+    try {
+      setServiceLoading(prev => ({ ...prev, [sName]: true }));
+      await onRestart(projectKey, [sName]);
+      const refreshed = await onRefreshProject(projectKey);
+      if (refreshed) setProject(refreshed);
+    } catch (err) {
+      alert(`Failed to restart ${sName}: ${err}`);
+    } finally {
+      setServiceLoading(prev => ({ ...prev, [sName]: false }));
     }
   };
 
@@ -510,6 +559,9 @@ export default function ComposeView({
                   : Object.entries(project.services || {}).map(([sName, sCfg]) => ({ name: sName, ...sCfg }))
                 ).map((service) => {
                   const sName = service.name;
+                  const isRunning = (service.status || '').toLowerCase() === 'running';
+                  const isBusy = !!serviceLoading[sName];
+
                   return (
                     <div
                       key={sName}
@@ -521,9 +573,16 @@ export default function ComposeView({
                             <Server className="w-4 h-4 text-cyan-400" />
                             {sName}
                           </span>
-                          <span className="text-[10px] px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400 font-mono">
-                            {service.status || service.restart || 'stopped'}
-                          </span>
+                          {isRunning ? (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-semibold flex items-center gap-1.5 font-mono">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                              running
+                            </span>
+                          ) : (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700 font-mono">
+                              {service.status || 'stopped'}
+                            </span>
+                          )}
                         </div>
 
                         <div className="space-y-1.5 text-xs text-slate-400 mb-4 font-mono">
@@ -546,29 +605,48 @@ export default function ComposeView({
                         </div>
                       </div>
 
-                      {/* Per-service controls */}
+                      {/* Context-aware per-service controls */}
                       <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-900">
-                        <button
-                          onClick={() => onStart(projectKey, [sName])}
-                          className="p-1.5 text-emerald-400 hover:bg-emerald-400/10 rounded transition-colors text-xs flex items-center gap-1 cursor-pointer"
-                          title="Start service"
-                        >
-                          <Play className="w-3.5 h-3.5 fill-current" />
-                        </button>
-                        <button
-                          onClick={() => onStop(projectKey, [sName])}
-                          className="p-1.5 text-amber-400 hover:bg-amber-400/10 rounded transition-colors text-xs flex items-center gap-1 cursor-pointer"
-                          title="Stop service"
-                        >
-                          <Square className="w-3.5 h-3.5 fill-current" />
-                        </button>
-                        <button
-                          onClick={() => onRestart(projectKey, [sName])}
-                          className="p-1.5 text-slate-400 hover:bg-slate-800 rounded transition-colors text-xs flex items-center gap-1 cursor-pointer"
-                          title="Restart service"
-                        >
-                          <RotateCw className="w-3.5 h-3.5" />
-                        </button>
+                        {isRunning ? (
+                          <>
+                            <button
+                              onClick={() => handleServiceStop(sName)}
+                              disabled={isBusy}
+                              className="flex items-center gap-1.5 px-3 py-1 rounded bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50"
+                              title="Stop service"
+                            >
+                              {isBusy ? (
+                                <RotateCw className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <Square className="w-3 h-3 fill-current" />
+                              )}
+                              <span>Stop</span>
+                            </button>
+                            <button
+                              onClick={() => handleServiceRestart(sName)}
+                              disabled={isBusy}
+                              className="flex items-center gap-1.5 px-3 py-1 rounded bg-slate-800 hover:bg-slate-750 text-slate-300 border border-slate-700 text-xs transition-colors cursor-pointer disabled:opacity-50"
+                              title="Restart service"
+                            >
+                              <RotateCw className={`w-3 h-3 ${isBusy ? 'animate-spin text-cyan-400' : ''}`} />
+                              <span>Restart</span>
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => handleServiceStart(sName)}
+                            disabled={isBusy}
+                            className="flex items-center gap-1.5 px-3.5 py-1 rounded bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50"
+                            title="Start service"
+                          >
+                            {isBusy ? (
+                              <RotateCw className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <Play className="w-3 h-3 fill-current" />
+                            )}
+                            <span>Start</span>
+                          </button>
+                        )}
                       </div>
                     </div>
                   );

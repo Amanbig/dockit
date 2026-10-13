@@ -105,6 +105,34 @@ func (m *Manager) OpenProject(path string) (*Project, error) {
 
 	m.projects[proj.ID] = proj
 	m.projects[workingDir] = proj
+
+	// Query live status immediately if runtime is active
+	if statuses, err := m.runner.PS(context.Background(), workingDir, filePath); err == nil && len(statuses) > 0 {
+		statusMap := make(map[string]string)
+		for _, st := range statuses {
+			statusMap[st.Service] = st.State
+		}
+		runningCount := 0
+		for i := range proj.Services {
+			name := proj.Services[i].Name
+			if st, ok := statusMap[name]; ok {
+				proj.Services[i].Status = st
+				if strings.EqualFold(st, "running") {
+					runningCount++
+				}
+			} else {
+				proj.Services[i].Status = "stopped"
+			}
+		}
+		if runningCount == len(proj.Services) && len(proj.Services) > 0 {
+			proj.Status = "running"
+		} else if runningCount > 0 {
+			proj.Status = "partial"
+		} else {
+			proj.Status = "stopped"
+		}
+	}
+
 	return proj, nil
 }
 

@@ -54,7 +54,7 @@ func ExtractServices(file *ComposeFile) []ServiceInfo {
 			Image:         svc.Image,
 			ContainerName: svc.ContainerName,
 			Ports:         ports,
-			Status:        "unknown",
+			Status:        "stopped",
 		})
 	}
 
