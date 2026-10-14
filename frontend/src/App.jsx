@@ -22,6 +22,7 @@ import {
   GetActiveRuntime,
   SwitchRuntime,
   GetSystemInfo,
+  GetHostMetrics,
   GetContainers,
   StartContainer,
   StopContainer,
@@ -85,6 +86,7 @@ export default function App() {
   const [selectedContainerId, setSelectedContainerId] = useState(null);
   const [activeRuntime, setActiveRuntime] = useState('docker');
   const [systemInfo, setSystemInfo] = useState(null);
+  const [hostMetrics, setHostMetrics] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [appConfig, setAppConfig] = useState(null);
   const [theme, setTheme] = useState('dark');
@@ -176,9 +178,10 @@ export default function App() {
   const refreshAll = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      const [rt, info, cList, iList, vList, nList, favs, cfg, ver] = await Promise.allSettled([
+      const [rt, info, metrics, cList, iList, vList, nList, favs, cfg, ver] = await Promise.allSettled([
         GetActiveRuntime(),
         GetSystemInfo(),
+        GetHostMetrics(),
         GetContainers(true),
         GetImages(false),
         GetVolumes(),
@@ -190,6 +193,7 @@ export default function App() {
 
       if (rt.status === 'fulfilled' && rt.value) setActiveRuntime(rt.value);
       if (info.status === 'fulfilled') setSystemInfo(info.value);
+      if (metrics.status === 'fulfilled' && metrics.value) setHostMetrics(metrics.value);
       if (cList.status === 'fulfilled' && Array.isArray(cList.value)) setContainers(cList.value);
       if (iList.status === 'fulfilled' && Array.isArray(iList.value)) setImages(iList.value);
       if (vList.status === 'fulfilled' && Array.isArray(vList.value)) setVolumes(vList.value);
@@ -213,11 +217,14 @@ export default function App() {
   useEffect(() => {
     refreshAll();
     const interval = setInterval(() => {
-      // Periodic background refresh for container health
+      // Periodic background refresh for container health & host metrics
       GetContainers(true).then((list) => {
         if (Array.isArray(list)) setContainers(list);
       }).catch(() => {});
-    }, 6000);
+      GetHostMetrics().then((m) => {
+        if (m) setHostMetrics(m);
+      }).catch(() => {});
+    }, 4000);
     return () => clearInterval(interval);
   }, [refreshAll]);
 
@@ -450,6 +457,7 @@ export default function App() {
         }}
         activeRuntime={activeRuntime}
         systemInfo={systemInfo}
+        hostMetrics={hostMetrics}
         stats={{
           runningContainers,
           totalContainers: containers.length

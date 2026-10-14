@@ -11,6 +11,7 @@ import (
 	"dockit/internal/compose"
 	"dockit/internal/config"
 	"dockit/internal/containers"
+	"dockit/internal/host"
 	"dockit/internal/images"
 	"dockit/internal/installer"
 	"dockit/internal/networks"
@@ -187,6 +188,11 @@ func (a *App) GetSystemInfo() (*runtime.SystemInfo, error) {
 		return nil, fmt.Errorf("no active container runtime")
 	}
 	return rt.Info(a.ctx)
+}
+
+// GetHostMetrics retrieves real-time CPU, RAM, and hardware metrics.
+func (a *App) GetHostMetrics() *host.Metrics {
+	return host.GetMetrics()
 }
 
 // GetSystemVersion retrieves version details for the active runtime.

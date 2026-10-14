@@ -323,6 +323,37 @@ export namespace containers {
 
 }
 
+export namespace host {
+	
+	export class Metrics {
+	    totalMemory: number;
+	    usedMemory: number;
+	    freeMemory: number;
+	    memoryPercent: number;
+	    cpus: number;
+	    cpuPercent: number;
+	    os: string;
+	    arch: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Metrics(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.totalMemory = source["totalMemory"];
+	        this.usedMemory = source["usedMemory"];
+	        this.freeMemory = source["freeMemory"];
+	        this.memoryPercent = source["memoryPercent"];
+	        this.cpus = source["cpus"];
+	        this.cpuPercent = source["cpuPercent"];
+	        this.os = source["os"];
+	        this.arch = source["arch"];
+	    }
+	}
+
+}
+
 export namespace images {
 	
 	export class Image {

@@ -138,6 +138,10 @@ export function GetFavorites() {
   return window['go']['main']['App']['GetFavorites']();
 }
 
+export function GetHostMetrics() {
+  return window['go']['main']['App']['GetHostMetrics']();
+}
+
 export function GetImages(arg1) {
   return window['go']['main']['App']['GetImages'](arg1);
 }

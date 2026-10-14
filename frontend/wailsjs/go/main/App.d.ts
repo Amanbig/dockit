@@ -8,6 +8,7 @@ import {volumes} from '../models';
 import {types} from '../models';
 import {config} from '../models';
 import {containers} from '../models';
+import {host} from '../models';
 import {images} from '../models';
 import {registry} from '../models';
 
@@ -78,6 +79,8 @@ export function GetContainers(arg1:boolean):Promise<Array<containers.Container>>
 export function GetCustomValue(arg1:string):Promise<string>;
 
 export function GetFavorites():Promise<Array<string>>;
+
+export function GetHostMetrics():Promise<host.Metrics>;
 
 export function GetImages(arg1:boolean):Promise<Array<images.Image>>;
 
