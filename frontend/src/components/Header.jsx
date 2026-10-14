@@ -14,6 +14,15 @@ import {
 } from 'lucide-react';
 import { WindowMinimise, WindowToggleMaximise, Quit } from '../../wailsjs/runtime/runtime';
 
+function RestoreIcon({ className = "w-3 h-3" }) {
+  return (
+    <svg className={className} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <path d="M4.5 4.5V2.5A1 1 0 015.5 1.5H13.5A1 1 0 0114.5 2.5V10.5A1 1 0 0113.5 11.5H11.5" />
+      <rect x="1.5" y="4.5" width="10" height="10" rx="1" />
+    </svg>
+  );
+}
+
 export default function Header({
   activeRuntime = 'docker',
   onSwitchRuntime,
@@ -21,7 +30,9 @@ export default function Header({
   isRefreshing,
   systemInfo,
   onOpenInstaller,
-  onOpenCommandPalette
+  onOpenCommandPalette,
+  isMaximised = false,
+  onToggleMaximise
 }) {
   const handleMinimise = () => {
     if (typeof WindowMinimise === 'function') WindowMinimise();
@@ -29,8 +40,13 @@ export default function Header({
   };
 
   const handleToggleMaximise = () => {
-    if (typeof WindowToggleMaximise === 'function') WindowToggleMaximise();
-    else if (window.runtime?.WindowToggleMaximise) window.runtime.WindowToggleMaximise();
+    if (onToggleMaximise) {
+      onToggleMaximise();
+    } else if (typeof WindowToggleMaximise === 'function') {
+      WindowToggleMaximise();
+    } else if (window.runtime?.WindowToggleMaximise) {
+      window.runtime.WindowToggleMaximise();
+    }
   };
 
   const handleClose = () => {
@@ -111,9 +127,9 @@ export default function Header({
             <button
               onClick={handleToggleMaximise}
               className="p-1.5 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-md transition-colors"
-              title="Maximize / Restore"
+              title={isMaximised ? "Restore Down" : "Maximize"}
             >
-              <Square className="w-3 h-3" />
+              {isMaximised ? <RestoreIcon className="w-3 h-3" /> : <Square className="w-3 h-3" />}
             </button>
             <button
               onClick={handleClose}

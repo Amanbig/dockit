@@ -32,17 +32,20 @@ func main() {
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
-		BackgroundColour: &options.RGBA{R: 2, G: 6, B: 23, A: 1},
+		BackgroundColour: &options.RGBA{R: 0, G: 0, B: 0, A: 0},
 		OnStartup:        app.startup,
 		Bind: []interface{}{
 			app,
 		},
 		Linux: &linux.Options{
-			Icon:        appIcon,
-			ProgramName: "dockit",
+			Icon:                appIcon,
+			ProgramName:         "dockit",
+			WindowIsTranslucent: true,
 		},
 		Windows: &windows.Options{
 			DisableFramelessWindowDecorations: false,
+			WindowIsTranslucent:               true,
+			WebviewIsTransparent:              true,
 		},
 	})
 

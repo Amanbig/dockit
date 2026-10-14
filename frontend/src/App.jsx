@@ -79,6 +79,7 @@ import {
   InstallRuntime,
   SelectDirectoryDialog
 } from '../wailsjs/go/main/App';
+import { WindowIsMaximised, WindowToggleMaximise } from '../wailsjs/runtime/runtime';
 import UpdateModal from './components/UpdateModal';
 
 export default function App() {
@@ -91,6 +92,32 @@ export default function App() {
   const [appConfig, setAppConfig] = useState(null);
   const [theme, setTheme] = useState('dark');
   const [appVersion, setAppVersion] = useState(packageJson?.version || '0.4.0');
+
+  // Track whether the frameless window is currently maximized
+  const [isMaximised, setIsMaximised] = useState(false);
+
+  const checkMaximised = useCallback(() => {
+    if (typeof WindowIsMaximised === 'function') {
+      WindowIsMaximised().then(setIsMaximised).catch(() => {});
+    } else if (window.runtime?.WindowIsMaximised) {
+      window.runtime.WindowIsMaximised().then(setIsMaximised).catch(() => {});
+    }
+  }, []);
+
+  useEffect(() => {
+    checkMaximised();
+    window.addEventListener('resize', checkMaximised);
+    return () => window.removeEventListener('resize', checkMaximised);
+  }, [checkMaximised]);
+
+  const handleToggleMaximise = useCallback(() => {
+    if (typeof WindowToggleMaximise === 'function') {
+      WindowToggleMaximise();
+    } else if (window.runtime?.WindowToggleMaximise) {
+      window.runtime.WindowToggleMaximise();
+    }
+    setTimeout(checkMaximised, 120);
+  }, [checkMaximised]);
 
   // Immediately query app version from Go backend on mount
   useEffect(() => {
@@ -447,38 +474,51 @@ export default function App() {
   const runningContainers = containers.filter(c => c.status === 'running').length;
 
   return (
-    <div className="flex h-screen w-screen bg-slate-950 text-slate-100 overflow-hidden font-sans">
-      {/* Left Navigation Sidebar */}
-      <Sidebar
-        activeTab={activeTab}
-        setActiveTab={(tab) => {
-          setSelectedContainerId(null);
-          setActiveTab(tab);
-        }}
-        activeRuntime={activeRuntime}
-        systemInfo={systemInfo}
-        hostMetrics={hostMetrics}
-        stats={{
-          runningContainers,
-          totalContainers: containers.length
-        }}
-        appVersion={appVersion}
-        updateAvailable={Boolean(updateInfo?.available)}
-        onOpenUpdateModal={() => setUpdateModalOpen(true)}
-      />
-
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden">
-        {/* Global Header */}
-        <Header
+    <div
+      className={`h-screen w-screen bg-transparent select-none overflow-hidden font-sans transition-all duration-150 ${
+        isMaximised ? 'p-0' : 'p-2'
+      }`}
+    >
+      <div
+        className={`flex h-full w-full bg-slate-950 text-slate-100 overflow-hidden transition-all duration-200 relative ${
+          isMaximised
+            ? 'rounded-none border-0'
+            : 'rounded-2xl border border-slate-750/90 shadow-[0_16px_48px_rgba(0,0,0,0.85),0_0_0_1px_rgba(255,255,255,0.08)]'
+        }`}
+      >
+        {/* Left Navigation Sidebar */}
+        <Sidebar
+          activeTab={activeTab}
+          setActiveTab={(tab) => {
+            setSelectedContainerId(null);
+            setActiveTab(tab);
+          }}
           activeRuntime={activeRuntime}
-          onSwitchRuntime={handleSwitchRuntime}
-          onRefresh={refreshAll}
-          isRefreshing={isRefreshing}
           systemInfo={systemInfo}
-          onOpenInstaller={() => setShowInstaller(true)}
-          onOpenCommandPalette={() => setCommandPaletteOpen(true)}
+          hostMetrics={hostMetrics}
+          stats={{
+            runningContainers,
+            totalContainers: containers.length
+          }}
+          appVersion={appVersion}
+          updateAvailable={Boolean(updateInfo?.available)}
+          onOpenUpdateModal={() => setUpdateModalOpen(true)}
         />
+
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col h-full overflow-hidden">
+          {/* Global Header */}
+          <Header
+            activeRuntime={activeRuntime}
+            onSwitchRuntime={handleSwitchRuntime}
+            onRefresh={refreshAll}
+            isRefreshing={isRefreshing}
+            systemInfo={systemInfo}
+            onOpenInstaller={() => setShowInstaller(true)}
+            onOpenCommandPalette={() => setCommandPaletteOpen(true)}
+            isMaximised={isMaximised}
+            onToggleMaximise={handleToggleMaximise}
+          />
 
         {/* View Switcher */}
         <main className="flex-1 flex overflow-hidden">
@@ -708,6 +748,7 @@ export default function App() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
