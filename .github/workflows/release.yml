@@ -64,13 +64,16 @@ jobs:
 
       - name: Build Wails Application
         shell: bash
+        env:
+          MSYS_NO_PATHCONV: 1
+          MSYS2_ARG_CONV_EXCL: "*"
         run: |
           if [ "${{ runner.os }}" = "Linux" ]; then
-            wails build -tags webkit2_41 -platform ${{ matrix.platform }} -ldflags "-X dockit/internal/version.Version=${{ github.ref_name }}"
+            wails build -tags webkit2_41 -platform ${{ matrix.platform }} -ldflags "-X 'dockit/internal/version.Version=${{ github.ref_name }}'"
           elif [ "${{ runner.os }}" = "Windows" ]; then
-            wails build -nsis -platform ${{ matrix.platform }} -ldflags "-X dockit/internal/version.Version=${{ github.ref_name }}"
+            wails build -nsis -platform ${{ matrix.platform }} -ldflags "-X 'dockit/internal/version.Version=${{ github.ref_name }}'"
           else
-            wails build -platform ${{ matrix.platform }} -ldflags "-X dockit/internal/version.Version=${{ github.ref_name }}"
+            wails build -platform ${{ matrix.platform }} -ldflags "-X 'dockit/internal/version.Version=${{ github.ref_name }}'"
           fi
 
       - name: Package Linux Binary and Native Installers (.deb, .rpm, .tar.gz)

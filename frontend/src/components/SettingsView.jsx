@@ -22,7 +22,7 @@ export default function SettingsView({
   activeRuntime,
   theme,
   onSetTheme,
-  appVersion = '0.1.0',
+  appVersion = '0.4.0',
   onCheckForUpdates,
   isCheckingUpdates = false
 }) {

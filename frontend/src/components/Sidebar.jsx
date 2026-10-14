@@ -19,7 +19,7 @@ export default function Sidebar({
   setActiveTab, 
   stats = { runningContainers: 0, totalContainers: 0 },
   activeRuntime = 'docker',
-  appVersion = '0.1.0',
+  appVersion = '0.4.0',
   updateAvailable = false,
   onOpenUpdateModal
 }) {

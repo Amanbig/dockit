@@ -15,6 +15,7 @@ import InspectModal from './components/InspectModal';
 import InstallerModal from './components/InstallerModal';
 import CommandPalette from './components/CommandPalette';
 import { Sparkles, ArrowRight, X } from 'lucide-react';
+import packageJson from '../package.json';
 
 // Wails Go Bridge API bindings
 import {
@@ -87,7 +88,14 @@ export default function App() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [appConfig, setAppConfig] = useState(null);
   const [theme, setTheme] = useState('dark');
-  const [appVersion, setAppVersion] = useState('0.1.0');
+  const [appVersion, setAppVersion] = useState(packageJson?.version || '0.4.0');
+
+  // Immediately query app version from Go backend on mount
+  useEffect(() => {
+    GetAppVersion().then((ver) => {
+      if (ver) setAppVersion(ver);
+    }).catch(console.warn);
+  }, []);
 
   // Domain states
   const [containers, setContainers] = useState([]);
@@ -220,6 +228,9 @@ export default function App() {
       const res = await CheckForAppUpdate();
       if (res) {
         setUpdateInfo(res);
+        if (res.currentVersion) {
+          setAppVersion(res.currentVersion);
+        }
         if (res.available) {
           if (manual) {
             setUpdateModalOpen(true);
