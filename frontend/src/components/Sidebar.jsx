@@ -32,7 +32,7 @@ export default function Sidebar({
   activeRuntime = 'docker',
   systemInfo,
   hostMetrics,
-  appVersion = '0.4.0',
+  appVersion = '0.4.1',
   updateAvailable = false,
   onOpenUpdateModal
 }) {

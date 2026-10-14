@@ -13,7 +13,7 @@
   "info": {
     "companyName": "Dockit",
     "productName": "Dockit",
-    "productVersion": "0.4.0",
+    "productVersion": "0.4.1",
     "copyright": "Copyright 2026",
     "comments": "Cross-platform Docker & Podman desktop management"
   }
