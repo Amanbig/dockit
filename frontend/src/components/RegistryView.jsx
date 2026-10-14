@@ -119,7 +119,7 @@ export default function RegistryView({
   const [loadingTags, setLoadingTags] = useState(false);
   const [pullingTag, setPullingTag] = useState(null);
   const [tagFilter, setTagFilter] = useState('');
-  const [copiedCmd, setCopiedCmd] = useState(false);
+  const [copiedTag, setCopiedTag] = useState(null);
   const [copiedReadme, setCopiedReadme] = useState(false);
 
   const handleSearch = async (e) => {
@@ -198,8 +198,8 @@ export default function RegistryView({
     if (!selectedImage) return;
     const cmd = `docker pull ${selectedImage.name}:${tag}`;
     navigator.clipboard.writeText(cmd);
-    setCopiedCmd(true);
-    setTimeout(() => setCopiedCmd(false), 2000);
+    setCopiedTag(tag);
+    setTimeout(() => setCopiedTag(null), 2000);
   };
 
   const isFavorite = (name) => (favorites || []).includes(name);
@@ -397,7 +397,7 @@ export default function RegistryView({
                     className="p-1 text-slate-400 hover:text-cyan-400 transition-colors shrink-0 cursor-pointer"
                     title="Copy docker pull command"
                   >
-                    {copiedCmd ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copiedTag === 'latest' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                   </button>
                 </div>
 
@@ -580,7 +580,11 @@ export default function RegistryView({
                               className="p-1.5 text-slate-400 hover:text-slate-200 rounded transition-colors"
                               title={`Copy docker pull ${selectedImage.name}:${t.name}`}
                             >
-                              <Copy className="w-3.5 h-3.5" />
+                              {copiedTag === t.name ? (
+                                <Check className="w-3.5 h-3.5 text-emerald-400" />
+                              ) : (
+                                <Copy className="w-3.5 h-3.5" />
+                              )}
                             </button>
                             <button
                               onClick={() => handlePullImageTag(selectedImage.name, t.name)}

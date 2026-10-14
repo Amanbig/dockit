@@ -42,11 +42,11 @@ export default function Sidebar({
   return (
     <aside className="w-64 bg-slate-950 border-r border-slate-800 flex flex-col h-full select-none">
       {/* Brand Header */}
-      <div className="h-16 flex items-center px-5 border-b border-slate-800 gap-3">
+      <div className="h-14 flex items-center px-5 border-b border-slate-800 gap-3">
         <img
           src={logoImg}
           alt="Dockit Logo"
-          className="w-9 h-9 rounded-xl shadow-lg shadow-cyan-500/15 object-contain"
+          className="w-8 h-8 rounded-xl shadow-lg shadow-cyan-500/15 object-contain"
         />
         <div className="flex flex-col">
           <div className="flex items-center gap-1.5">
