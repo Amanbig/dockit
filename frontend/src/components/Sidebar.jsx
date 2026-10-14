@@ -36,7 +36,7 @@ export default function Sidebar({
   runtimesStatus,
   onOpenInstaller,
   hostMetrics,
-  appVersion = '0.4.1',
+  appVersion = '0.5.0',
   updateAvailable = false,
   onOpenUpdateModal
 }) {
