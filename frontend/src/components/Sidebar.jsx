@@ -11,7 +11,9 @@ import {
   Zap,
   ExternalLink,
   Activity,
-  Cpu
+  Cpu,
+  AlertCircle,
+  DownloadCloud
 } from 'lucide-react';
 import { BrowserOpenURL, WindowToggleMaximise } from '../../wailsjs/runtime/runtime';
 
@@ -31,6 +33,8 @@ export default function Sidebar({
   stats = { runningContainers: 0, totalContainers: 0 },
   activeRuntime = 'docker',
   systemInfo,
+  runtimesStatus,
+  onOpenInstaller,
   hostMetrics,
   appVersion = '0.4.1',
   updateAvailable = false,
@@ -91,21 +95,90 @@ export default function Sidebar({
       </div>
 
       {/* Engine Status */}
-      <div className="px-4 py-3 border-b border-slate-800/80 bg-slate-900/40">
-        <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-900 border border-slate-800 text-xs shadow-xs">
-          <div className="flex items-center gap-2">
-            <Zap className="w-3.5 h-3.5 text-cyan-400" />
-            <span className="text-slate-400 font-medium">Engine:</span>
-            <span className="font-semibold uppercase tracking-wider text-slate-200">
-              {activeRuntime}
+      {(() => {
+        const currentStatus = runtimesStatus ? runtimesStatus[activeRuntime?.toLowerCase()] : null;
+        const isInstalled = currentStatus ? currentStatus.installed : Boolean(systemInfo);
+        const isRunning = currentStatus ? currentStatus.running : Boolean(systemInfo);
+
+        let statusBadge;
+        let statusAction = null;
+
+        if (activeRuntime === 'none') {
+          statusBadge = (
+            <span className="flex items-center gap-1.5 text-[11px] text-slate-400 font-medium">
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+              No Engine
             </span>
+          );
+        } else if (currentStatus && !currentStatus.installed) {
+          statusBadge = (
+            <button
+              onClick={onOpenInstaller}
+              title="Engine not installed. Click to install."
+              className="flex items-center gap-1.5 text-[11px] text-rose-400 font-medium hover:text-rose-300 transition-colors cursor-pointer"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+              Not Installed
+            </button>
+          );
+          if (onOpenInstaller) {
+            statusAction = (
+              <button
+                onClick={onOpenInstaller}
+                className="mt-2 w-full text-[11px] font-medium py-1 px-2 rounded-md bg-rose-500/10 border border-rose-500/30 text-rose-300 hover:bg-rose-500/20 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <DownloadCloud className="w-3 h-3" />
+                Install {activeRuntime === 'podman' ? 'Podman' : 'Docker'}
+              </button>
+            );
+          }
+        } else if ((currentStatus && !currentStatus.running) || (!systemInfo && !isRunning)) {
+          statusBadge = (
+            <button
+              onClick={onOpenInstaller}
+              title="Engine daemon is not running. Click for setup."
+              className="flex items-center gap-1.5 text-[11px] text-amber-400 font-medium hover:text-amber-300 transition-colors cursor-pointer"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+              Offline
+            </button>
+          );
+          if (onOpenInstaller) {
+            statusAction = (
+              <button
+                onClick={onOpenInstaller}
+                className="mt-2 w-full text-[11px] font-medium py-1 px-2 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-300 hover:bg-amber-500/20 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <AlertCircle className="w-3 h-3" />
+                Start {activeRuntime === 'podman' ? 'Podman' : 'Docker'}
+              </button>
+            );
+          }
+        } else {
+          statusBadge = (
+            <span className="flex items-center gap-1.5 text-[11px] text-emerald-400 font-medium">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              Ready
+            </span>
+          );
+        }
+
+        return (
+          <div className="px-4 py-3 border-b border-slate-800/80 bg-slate-900/40">
+            <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-900 border border-slate-800 text-xs shadow-xs">
+              <div className="flex items-center gap-2 min-w-0">
+                <Zap className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                <span className="text-slate-400 font-medium">Engine:</span>
+                <span className="font-semibold uppercase tracking-wider text-slate-200 truncate">
+                  {activeRuntime}
+                </span>
+              </div>
+              {statusBadge}
+            </div>
+            {statusAction}
           </div>
-          <span className="flex items-center gap-1.5 text-[11px] text-emerald-400 font-medium">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-            Ready
-          </span>
-        </div>
-      </div>
+        );
+      })()}
 
       {/* Navigation Links */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">

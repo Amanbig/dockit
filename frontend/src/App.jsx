@@ -14,7 +14,7 @@ import LogsModal from './components/LogsModal';
 import InspectModal from './components/InspectModal';
 import InstallerModal from './components/InstallerModal';
 import CommandPalette from './components/CommandPalette';
-import { Sparkles, ArrowRight, X } from 'lucide-react';
+import { Sparkles, ArrowRight, X, AlertCircle } from 'lucide-react';
 import packageJson from '../package.json';
 
 // Wails Go Bridge API bindings
@@ -88,6 +88,7 @@ export default function App() {
   const [activeRuntime, setActiveRuntime] = useState('docker');
   const [systemInfo, setSystemInfo] = useState(null);
   const [hostMetrics, setHostMetrics] = useState(null);
+  const [runtimesStatus, setRuntimesStatus] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [appConfig, setAppConfig] = useState(null);
   const [theme, setTheme] = useState('dark');
@@ -205,10 +206,11 @@ export default function App() {
   const refreshAll = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      const [rt, info, metrics, cList, iList, vList, nList, favs, cfg, ver] = await Promise.allSettled([
+      const [rt, info, metrics, runtimes, cList, iList, vList, nList, favs, cfg, ver] = await Promise.allSettled([
         GetActiveRuntime(),
         GetSystemInfo(),
         GetHostMetrics(),
+        DetectRuntimes(),
         GetContainers(true),
         GetImages(false),
         GetVolumes(),
@@ -219,12 +221,33 @@ export default function App() {
       ]);
 
       if (rt.status === 'fulfilled' && rt.value) setActiveRuntime(rt.value);
-      if (info.status === 'fulfilled') setSystemInfo(info.value);
+      if (info.status === 'fulfilled') {
+        setSystemInfo(info.value);
+      } else {
+        setSystemInfo(null);
+      }
       if (metrics.status === 'fulfilled' && metrics.value) setHostMetrics(metrics.value);
-      if (cList.status === 'fulfilled' && Array.isArray(cList.value)) setContainers(cList.value);
-      if (iList.status === 'fulfilled' && Array.isArray(iList.value)) setImages(iList.value);
-      if (vList.status === 'fulfilled' && Array.isArray(vList.value)) setVolumes(vList.value);
-      if (nList.status === 'fulfilled' && Array.isArray(nList.value)) setNetworks(nList.value);
+      if (runtimes.status === 'fulfilled' && runtimes.value) setRuntimesStatus(runtimes.value);
+      if (cList.status === 'fulfilled' && Array.isArray(cList.value)) {
+        setContainers(cList.value);
+      } else {
+        setContainers([]);
+      }
+      if (iList.status === 'fulfilled' && Array.isArray(iList.value)) {
+        setImages(iList.value);
+      } else {
+        setImages([]);
+      }
+      if (vList.status === 'fulfilled' && Array.isArray(vList.value)) {
+        setVolumes(vList.value);
+      } else {
+        setVolumes([]);
+      }
+      if (nList.status === 'fulfilled' && Array.isArray(nList.value)) {
+        setNetworks(nList.value);
+      } else {
+        setNetworks([]);
+      }
       if (favs.status === 'fulfilled' && Array.isArray(favs.value)) setFavorites(favs.value);
       if (ver.status === 'fulfilled' && ver.value) setAppVersion(ver.value);
       if (cfg.status === 'fulfilled' && cfg.value) {
@@ -298,10 +321,12 @@ export default function App() {
   const handleSwitchRuntime = async (target) => {
     try {
       const chosen = await SwitchRuntime(target);
-      setActiveRuntime(chosen);
+      setActiveRuntime(chosen || target);
       await refreshAll();
     } catch (err) {
-      alert(`Could not switch to ${target}: ${err}`);
+      console.warn(`Could not connect to ${target}:`, err);
+      setActiveRuntime(target);
+      await refreshAll();
     }
   };
 
@@ -495,6 +520,8 @@ export default function App() {
           }}
           activeRuntime={activeRuntime}
           systemInfo={systemInfo}
+          runtimesStatus={runtimesStatus}
+          onOpenInstaller={() => setShowInstaller(true)}
           hostMetrics={hostMetrics}
           stats={{
             runningContainers,
@@ -514,11 +541,41 @@ export default function App() {
             onRefresh={refreshAll}
             isRefreshing={isRefreshing}
             systemInfo={systemInfo}
+            runtimesStatus={runtimesStatus}
             onOpenInstaller={() => setShowInstaller(true)}
             onOpenCommandPalette={() => setCommandPaletteOpen(true)}
             isMaximised={isMaximised}
             onToggleMaximise={handleToggleMaximise}
           />
+
+          {/* Engine offline / not installed banner */}
+          {activeRuntime !== 'none' && runtimesStatus && runtimesStatus[activeRuntime] && (!runtimesStatus[activeRuntime].installed || !runtimesStatus[activeRuntime].running) && (
+            <div className={`px-4 py-2 border-b flex items-center justify-between text-xs z-10 shrink-0 ${
+              !runtimesStatus[activeRuntime].installed
+                ? 'bg-rose-950/40 border-rose-900/60 text-rose-300'
+                : 'bg-amber-950/40 border-amber-900/60 text-amber-300'
+            }`}>
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>
+                  {!runtimesStatus[activeRuntime].installed
+                    ? `${activeRuntime === 'podman' ? 'Podman' : 'Docker'} is not installed on this system.`
+                    : `${activeRuntime === 'podman' ? 'Podman' : 'Docker'} daemon is stopped or unreachable.`
+                  }
+                </span>
+              </div>
+              <button
+                onClick={() => setShowInstaller(true)}
+                className={`px-2.5 py-1 rounded text-[11px] font-semibold border transition-colors cursor-pointer ${
+                  !runtimesStatus[activeRuntime].installed
+                    ? 'bg-rose-900/60 hover:bg-rose-800 border-rose-700 text-rose-100'
+                    : 'bg-amber-900/60 hover:bg-amber-800 border-amber-700 text-amber-100'
+                }`}
+              >
+                {!runtimesStatus[activeRuntime].installed ? 'Install Engine' : 'Setup & Start Daemon'}
+              </button>
+            </div>
+          )}
 
         {/* View Switcher */}
         <main className="flex-1 flex overflow-hidden">

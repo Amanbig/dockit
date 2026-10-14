@@ -98,23 +98,11 @@ func (a *App) initRuntime(preferred string) error {
 		rt, err = podmanclient.NewClient(ctx)
 		if err == nil {
 			rtType = "podman"
-		} else {
-			// Fallback to Docker if Podman fails
-			rt, err = dockerclient.NewClient(ctx)
-			if err == nil {
-				rtType = "docker"
-			}
 		}
 	case "docker":
 		rt, err = dockerclient.NewClient(ctx)
 		if err == nil {
 			rtType = "docker"
-		} else {
-			// Fallback to Podman if Docker fails
-			rt, err = podmanclient.NewClient(ctx)
-			if err == nil {
-				rtType = "podman"
-			}
 		}
 	default: // "auto"
 		// Try Docker first, fallback to Podman
@@ -140,9 +128,17 @@ func (a *App) initRuntime(preferred string) error {
 		return nil
 	}
 
-	// Initialize standalone compose manager even if daemon is not currently running
+	// When preferred runtime is offline or not installed, reflect the requested engine
+	if preferred == "docker" || preferred == "podman" {
+		a.runtimeType = preferred
+	} else {
+		a.runtimeType = "none"
+	}
 	a.composeMgr = compose.NewManager("docker")
-	return fmt.Errorf("no container runtime reachable: %w", err)
+	if err == nil {
+		err = fmt.Errorf("%s runtime is not reachable or not installed", preferred)
+	}
+	return err
 }
 
 // ==========================================
@@ -163,20 +159,11 @@ func (a *App) GetActiveRuntime() string {
 
 // SwitchRuntime reconnects Dockit to a different runtime ("docker" or "podman").
 func (a *App) SwitchRuntime(targetRuntime string) (string, error) {
-	prev := a.GetActiveRuntime()
-	if err := a.initRuntime(targetRuntime); err != nil {
-		// Restore previous reachable runtime or auto
-		if prev != "none" && prev != targetRuntime {
-			_ = a.initRuntime(prev)
-		} else {
-			_ = a.initRuntime("auto")
-		}
-		return a.GetActiveRuntime(), err
-	}
-	if a.configMgr != nil {
+	err := a.initRuntime(targetRuntime)
+	if a.configMgr != nil && err == nil {
 		_ = a.configMgr.SetSelectedRuntime(targetRuntime)
 	}
-	return a.GetActiveRuntime(), nil
+	return a.GetActiveRuntime(), err
 }
 
 // GetSystemInfo retrieves runtime daemon host and system metrics.

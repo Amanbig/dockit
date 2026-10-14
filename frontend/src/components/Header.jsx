@@ -29,11 +29,28 @@ export default function Header({
   onRefresh,
   isRefreshing,
   systemInfo,
+  runtimesStatus,
   onOpenInstaller,
   onOpenCommandPalette,
   isMaximised = false,
   onToggleMaximise
 }) {
+  const getStatusDot = (engineName) => {
+    const status = runtimesStatus?.[engineName];
+    if (status) {
+      if (status.running) return { color: 'bg-emerald-400', label: 'Running' };
+      if (status.installed) return { color: 'bg-amber-400', label: 'Offline' };
+      return { color: 'bg-rose-500', label: 'Not Installed' };
+    }
+    if (activeRuntime === engineName && systemInfo) {
+      return { color: 'bg-emerald-400', label: 'Running' };
+    }
+    return null;
+  };
+
+  const dockerDot = getStatusDot('docker');
+  const podmanDot = getStatusDot('podman');
+
   const handleMinimise = () => {
     if (typeof WindowMinimise === 'function') WindowMinimise();
     else if (window.runtime?.WindowMinimise) window.runtime.WindowMinimise();
@@ -66,23 +83,31 @@ export default function Header({
           <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded-lg p-1 shrink-0">
             <button
               onClick={() => onSwitchRuntime('docker')}
-              className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
+              title={`Docker (${dockerDot ? dockerDot.label : 'Engine'})`}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all ${
                 activeRuntime === 'docker'
                   ? 'bg-cyan-500 text-slate-950 font-bold shadow-xs'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              Docker
+              {dockerDot && (
+                <span className={`w-1.5 h-1.5 rounded-full ${dockerDot.color} ${activeRuntime === 'docker' ? 'ring-1 ring-slate-950/40' : ''}`} />
+              )}
+              <span>Docker</span>
             </button>
             <button
               onClick={() => onSwitchRuntime('podman')}
-              className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
+              title={`Podman (${podmanDot ? podmanDot.label : 'Engine'})`}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all ${
                 activeRuntime === 'podman'
                   ? 'bg-purple-600 text-white font-bold shadow-xs'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              Podman
+              {podmanDot && (
+                <span className={`w-1.5 h-1.5 rounded-full ${podmanDot.color} ${activeRuntime === 'podman' ? 'ring-1 ring-white/40' : ''}`} />
+              )}
+              <span>Podman</span>
             </button>
           </div>
         </div>
