@@ -55,15 +55,27 @@ export default function ContainerDetailsView({ containerId, onBack, onRefreshLis
   const [historyList, setHistoryList] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [executing, setExecuting] = useState(false);
-  const terminalBottomRef = React.useRef(null);
+  const terminalScrollRef = React.useRef(null);
   const terminalInputRef = React.useRef(null);
 
-  // Auto-scroll terminal to bottom when new output arrives
+  // Auto-scroll inside terminal window without moving outer page
+  React.useEffect(() => {
+    if (activeSubTab === 'terminal' && terminalScrollRef.current) {
+      terminalScrollRef.current.scrollTop = terminalScrollRef.current.scrollHeight;
+    }
+  }, [terminalHistory, executing]);
+
+  // Focus terminal input without scrolling outer page when tab is activated
   React.useEffect(() => {
     if (activeSubTab === 'terminal') {
-      terminalBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+      if (terminalScrollRef.current) {
+        terminalScrollRef.current.scrollTop = terminalScrollRef.current.scrollHeight;
+      }
+      setTimeout(() => {
+        terminalInputRef.current?.focus({ preventScroll: true });
+      }, 50);
     }
-  }, [terminalHistory, executing, activeSubTab]);
+  }, [activeSubTab]);
 
   const handleRunCommand = async (e) => {
     e.preventDefault();
@@ -91,7 +103,7 @@ export default function ContainerDetailsView({ containerId, onBack, onRefreshLis
       setTerminalHistory(prev => [...prev, { type: 'err', text: `Error: ${err}` }]);
     } finally {
       setExecuting(false);
-      setTimeout(() => terminalInputRef.current?.focus(), 50);
+      setTimeout(() => terminalInputRef.current?.focus({ preventScroll: true }), 50);
     }
   };
 
@@ -618,8 +630,8 @@ export default function ContainerDetailsView({ containerId, onBack, onRefreshLis
         {/* Tab: Terminal Exec */}
         {activeSubTab === 'terminal' && (
           <div 
-            onClick={() => terminalInputRef.current?.focus()}
-            className="terminal-window flex flex-col h-[560px] rounded-xl border border-slate-800 bg-[#0c1017] overflow-hidden shadow-2xl font-mono cursor-text"
+            onClick={() => terminalInputRef.current?.focus({ preventScroll: true })}
+            className="terminal-window flex flex-col h-[360px] rounded-xl border border-slate-800 bg-[#0c1017] overflow-hidden shadow-2xl font-mono cursor-text"
           >
             {/* Terminal Window Titlebar */}
             <div className="px-4 py-2.5 bg-[#161b22] border-b border-slate-800 flex items-center justify-between text-xs select-none">
@@ -649,7 +661,10 @@ export default function ContainerDetailsView({ containerId, onBack, onRefreshLis
             </div>
 
             {/* Terminal Output & Inline Prompt Area */}
-            <div className="flex-1 p-4 overflow-y-auto text-xs space-y-1.5 select-text leading-relaxed">
+            <div 
+              ref={terminalScrollRef}
+              className="flex-1 p-4 overflow-y-auto text-xs space-y-1.5 select-text leading-relaxed"
+            >
               {!isRunning && (
                 <div className="p-3 mb-2 rounded bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs">
                   ⚠️ Container is currently stopped. Start the container to begin a terminal session.
@@ -690,7 +705,6 @@ export default function ContainerDetailsView({ containerId, onBack, onRefreshLis
                     ref={terminalInputRef}
                     type="text"
                     disabled={executing}
-                    autoFocus
                     value={commandInput}
                     onChange={(e) => setCommandInput(e.target.value)}
                     onKeyDown={handleKeyDown}
@@ -701,8 +715,6 @@ export default function ContainerDetailsView({ containerId, onBack, onRefreshLis
                   />
                 </form>
               )}
-
-              <div ref={terminalBottomRef} />
             </div>
           </div>
         )}
