@@ -64,6 +64,10 @@ jobs:
           go install github.com/wailsapp/wails/v2/cmd/wails@latest
           if [ "${{ runner.os }}" = "Linux" ]; then
             go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
+          elif [ "${{ runner.os }}" = "Windows" ]; then
+            choco install nsis -y
+            echo "C:\Program Files (x86)\NSIS" >> $GITHUB_PATH
+            echo "/c/Program Files (x86)/NSIS" >> $GITHUB_PATH
           fi
 
       - name: Build Wails Application
@@ -75,6 +79,7 @@ jobs:
           if [ "${{ runner.os }}" = "Linux" ]; then
             wails build -tags webkit2_41 -platform ${{ matrix.platform }} -ldflags "-X 'dockit/internal/version.Version=${{ github.ref_name }}'"
           elif [ "${{ runner.os }}" = "Windows" ]; then
+            export PATH="/c/Program Files (x86)/NSIS:$PATH"
             wails build -nsis -platform ${{ matrix.platform }} -ldflags "-X 'dockit/internal/version.Version=${{ github.ref_name }}'"
           else
             wails build -platform ${{ matrix.platform }} -ldflags "-X 'dockit/internal/version.Version=${{ github.ref_name }}'"
@@ -101,8 +106,14 @@ jobs:
           # Standalone zipped portable executable
           cd build/bin && 7z a ../../dockit-windows-amd64.zip dockit.exe && cd ../..
           # Copy NSIS setup wizard installer
-          if [ -f "build/bin/dockit-amd64-installer.exe" ]; then
-            cp "build/bin/dockit-amd64-installer.exe" "dockit-windows-amd64-installer.exe"
+          ls -la build/bin/
+          INSTALLER_FILE=$(find build/bin -type f -name "*installer*.exe" | head -n 1)
+          if [ -n "$INSTALLER_FILE" ]; then
+            cp "$INSTALLER_FILE" "dockit-windows-amd64-installer.exe"
+            echo "Successfully packaged: dockit-windows-amd64-installer.exe"
+          else
+            echo "ERROR: NSIS installer was not generated in build/bin!" >&2
+            exit 1
           fi
 
       - name: Package macOS Application (.zip) and Installer (.dmg)
