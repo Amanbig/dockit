@@ -1,4 +1,3 @@
-import React from 'react';
 import { 
   RefreshCw, 
   Terminal, 
@@ -6,7 +5,8 @@ import {
   CheckCircle2, 
   AlertCircle,
   HelpCircle,
-  ChevronDown
+  ChevronDown,
+  Search
 } from 'lucide-react';
 
 export default function Header({
@@ -15,7 +15,8 @@ export default function Header({
   onRefresh,
   isRefreshing,
   systemInfo,
-  onOpenInstaller
+  onOpenInstaller,
+  onOpenCommandPalette
 }) {
   return (
     <header className="h-16 bg-slate-950/80 backdrop-blur border-b border-slate-800 px-6 flex items-center justify-between select-none">
@@ -63,6 +64,19 @@ export default function Header({
       </div>
 
       <div className="flex items-center gap-3">
+        {/* Command Palette Trigger */}
+        <button
+          onClick={onOpenCommandPalette}
+          className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-800 bg-slate-900/80 hover:bg-slate-850 hover:border-slate-700 text-xs text-slate-400 hover:text-slate-200 transition-all shadow-sm w-44 lg:w-56"
+          title="Search or Jump to... (Ctrl+K or Cmd+K)"
+        >
+          <Search className="w-3.5 h-3.5 text-slate-500" />
+          <span className="flex-1 text-left truncate">Search or jump...</span>
+          <kbd className="font-mono text-[10px] bg-slate-800/80 border border-slate-700/80 px-1.5 py-0.5 rounded text-slate-400">
+            {typeof navigator !== 'undefined' && navigator.platform?.toLowerCase().includes('mac') ? '⌘K' : 'Ctrl+K'}
+          </kbd>
+        </button>
+
         {/* Install / Setup runtime button */}
         <button
           onClick={onOpenInstaller}

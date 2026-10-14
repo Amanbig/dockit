@@ -103,6 +103,13 @@ func (m *Manager) OpenProject(path string) (*Project, error) {
 		proj.HasStagedChanges = true
 	}
 
+	// Check if .env exists in project working directory
+	envPath := filepath.Join(workingDir, ".env")
+	if envBytes, err := os.ReadFile(envPath); err == nil {
+		proj.EnvContent = string(envBytes)
+		proj.HasEnvFile = true
+	}
+
 	m.projects[proj.ID] = proj
 	m.projects[workingDir] = proj
 
@@ -455,4 +462,38 @@ func (m *Manager) getProject(projectID string) (*Project, error) {
 		return nil, fmt.Errorf("project %q not loaded", projectID)
 	}
 	return proj, nil
+}
+
+// ReadEnv reads the .env file in the project's working directory.
+func (m *Manager) ReadEnv(projectID string) (string, error) {
+	proj, err := m.getProject(projectID)
+	if err != nil {
+		return "", err
+	}
+	envPath := filepath.Join(proj.WorkingDir, ".env")
+	b, err := os.ReadFile(envPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", nil
+		}
+		return "", fmt.Errorf("failed to read .env file: %w", err)
+	}
+	return string(b), nil
+}
+
+// SaveEnv writes content to the .env file in the project's working directory.
+func (m *Manager) SaveEnv(projectID string, content string) error {
+	proj, err := m.getProject(projectID)
+	if err != nil {
+		return err
+	}
+	envPath := filepath.Join(proj.WorkingDir, ".env")
+	if err := os.WriteFile(envPath, []byte(content), 0644); err != nil {
+		return fmt.Errorf("failed to write .env file: %w", err)
+	}
+	m.mu.Lock()
+	proj.EnvContent = content
+	proj.HasEnvFile = true
+	m.mu.Unlock()
+	return nil
 }

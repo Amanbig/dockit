@@ -13,6 +13,7 @@ import ContainerDetailsView from './components/ContainerDetailsView';
 import LogsModal from './components/LogsModal';
 import InspectModal from './components/InspectModal';
 import InstallerModal from './components/InstallerModal';
+import CommandPalette from './components/CommandPalette';
 import { Sparkles, ArrowRight, X } from 'lucide-react';
 
 // Wails Go Bridge API bindings
@@ -57,6 +58,8 @@ import {
   ComposeRefresh,
   ComposeSaveSnapshot,
   ComposeRestoreSnapshot,
+  ComposeReadEnv,
+  ComposeSaveEnv,
   SearchRegistry,
   SearchAllRegistries,
   GetRegistryTags,
@@ -101,6 +104,19 @@ export default function App() {
   const [showUpdateToast, setShowUpdateToast] = useState(false);
   const [updateInfo, setUpdateInfo] = useState(null);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+
+  // Global keyboard shortcut for Command Palette (Ctrl+K or Cmd+K)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setCommandPaletteOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Apply theme to document root
   const applyThemeToDOM = async (t) => {
@@ -441,6 +457,7 @@ export default function App() {
           isRefreshing={isRefreshing}
           systemInfo={systemInfo}
           onOpenInstaller={() => setShowInstaller(true)}
+          onOpenCommandPalette={() => setCommandPaletteOpen(true)}
         />
 
         {/* View Switcher */}
@@ -524,6 +541,8 @@ export default function App() {
               onRefreshProject={ComposeRefresh}
               onSaveSnapshot={ComposeSaveSnapshot}
               onRestoreSnapshot={ComposeRestoreSnapshot}
+              onReadEnv={ComposeReadEnv}
+              onSaveEnv={ComposeSaveEnv}
             />
           )}
 
@@ -586,6 +605,40 @@ export default function App() {
         updateInfo={updateInfo}
         onCheckAgain={() => handleCheckForUpdates(true)}
         isChecking={isCheckingUpdate}
+      />
+
+      <CommandPalette
+        isOpen={commandPaletteOpen}
+        onClose={() => setCommandPaletteOpen(false)}
+        containers={containers}
+        images={images}
+        volumes={volumes}
+        networks={networks}
+        activeRuntime={activeRuntime}
+        theme={theme}
+        onNavigate={(tab, containerId = null) => {
+          setActiveTab(tab);
+          if (containerId) {
+            setSelectedContainerId(containerId);
+          } else {
+            setSelectedContainerId(null);
+          }
+        }}
+        onSwitchRuntime={handleSwitchRuntime}
+        onToggleTheme={() => handleSetTheme(theme === 'dark' ? 'light' : 'dark')}
+        onRefresh={refreshAll}
+        onCheckUpdates={() => handleCheckForUpdates(true)}
+        onOpenInstaller={() => setShowInstaller(true)}
+        onContainerAction={async (action, id, name) => {
+          if (action === 'start') await handleStartContainer(id);
+          else if (action === 'stop') await handleStopContainer(id);
+          else if (action === 'restart') await handleRestartContainer(id);
+          else if (action === 'logs') setLogsModal({ open: true, id, name });
+          else if (action === 'inspect') await handleInspectContainer(id, name);
+        }}
+        onInspectImage={handleInspectImage}
+        onInspectVolume={handleInspectVolume}
+        onPruneVolumes={handlePruneVolumes}
       />
 
       {/* Non-intrusive Update Toast Notification */}

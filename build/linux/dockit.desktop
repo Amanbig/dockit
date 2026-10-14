@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Dockit
+Comment=Cross-platform Docker & Podman desktop management
+Exec=/usr/bin/dockit
+Icon=dockit
+Terminal=false
+Type=Application
+Categories=Development;Utility;
+Keywords=docker;podman;containers;devops;
+StartupWMClass=dockit

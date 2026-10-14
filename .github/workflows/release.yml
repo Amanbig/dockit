@@ -20,17 +20,14 @@ jobs:
           - os: ubuntu-latest
             platform: linux/amd64
             output_name: dockit-linux-amd64
-            artifact_name: dockit-linux-amd64.tar.gz
 
           - os: windows-latest
             platform: windows/amd64
             output_name: dockit-windows-amd64
-            artifact_name: dockit-windows-amd64.zip
 
           - os: macos-latest
             platform: darwin/universal
             output_name: dockit-darwin-universal
-            artifact_name: dockit-darwin-universal.zip
 
     steps:
       - name: Checkout Code
@@ -58,39 +55,75 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev
 
-      - name: Install Wails CLI
-        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+      - name: Install Packaging Tools
+        run: |
+          go install github.com/wailsapp/wails/v2/cmd/wails@latest
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
+          fi
 
       - name: Build Wails Application
         shell: bash
         run: |
           if [ "${{ runner.os }}" = "Linux" ]; then
             wails build -tags webkit2_41 -platform ${{ matrix.platform }} -ldflags "-X dockit/internal/version.Version=${{ github.ref_name }}"
+          elif [ "${{ runner.os }}" = "Windows" ]; then
+            wails build -nsis -platform ${{ matrix.platform }} -ldflags "-X dockit/internal/version.Version=${{ github.ref_name }}"
           else
             wails build -platform ${{ matrix.platform }} -ldflags "-X dockit/internal/version.Version=${{ github.ref_name }}"
           fi
 
-      - name: Package Linux Binary
+      - name: Package Linux Binary and Native Installers (.deb, .rpm, .tar.gz)
         if: runner.os == 'Linux'
+        shell: bash
         run: |
-          tar -czvf ${{ matrix.artifact_name }} -C build/bin dockit
+          # Create standalone tarball
+          tar -czvf dockit-linux-amd64.tar.gz -C build/bin dockit
+          
+          # Create native .deb and .rpm packages
+          VERSION_CLEAN="${GITHUB_REF_NAME#v}"
+          cd build/linux
+          VERSION="${VERSION_CLEAN:-0.0.0}" nfpm package --config nfpm.yaml --packager deb --target ../../dockit-linux-amd64.deb
+          VERSION="${VERSION_CLEAN:-0.0.0}" nfpm package --config nfpm.yaml --packager rpm --target ../../dockit-linux-amd64.rpm
+          cd ../..
 
-      - name: Package Windows Binary
+      - name: Package Windows Binary (.zip) and NSIS Installer (.exe)
         if: runner.os == 'Windows'
         shell: bash
         run: |
-          cd build/bin && 7z a ../../${{ matrix.artifact_name }} dockit.exe
+          # Standalone zipped portable executable
+          cd build/bin && 7z a ../../dockit-windows-amd64.zip dockit.exe && cd ../..
+          # Copy NSIS setup wizard installer
+          if [ -f "build/bin/dockit-amd64-installer.exe" ]; then
+            cp "build/bin/dockit-amd64-installer.exe" "dockit-windows-amd64-installer.exe"
+          fi
 
-      - name: Package macOS Application Bundle
+      - name: Package macOS Application (.zip) and Installer (.dmg)
         if: runner.os == 'macOS'
+        shell: bash
         run: |
-          cd build/bin && zip -r ../../${{ matrix.artifact_name }} dockit.app
+          # Standalone zipped application bundle
+          cd build/bin && zip -r ../../dockit-darwin-universal.zip dockit.app && cd ../..
+          
+          # Create DMG installer
+          brew install create-dmg || true
+          create-dmg \
+            --volname "Dockit" \
+            --window-pos 200 120 \
+            --window-size 600 400 \
+            --icon-size 100 \
+            --icon "dockit.app" 175 160 \
+            --hide-extension "dockit.app" \
+            --app-drop-link 425 160 \
+            dockit-darwin-universal.dmg \
+            build/bin/dockit.app || hdiutil create -volname "Dockit" -srcfolder build/bin/dockit.app -ov -format UDZO dockit-darwin-universal.dmg
 
-      - name: Upload Build Artifact
+      - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.output_name }}
-          path: ${{ matrix.artifact_name }}
+          path: |
+            dockit-*.*
           if-no-files-found: error
 
   release:

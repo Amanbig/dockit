@@ -91,6 +91,8 @@ export namespace compose {
 	    volumes: string[];
 	    status: string;
 	    snapshots?: Snapshot[];
+	    envContent?: string;
+	    hasEnvFile: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new Project(source);
@@ -112,6 +114,8 @@ export namespace compose {
 	        this.volumes = source["volumes"];
 	        this.status = source["status"];
 	        this.snapshots = this.convertValues(source["snapshots"], Snapshot);
+	        this.envContent = source["envContent"];
+	        this.hasEnvFile = source["hasEnvFile"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

@@ -25,11 +25,15 @@ export function ComposeLogs(arg1:string,arg2:string,arg3:string):Promise<string>
 
 export function ComposePS(arg1:string):Promise<Array<compose.ContainerStatus>>;
 
+export function ComposeReadEnv(arg1:string):Promise<string>;
+
 export function ComposeRefresh(arg1:string):Promise<compose.Project>;
 
 export function ComposeRestart(arg1:string,arg2:Array<string>):Promise<string>;
 
 export function ComposeRestoreSnapshot(arg1:string,arg2:string):Promise<compose.Project>;
+
+export function ComposeSaveEnv(arg1:string,arg2:string):Promise<void>;
 
 export function ComposeSaveSnapshot(arg1:string,arg2:string):Promise<compose.Snapshot>;
 

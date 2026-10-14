@@ -1,43 +1,49 @@
-# Dockit v0.3.2 🚀
+# Dockit v0.4.0 🚀
 
-Dockit **v0.3.2** delivers the complete in-place background self-updater (VS Code-style), smooth atomic application restart, real-time container resource monitoring (CPU, Memory, Network & Disk I/O), full Light Mode UI polish, and automated release note generation.
+Dockit **v0.4.0** is a major release featuring **Native Platform Installers** (`.deb`, `.rpm`, `.exe`, `.dmg`), a global **`Ctrl+K` / `Cmd+K` Command Palette**, and full **`.env` Environment Variable Support** in Compose Studio!
 
 ---
 
 ### ✨ What's New
 
-#### 🔄 In-Place Background Self-Update & Instant Restart
-- **Automatic GitHub Release Detection**: Dockit automatically checks for newer releases and identifies the exact binary package matching your host operating system and CPU architecture.
-- **Background Download with Live Progress**: Downloads update archives in the background with real-time percentage and byte tracking without interrupting your work.
-- **In-Place Atomic Replacement**: Extracts and safely updates the running executable in-place across Linux, Windows, and macOS.
-- **One-Click Restart**: Added a **"Restart Now"** action to immediately launch the newly installed version.
-- **Non-Intrusive Floating Toast**: Replaced blocking startup alerts with a floating update banner in the bottom-right corner with *"View Update"* and *"Later"* options.
-- **Automatic Check Preferences**: Added a toggle in **Settings & Setup** to enable or disable automatic startup update checks.
+#### 💿 Native Installers & Enhanced Distribution
+- **Linux (`.deb` & `.rpm`)**:
+  - Native Debian/Ubuntu/Mint installer package (`dockit-linux-amd64.deb`).
+  - Native Fedora/RHEL/openSUSE installer package (`dockit-linux-amd64.rpm`).
+  - Automatically installs desktop launcher, application categories, and 512x512 icons into system paths (`/usr/share/applications`, `/usr/share/icons`).
+  - Standalone portable archive (`dockit-linux-amd64.tar.gz`) remains available for all Linux distributions.
+- **Windows (`.exe` NSIS Installer)**:
+  - Added Windows setup wizard installer (`dockit-windows-amd64-installer.exe`) built via NSIS.
+  - Automatically creates Start Menu and Desktop shortcuts, associates runtime dependencies, and provides a clean Control Panel uninstaller.
+  - Standalone zipped portable binary (`dockit-windows-amd64.zip`) is also provided.
+- **macOS (`.dmg` Apple Disk Image)**:
+  - Packaged disk image (`dockit-darwin-universal.dmg`) with standard drag-and-drop to Applications folder for both Apple Silicon (M1/M2/M3/M4) and Intel Macs.
+  - Standalone zipped `.app` bundle (`dockit-darwin-universal.zip`) also included.
 
-#### 📊 Real-Time Container Resource Metrics
-- **Live Performance Dashboard**: Inspect active container resource consumption directly from the Container Overview tab:
-  - **CPU Usage %**: Calculated in real-time across all online CPU cores with a live visual progress bar.
-  - **Memory Usage**: Resident memory usage with cache deduction, total container memory limits, and percentage gauges.
-  - **Network I/O**: Live incoming (Rx) and outgoing (Tx) network throughput.
-  - **Disk & Tasks**: Total block I/O bytes read/written and active OS process/thread counts (PIDs).
-- **Smooth Auto-Polling**: Metrics stream every 2 seconds while the container is running and pause cleanly when stopped.
+#### ⌨️ Global Command Palette (`Ctrl+K` / `Cmd+K`)
+- **Instant Search & Jump**: Press `Ctrl+K` (or `Cmd+K` on Mac), or click the search bar in the header to search anything in Dockit:
+  - **Quick Navigation**: Jump instantly to Containers, Images, Volumes, Networks, Compose Studio, Registry Hub, or Settings.
+  - **Live Container Search & Control**: Search containers by name, image, or ID. Start, stop, view live logs, or inspect containers directly from the palette.
+  - **Images & Volumes**: Quickly find and inspect images and persistent volumes.
+  - **System & Engine Actions**: Switch between Docker and Podman, toggle Dark/Light mode, prune unused volumes, refresh resources, and check for updates without touching the mouse.
+  - **Full Keyboard Navigation**: Arrow keys (`↑` / `↓`), `Enter` to select, and `Esc` to close.
 
-#### 📜 Container Log Explorer & Filtering
-- **Interactive Log Filtering**: Quick search with real-time text matching across log streams.
-- **Log Level Badges**: Filter logs instantly by level (`All`, `Error`, `Warn`, `Info`).
-- **Timestamp Toggle**: Show or hide ISO timestamps on demand.
-- **Smart Auto-Follow**: Auto-scrolls to the newest log entries as they arrive.
-- **Match Counter**: Live counter showing filtered vs. total lines.
-
-#### 🎨 Theme & UI Enhancements
-- Fixed Light Mode styling for the Compose Down options dialog, Update modal, release notes box, and version indicator pills.
-
-#### 🐧 Modern Linux Distro Support
-- **Ubuntu 24.04 (Noble) & Linux Mint 22+ Compatibility**: Updated build toolchain and CI release workflows to compile with WebKitGTK 4.1 (`-tags webkit2_41`).
+#### 🛠️ Compose Studio `.env` Editor
+- **Integrated Environment Management**: Added a dedicated **"Environment (.env)"** tab to Compose Studio.
+- **In-Place Sync & Safety**: Edit project environment variables directly in Dockit with unsaved changes detection, disk sync status, and discard capabilities.
+- **Quick-Start Templates**: One-click template generator with sensible defaults for common server configurations, database ports, credentials, and app secrets.
+- **Seamless Engine Integration**: Variables defined in `.env` are automatically consumed by Docker and Podman when launching or testing Compose services.
 
 ---
 
 ### 📦 Artifacts Included
-- **Linux (`amd64`)**: `dockit-linux-amd64.tar.gz`
-- **Windows (`amd64`)**: `dockit-windows-amd64.zip`
-- **macOS (`universal`)**: `dockit-darwin-universal.zip`
+- **Linux**:
+  - `dockit-linux-amd64.deb` (Debian, Ubuntu, Linux Mint, Pop!_OS)
+  - `dockit-linux-amd64.rpm` (Fedora, RHEL, CentOS, openSUSE)
+  - `dockit-linux-amd64.tar.gz` (Portable Linux tarball)
+- **Windows**:
+  - `dockit-windows-amd64-installer.exe` (NSIS Setup Wizard)
+  - `dockit-windows-amd64.zip` (Portable executable)
+- **macOS**:
+  - `dockit-darwin-universal.dmg` (Drag-and-Drop Disk Image)
+  - `dockit-darwin-universal.zip` (Universal application bundle)

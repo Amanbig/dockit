@@ -30,6 +30,10 @@ export function ComposePS(arg1) {
   return window['go']['main']['App']['ComposePS'](arg1);
 }
 
+export function ComposeReadEnv(arg1) {
+  return window['go']['main']['App']['ComposeReadEnv'](arg1);
+}
+
 export function ComposeRefresh(arg1) {
   return window['go']['main']['App']['ComposeRefresh'](arg1);
 }
@@ -40,6 +44,10 @@ export function ComposeRestart(arg1, arg2) {
 
 export function ComposeRestoreSnapshot(arg1, arg2) {
   return window['go']['main']['App']['ComposeRestoreSnapshot'](arg1, arg2);
+}
+
+export function ComposeSaveEnv(arg1, arg2) {
+  return window['go']['main']['App']['ComposeSaveEnv'](arg1, arg2);
 }
 
 export function ComposeSaveSnapshot(arg1, arg2) {

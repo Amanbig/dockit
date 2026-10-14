@@ -23,7 +23,9 @@ import {
   FileCheck,
   Check,
   Copy,
-  Plus
+  Plus,
+  FileText,
+  Key
 } from 'lucide-react';
 
 const RECENT_PROJECTS_STORAGE_KEY = 'dockit_recent_compose_projects';
@@ -42,14 +44,21 @@ export default function ComposeView({
   onDiscardChanges,
   onRefreshProject,
   onSaveSnapshot,
-  onRestoreSnapshot
+  onRestoreSnapshot,
+  onReadEnv,
+  onSaveEnv
 }) {
   const [project, setProject] = useState(null);
   const [recentProjects, setRecentProjects] = useState([]);
   const [localPathInput, setLocalPathInput] = useState('');
   const [urlInput, setUrlInput] = useState('');
-  const [activeTab, setActiveTab] = useState('services'); // 'services' | 'editor' | 'snapshots' | 'output'
+  const [activeTab, setActiveTab] = useState('services'); // 'services' | 'editor' | 'env' | 'snapshots' | 'output'
   const [editorYaml, setEditorYaml] = useState('');
+  const [envContent, setEnvContent] = useState('');
+  const [originalEnv, setOriginalEnv] = useState('');
+  const [hasEnv, setHasEnv] = useState(false);
+  const [isSavingEnv, setIsSavingEnv] = useState(false);
+  const [envSavedSuccess, setEnvSavedSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
   const [actionOutput, setActionOutput] = useState('');
   const [showUrlDialog, setShowUrlDialog] = useState(false);
@@ -117,6 +126,9 @@ export default function ComposeView({
       }
       setProject(proj);
       setEditorYaml(proj.temporaryContent || proj.content || '');
+      setEnvContent(proj.envContent || '');
+      setOriginalEnv(proj.envContent || '');
+      setHasEnv(Boolean(proj.hasEnvFile));
       setActiveTab('services');
       saveRecentProject(proj);
     } catch (err) {
@@ -194,6 +206,9 @@ export default function ComposeView({
       const proj = await onOpenURL(urlInput.trim(), 'dockit-remote-project');
       setProject(proj);
       setEditorYaml(proj.temporaryContent || proj.content || '');
+      setEnvContent(proj.envContent || '');
+      setOriginalEnv(proj.envContent || '');
+      setHasEnv(Boolean(proj.hasEnvFile));
       setActiveTab('services');
       setShowUrlDialog(false);
       saveRecentProject(proj);
@@ -244,6 +259,44 @@ export default function ComposeView({
     } catch (err) {
       alert(`Discard failed: ${err}`);
     }
+  };
+
+  const handleSaveEnv = async () => {
+    if (!project || !projectKey || !onSaveEnv) return;
+    try {
+      setIsSavingEnv(true);
+      await onSaveEnv(projectKey, envContent);
+      setOriginalEnv(envContent);
+      setHasEnv(true);
+      setEnvSavedSuccess(true);
+      setTimeout(() => setEnvSavedSuccess(false), 2500);
+    } catch (err) {
+      alert(`Failed to save .env file: ${err}`);
+    } finally {
+      setIsSavingEnv(false);
+    }
+  };
+
+  const handleDiscardEnv = () => {
+    setEnvContent(originalEnv);
+  };
+
+  const handleAddEnvSample = () => {
+    const template = `# Application Environment Configuration
+PORT=8080
+NODE_ENV=production
+
+# Database Settings
+DB_HOST=db
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=secret
+DB_NAME=dockit_db
+
+# Security & Secrets
+SECRET_KEY=dockit_super_secret_key
+`;
+    setEnvContent(prev => (prev.trim() ? prev + '\n\n' + template : template));
   };
 
   const handleSaveSnapshot = async (e) => {
@@ -574,6 +627,20 @@ export default function ComposeView({
                 <span>YAML Testing Studio</span>
               </button>
               <button
+                onClick={() => setActiveTab('env')}
+                className={`px-3 py-1 rounded-md text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
+                  activeTab === 'env'
+                    ? 'bg-slate-800 text-cyan-400 font-semibold shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <FileText className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Environment (.env)</span>
+                {hasEnv && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50"></span>
+                )}
+              </button>
+              <button
                 onClick={() => setActiveTab('snapshots')}
                 className={`px-3 py-1 rounded-md text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
                   activeTab === 'snapshots'
@@ -831,6 +898,89 @@ export default function ComposeView({
                   className="flex-1 w-full p-4 bg-transparent font-mono text-xs text-slate-200 resize-none focus:outline-none leading-relaxed"
                   spellCheck={false}
                 />
+              </div>
+            </div>
+          )}
+
+          {/* TAB: Environment (.env) Editor */}
+          {activeTab === 'env' && (
+            <div className="flex-1 flex flex-col p-6 overflow-hidden">
+              {/* Toolbar */}
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-xs min-w-0 max-w-full sm:max-w-md">
+                  <span className="text-slate-400 shrink-0 font-medium">Path:</span>
+                  <span className="font-mono text-cyan-400 truncate text-[11px] bg-slate-950 px-2 py-0.5 rounded border border-slate-800" title={`${project.workingDir}/.env`}>
+                    {project.workingDir}/.env
+                  </span>
+                  {envContent !== originalEnv ? (
+                    <span className="shrink-0 px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[11px] font-semibold">
+                      Unsaved Changes
+                    </span>
+                  ) : hasEnv ? (
+                    <span className="shrink-0 px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[11px] font-semibold">
+                      Synced to Disk
+                    </span>
+                  ) : (
+                    <span className="shrink-0 px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 text-[11px] font-semibold">
+                      New File
+                    </span>
+                  )}
+                  {envSavedSuccess && (
+                    <span className="shrink-0 px-2 py-0.5 rounded bg-emerald-500 text-slate-950 text-[11px] font-bold animate-in fade-in flex items-center gap-1">
+                      <Check className="w-3 h-3 stroke-[3]" />
+                      Saved!
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={handleAddEnvSample}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 text-xs font-semibold transition-all cursor-pointer"
+                    title="Insert sample environment variables template"
+                  >
+                    <Plus className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Insert Template</span>
+                  </button>
+
+                  {envContent !== originalEnv && (
+                    <button
+                      onClick={handleDiscardEnv}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 border border-rose-500/30 text-xs font-semibold transition-all cursor-pointer"
+                      title="Discard unsaved changes to .env"
+                    >
+                      <Undo2 className="w-3.5 h-3.5" />
+                      <span>Discard</span>
+                    </button>
+                  )}
+
+                  <button
+                    onClick={handleSaveEnv}
+                    disabled={isSavingEnv || envContent === originalEnv}
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 text-xs font-bold transition-all shadow-sm shadow-emerald-500/20 cursor-pointer disabled:cursor-not-allowed"
+                    title="Save environment variables to .env on disk"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    <span>{isSavingEnv ? 'Saving...' : 'Save .env'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Editor area */}
+              <div className="flex-1 rounded-xl border border-slate-800 bg-slate-950 overflow-hidden shadow-inner flex flex-col">
+                <textarea
+                  value={envContent}
+                  onChange={(e) => setEnvContent(e.target.value)}
+                  placeholder="# Enter environment variables (e.g. PORT=8080, DB_PASSWORD=secret)..."
+                  className="flex-1 w-full p-4 bg-transparent font-mono text-xs text-slate-200 placeholder-slate-600 resize-none focus:outline-none leading-relaxed"
+                  spellCheck={false}
+                />
+              </div>
+
+              {/* Hint footer */}
+              <div className="mt-2.5 flex items-center justify-between text-[11px] text-slate-500">
+                <span>Docker Compose automatically injects variables from this file into defined services (e.g. ${'{VAR_NAME}'}).</span>
+                <span className="font-mono">Lines: {envContent ? envContent.split('\n').length : 0}</span>
               </div>
             </div>
           )}

@@ -56,6 +56,8 @@ type Project struct {
 	Volumes          []string      `json:"volumes"`
 	Status           string        `json:"status"` // "running", "partial", "stopped"
 	Snapshots        []Snapshot    `json:"snapshots,omitempty"`
+	EnvContent       string        `json:"envContent,omitempty"`
+	HasEnvFile       bool          `json:"hasEnvFile"`
 }
 
 // UpOptions defines options when launching a compose project.

@@ -657,6 +657,22 @@ func (a *App) ComposeRestoreSnapshot(projectID, hash string) (*compose.Project, 
 	return a.composeMgr.RestoreSnapshot(projectID, hash)
 }
 
+// ComposeReadEnv reads the .env file content for the given project.
+func (a *App) ComposeReadEnv(projectID string) (string, error) {
+	if a.composeMgr == nil {
+		return "", fmt.Errorf("compose manager not initialized")
+	}
+	return a.composeMgr.ReadEnv(projectID)
+}
+
+// ComposeSaveEnv saves new content to the .env file for the given project.
+func (a *App) ComposeSaveEnv(projectID, content string) error {
+	if a.composeMgr == nil {
+		return fmt.Errorf("compose manager not initialized")
+	}
+	return a.composeMgr.SaveEnv(projectID, content)
+}
+
 // ==========================================
 // Registry Methods
 // ==========================================
