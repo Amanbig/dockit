@@ -125,9 +125,9 @@ export default function Sidebar({
             statusAction = (
               <button
                 onClick={onOpenInstaller}
-                className="mt-2 w-full text-[11px] font-medium py-1 px-2 rounded-md bg-rose-500/10 border border-rose-500/30 text-rose-300 hover:bg-rose-500/20 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                className="mt-2 w-full text-[11px] font-semibold py-1 px-2 rounded-md bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                <DownloadCloud className="w-3 h-3" />
+                <DownloadCloud className="w-3 h-3 text-rose-600 dark:text-rose-400" />
                 Install {activeRuntime === 'podman' ? 'Podman' : 'Docker'}
               </button>
             );
@@ -147,9 +147,9 @@ export default function Sidebar({
             statusAction = (
               <button
                 onClick={onOpenInstaller}
-                className="mt-2 w-full text-[11px] font-medium py-1 px-2 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-300 hover:bg-amber-500/20 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                className="mt-2 w-full text-[11px] font-semibold py-1 px-2 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-300 hover:bg-amber-500/20 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                <AlertCircle className="w-3 h-3" />
+                <AlertCircle className="w-3 h-3 text-amber-600 dark:text-amber-400" />
                 Start {activeRuntime === 'podman' ? 'Podman' : 'Docker'}
               </button>
             );

@@ -225,8 +225,16 @@ html.light .text-emerald-400 {
     color: #059669 !important; /* Crisp emerald green */
 }
 
+html.light .text-amber-300 {
+    color: #92400e !important; /* Deep rich amber */
+}
+
 html.light .text-amber-400 {
     color: #b45309 !important; /* Rich amber/orange */
+}
+
+html.light .text-rose-300 {
+    color: #9f1239 !important; /* Deep rich rose/red */
 }
 
 html.light .text-rose-400 {
@@ -353,14 +361,38 @@ html.light div[class*="bg-emerald-950/20"] p {
     color: #047857 !important;
 }
 
+html.light .engine-status-banner-rose,
+html.light div[class*="bg-rose-950/40"],
 html.light div[class*="bg-rose-950/30"] {
     background-color: #fff1f2 !important;
     border-color: #fecdd3 !important;
     color: #9f1239 !important;
 }
 
+html.light .engine-status-banner-rose span,
+html.light div[class*="bg-rose-950/40"] span,
 html.light div[class*="bg-rose-950/30"] p {
-    color: #be123c !important;
+    color: #9f1239 !important;
+}
+
+html.light .engine-status-banner-rose svg {
+    color: #e11d48 !important;
+}
+
+html.light .engine-status-banner-amber,
+html.light div[class*="bg-amber-950/40"] {
+    background-color: #fffbeb !important;
+    border-color: #fde68a !important;
+    color: #92400e !important;
+}
+
+html.light .engine-status-banner-amber span,
+html.light div[class*="bg-amber-950/40"] span {
+    color: #92400e !important;
+}
+
+html.light .engine-status-banner-amber svg {
+    color: #d97706 !important;
 }
 
 /* Release notes box inside Update Modal */

@@ -554,13 +554,15 @@ export default function App() {
 
           {/* Engine offline / not installed banner */}
           {activeRuntime !== 'none' && runtimesStatus && runtimesStatus[activeRuntime] && (!runtimesStatus[activeRuntime].installed || !runtimesStatus[activeRuntime].running) && (
-            <div className={`px-4 py-2 border-b flex items-center justify-between text-xs z-10 shrink-0 ${
+            <div className={`engine-status-banner px-4 py-2.5 border-b flex items-center justify-between text-xs z-10 shrink-0 transition-colors ${
               !runtimesStatus[activeRuntime].installed
-                ? 'bg-rose-950/40 border-rose-900/60 text-rose-300'
-                : 'bg-amber-950/40 border-amber-900/60 text-amber-300'
+                ? 'engine-status-banner-rose bg-rose-50 border-rose-200 text-rose-900 dark:bg-rose-950/40 dark:border-rose-900/60 dark:text-rose-300'
+                : 'engine-status-banner-amber bg-amber-50 border-amber-200 text-amber-900 dark:bg-amber-950/40 dark:border-amber-900/60 dark:text-amber-300'
             }`}>
-              <div className="flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
+              <div className="flex items-center gap-2.5 font-medium">
+                <AlertCircle className={`w-4 h-4 shrink-0 ${
+                  !runtimesStatus[activeRuntime].installed ? 'text-rose-600 dark:text-rose-400' : 'text-amber-600 dark:text-amber-400'
+                }`} />
                 <span>
                   {!runtimesStatus[activeRuntime].installed
                     ? `${activeRuntime === 'podman' ? 'Podman' : 'Docker'} is not installed on this system.`
@@ -570,10 +572,10 @@ export default function App() {
               </div>
               <button
                 onClick={() => setShowInstaller(true)}
-                className={`px-2.5 py-1 rounded text-[11px] font-semibold border transition-colors cursor-pointer ${
+                className={`px-3 py-1 rounded-md text-xs font-semibold border transition-all cursor-pointer shadow-xs ${
                   !runtimesStatus[activeRuntime].installed
-                    ? 'bg-rose-900/60 hover:bg-rose-800 border-rose-700 text-rose-100'
-                    : 'bg-amber-900/60 hover:bg-amber-800 border-amber-700 text-amber-100'
+                    ? 'bg-rose-600 hover:bg-rose-700 text-white border-rose-700 dark:bg-rose-900/70 dark:hover:bg-rose-800 dark:border-rose-700 dark:text-rose-100'
+                    : 'bg-amber-500 hover:bg-amber-600 text-slate-950 border-amber-600 dark:bg-amber-900/70 dark:hover:bg-amber-800 dark:border-amber-700 dark:text-amber-100'
                 }`}
               >
                 {!runtimesStatus[activeRuntime].installed ? 'Install Engine' : 'Setup & Start Daemon'}
