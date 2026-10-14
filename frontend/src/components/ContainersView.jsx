@@ -186,16 +186,13 @@ export default function ContainersView({
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="appearance-none bg-slate-950 border border-slate-800 rounded-lg pl-3 pr-8 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-cyan-500 cursor-pointer"
+              className="bg-slate-950 border border-slate-800 rounded-lg pl-3 pr-8 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-cyan-500 cursor-pointer"
             >
-              <option value="all" className="bg-slate-900 text-slate-200">All States</option>
-              <option value="running" className="bg-slate-900 text-slate-200">Running</option>
-              <option value="stopped" className="bg-slate-900 text-slate-200">Stopped</option>
-              <option value="paused" className="bg-slate-900 text-slate-200">Paused</option>
+              <option value="all">All States</option>
+              <option value="running">Running</option>
+              <option value="stopped">Stopped</option>
+              <option value="paused">Paused</option>
             </select>
-            <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-[10px]">
-              ▼
-            </div>
           </div>
 
           {/* New Container button */}
