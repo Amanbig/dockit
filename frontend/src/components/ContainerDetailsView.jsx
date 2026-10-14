@@ -20,6 +20,7 @@ import {
   Sliders,
   CheckCircle2,
   AlertTriangle,
+  AlertCircle,
   Activity,
   ArrowDown,
   ArrowUp
@@ -195,7 +196,7 @@ export default function ContainerDetailsView({ containerId, onBack, onRefreshLis
       fetchDetails();
       fetchLogs();
     }
-  }, [containerId]);
+  }, [containerId, activeSubTab]);
 
   const copyText = (text, key) => {
     navigator.clipboard.writeText(text);
@@ -644,8 +645,9 @@ export default function ContainerDetailsView({ containerId, onBack, onRefreshLis
                 </span>
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-[10px] text-slate-500">
-                  {isRunning ? 'Connected via Docker Exec' : 'Container Offline'}
+                <span className="text-[10px] text-slate-400 flex items-center gap-1.5 font-medium">
+                  <span className={`w-1.5 h-1.5 rounded-full ${isRunning ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`}></span>
+                  {isRunning ? 'Connected (exec session)' : 'Container Stopped'}
                 </span>
                 <button
                   type="button"
@@ -666,8 +668,25 @@ export default function ContainerDetailsView({ containerId, onBack, onRefreshLis
               className="flex-1 p-4 overflow-y-auto text-xs space-y-1.5 select-text leading-relaxed"
             >
               {!isRunning && (
-                <div className="p-3 mb-2 rounded bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs">
-                  ⚠️ Container is currently stopped. Start the container to begin a terminal session.
+                <div className="p-3 mb-2 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-300 text-xs flex flex-wrap items-center justify-between gap-2 select-none">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0 text-amber-400" />
+                    <span>
+                      Container <strong className="text-amber-200">{details?.name || 'this container'}</strong> is currently stopped (exited). Start it to begin an interactive terminal session.
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleStart();
+                    }}
+                    disabled={actionInProgress}
+                    className="px-3 py-1 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition cursor-pointer disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
+                  >
+                    <Play className="w-3 h-3 fill-current" />
+                    <span>{actionInProgress ? 'Starting...' : 'Start Container'}</span>
+                  </button>
                 </div>
               )}
 
