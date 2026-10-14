@@ -16,6 +16,9 @@ var assets embed.FS
 var appIcon []byte
 
 func main() {
+	// Automatically register icon and desktop entry on Linux for standalone binaries
+	installDesktopIntegration(appIcon)
+
 	// Create an instance of the app structure
 	app := NewApp()
 
