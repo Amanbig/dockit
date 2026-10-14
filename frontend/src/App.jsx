@@ -483,7 +483,7 @@ export default function App() {
         className={`flex h-full w-full bg-slate-950 text-slate-100 overflow-hidden transition-all duration-200 relative ${
           isMaximised
             ? 'rounded-none border-0'
-            : 'rounded-2xl border border-slate-750/90 shadow-[0_16px_48px_rgba(0,0,0,0.85),0_0_0_1px_rgba(255,255,255,0.08)]'
+            : 'rounded-2xl border border-slate-700/80 shadow-[0_0_0_1px_rgba(148,163,184,0.25),0_0_20px_rgba(148,163,184,0.18),0_8px_32px_rgba(71,85,105,0.35)]'
         }`}
       >
         {/* Left Navigation Sidebar */}
