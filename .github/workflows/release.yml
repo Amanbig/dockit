@@ -58,16 +58,16 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev
 
+      - name: Setup NSIS (Windows)
+        if: runner.os == 'Windows'
+        uses: nsis-dev/setup-nsis@v1
+
       - name: Install Packaging Tools
         shell: bash
         run: |
           go install github.com/wailsapp/wails/v2/cmd/wails@latest
           if [ "${{ runner.os }}" = "Linux" ]; then
             go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
-          elif [ "${{ runner.os }}" = "Windows" ]; then
-            choco install nsis -y
-            echo "C:\Program Files (x86)\NSIS" >> $GITHUB_PATH
-            echo "/c/Program Files (x86)/NSIS" >> $GITHUB_PATH
           fi
 
       - name: Build Wails Application
@@ -79,7 +79,14 @@ jobs:
           if [ "${{ runner.os }}" = "Linux" ]; then
             wails build -tags webkit2_41 -platform ${{ matrix.platform }} -ldflags "-X 'dockit/internal/version.Version=${{ github.ref_name }}'"
           elif [ "${{ runner.os }}" = "Windows" ]; then
-            export PATH="/c/Program Files (x86)/NSIS:$PATH"
+            for p in "/c/Program Files/NSIS" "/c/Program Files/NSIS/Bin" "/c/Program Files (x86)/NSIS" "/c/Program Files (x86)/NSIS/Bin" "/c/ProgramData/chocolatey/bin"; do
+              if [ -d "$p" ]; then
+                export PATH="$p:$PATH"
+              fi
+            done
+            echo "Verifying NSIS installation:"
+            which makensis || which makensis.exe || true
+            makensis -VERSION || makensis /VERSION || true
             wails build -nsis -platform ${{ matrix.platform }} -ldflags "-X 'dockit/internal/version.Version=${{ github.ref_name }}'"
           else
             wails build -platform ${{ matrix.platform }} -ldflags "-X 'dockit/internal/version.Version=${{ github.ref_name }}'"
@@ -105,9 +112,24 @@ jobs:
         run: |
           # Standalone zipped portable executable
           cd build/bin && 7z a ../../dockit-windows-amd64.zip dockit.exe && cd ../..
-          # Copy NSIS setup wizard installer
+          # Find NSIS setup wizard installer
           ls -la build/bin/
           INSTALLER_FILE=$(find build/bin -type f -name "*installer*.exe" | head -n 1)
+          if [ -z "$INSTALLER_FILE" ]; then
+            echo "Warning: NSIS installer was not found in build/bin/. Trying manual makensis compilation..."
+            for p in "/c/Program Files/NSIS" "/c/Program Files/NSIS/Bin" "/c/Program Files (x86)/NSIS" "/c/Program Files (x86)/NSIS/Bin" "/c/ProgramData/chocolatey/bin"; do
+              if [ -d "$p" ]; then
+                export PATH="$p:$PATH"
+              fi
+            done
+            if [ -f "build/windows/installer/project.nsi" ]; then
+              cd build/windows/installer
+              makensis -DARG_WAILS_AMD64_BINARY=..\..\bin\dockit.exe project.nsi || true
+              cd ../../..
+            fi
+            INSTALLER_FILE=$(find build/bin -type f -name "*installer*.exe" | head -n 1)
+          fi
+
           if [ -n "$INSTALLER_FILE" ]; then
             cp "$INSTALLER_FILE" "dockit-windows-amd64-installer.exe"
             echo "Successfully packaged: dockit-windows-amd64-installer.exe"
