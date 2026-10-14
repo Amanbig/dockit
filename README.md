@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/dockit-logo-full.png" alt="Dockit Logo" width="240" />
+</p>
+
 # Dockit 🐳 🦭
 
 > A modern, fast, cross-platform desktop container management application supporting **Docker** and **Podman** simultaneously with unified abstractions, staged Compose testing, multi-registry exploration, and built-in runtime detection & installation.

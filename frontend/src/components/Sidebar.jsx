@@ -12,6 +12,8 @@ import {
   Zap
 } from 'lucide-react';
 
+import logoImg from '../assets/images/logo.png';
+
 export default function Sidebar({ 
   activeTab, 
   setActiveTab, 
@@ -40,10 +42,12 @@ export default function Sidebar({
   return (
     <aside className="w-64 bg-slate-950 border-r border-slate-800 flex flex-col h-full select-none">
       {/* Brand Header */}
-      <div className="h-16 flex items-center px-6 border-b border-slate-800 gap-3">
-        <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20 text-white font-black text-lg">
-          D
-        </div>
+      <div className="h-16 flex items-center px-5 border-b border-slate-800 gap-3">
+        <img
+          src={logoImg}
+          alt="Dockit Logo"
+          className="w-9 h-9 rounded-xl shadow-lg shadow-cyan-500/15 object-contain"
+        />
         <div className="flex flex-col">
           <div className="flex items-center gap-1.5">
             <span className="font-bold text-base text-slate-100 tracking-tight">Dockit</span>
