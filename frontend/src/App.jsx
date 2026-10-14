@@ -475,12 +475,17 @@ export default function App() {
 
   return (
     <div
-      className={`app-window-frame flex h-screen w-screen bg-slate-950 text-slate-100 overflow-hidden font-sans select-none transition-all duration-150 ${
-        isMaximised
-          ? 'border-0 shadow-none'
-          : 'border border-slate-750/90 shadow-[inset_0_0_0_1px_rgba(148,163,184,0.22),inset_0_1px_2px_rgba(255,255,255,0.08)]'
+      className={`h-screen w-screen bg-transparent select-none overflow-hidden font-sans transition-all duration-150 ${
+        isMaximised ? 'p-0' : 'p-1.5'
       }`}
     >
+      <div
+        className={`app-window-frame flex h-full w-full bg-slate-950 text-slate-100 overflow-hidden transition-all duration-200 relative ${
+          isMaximised
+            ? 'rounded-none border-0 shadow-none'
+            : 'rounded-xl border border-slate-700/80 shadow-[0_4px_16px_rgba(0,0,0,0.5),0_0_0_1px_rgba(100,116,139,0.35)]'
+        }`}
+      >
         {/* Left Navigation Sidebar */}
         <Sidebar
           activeTab={activeTab}
@@ -743,6 +748,7 @@ export default function App() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
