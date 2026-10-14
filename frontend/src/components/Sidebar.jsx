@@ -28,6 +28,7 @@ export default function Sidebar({
   setActiveTab, 
   stats = { runningContainers: 0, totalContainers: 0 },
   activeRuntime = 'docker',
+  systemInfo,
   appVersion = '0.4.0',
   updateAvailable = false,
   onOpenUpdateModal
@@ -86,9 +87,9 @@ export default function Sidebar({
         </div>
       </div>
 
-      {/* Engine Status Pill */}
-      <div className="px-4 py-3 border-b border-slate-800/80 bg-slate-900/40">
-        <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-900 border border-slate-800 text-xs">
+      {/* Engine & Environment Status */}
+      <div className="px-4 py-3 border-b border-slate-800/80 bg-slate-900/40 space-y-1.5">
+        <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-900 border border-slate-800 text-xs shadow-xs">
           <div className="flex items-center gap-2">
             <Zap className="w-3.5 h-3.5 text-cyan-400" />
             <span className="text-slate-400 font-medium">Engine:</span>
@@ -101,6 +102,20 @@ export default function Sidebar({
             Ready
           </span>
         </div>
+
+        {systemInfo && (
+          <div className="flex items-center justify-between px-2.5 py-1 rounded bg-slate-950/60 border border-slate-800/60 text-[10px] text-slate-400 font-mono">
+            <span className="truncate">{systemInfo.driver || 'Driver'}</span>
+            <span className="text-slate-600">•</span>
+            <span>{systemInfo.os || 'Linux'} / {systemInfo.arch || 'amd64'}</span>
+            {systemInfo.cpus ? (
+              <>
+                <span className="text-slate-600">•</span>
+                <span>{systemInfo.cpus} CPUs</span>
+              </>
+            ) : null}
+          </div>
+        )}
       </div>
 
       {/* Navigation Links */}

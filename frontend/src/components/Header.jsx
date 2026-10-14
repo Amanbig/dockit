@@ -45,7 +45,7 @@ export default function Header({
         onDoubleClick={handleToggleMaximise}
         className="wails-drag h-14 px-4 sm:px-6 flex items-center justify-between gap-3 cursor-default"
       >
-        <div className="flex items-center gap-3 min-w-0 wails-no-drag">
+        <div className="flex items-center gap-3 shrink-0 wails-no-drag">
           {/* Runtime Selector dropdown */}
           <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded-lg p-1 shrink-0">
             <button
@@ -69,23 +69,13 @@ export default function Header({
               Podman
             </button>
           </div>
+        </div>
 
-          {/* System info badge */}
-          {systemInfo ? (
-            <div className="flex items-center gap-2 text-xs text-slate-400 bg-slate-900/60 border border-slate-800/80 px-3 py-1 rounded-md whitespace-nowrap shrink-0">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
-              <span className="font-medium text-slate-300">{systemInfo.driver || 'Driver'}</span>
-              <span className="text-slate-600">•</span>
-              <span className="font-mono text-slate-300">{systemInfo.os || 'Linux'} / {systemInfo.arch || 'amd64'}</span>
-              <span className="hidden sm:inline text-slate-600">•</span>
-              <span className="hidden sm:inline text-slate-300 font-medium">{systemInfo.cpus || 0} CPUs</span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-md whitespace-nowrap shrink-0">
-              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-              <span>Connecting to daemon...</span>
-            </div>
-          )}
+        {/* Spacious, unobstructed draggable title area */}
+        <div className="flex-1 h-full flex items-center justify-center pointer-events-none">
+          <span className="text-xs font-medium text-slate-600/70 font-mono tracking-wider">
+            Dockit
+          </span>
         </div>
 
         <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 wails-no-drag">

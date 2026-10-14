@@ -449,6 +449,7 @@ export default function App() {
           setActiveTab(tab);
         }}
         activeRuntime={activeRuntime}
+        systemInfo={systemInfo}
         stats={{
           runningContainers,
           totalContainers: containers.length
