@@ -108,8 +108,8 @@ export default function VolumesView({
             <p className="text-xs mt-1">Create a new persistent volume for databases or uploads.</p>
           </div>
         ) : (
-          <div className="border border-slate-800 rounded-xl overflow-hidden bg-slate-950/60 shadow-lg">
-            <table className="w-full text-left border-collapse text-xs">
+          <div className="border border-slate-800 rounded-xl overflow-x-auto bg-slate-950/60 shadow-lg">
+            <table className="w-full text-left border-collapse text-xs min-w-[640px]">
               <thead>
                 <tr className="border-b border-slate-800 bg-slate-900/80 text-slate-400 uppercase font-semibold text-[11px] tracking-wider">
                   <th className="py-3 px-4">Volume Name</th>
@@ -122,20 +122,23 @@ export default function VolumesView({
               <tbody className="divide-y divide-slate-800/60 text-slate-300">
                 {filtered.map((v) => (
                   <tr key={v.name} className="hover:bg-slate-900/50 transition-colors group">
-                    <td className="py-3 px-4">
-                      <div className="font-semibold text-slate-100 group-hover:text-cyan-400 transition-colors">
+                    <td className="py-3 px-4 max-w-[240px] sm:max-w-[320px] md:max-w-[400px]">
+                      <div 
+                        className="font-semibold text-slate-100 group-hover:text-cyan-400 transition-colors truncate font-mono text-xs"
+                        title={v.name}
+                      >
                         {v.name}
                       </div>
                     </td>
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-4 whitespace-nowrap">
                       <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400">
                         {v.driver || 'local'}
                       </span>
                     </td>
-                    <td className="py-3 px-4 font-mono text-[11px] text-slate-400 max-w-[260px] truncate" title={v.mountpoint}>
+                    <td className="py-3 px-4 font-mono text-[11px] text-slate-400 max-w-[220px] truncate" title={v.mountpoint}>
                       {v.mountpoint || '-'}
                     </td>
-                    <td className="py-3 px-4 text-slate-400 text-[11px]">
+                    <td className="py-3 px-4 text-slate-400 text-[11px] whitespace-nowrap">
                       {v.scope || 'local'}
                     </td>
                     <td className="py-3 px-4 text-right">
