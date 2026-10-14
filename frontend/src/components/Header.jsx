@@ -7,8 +7,12 @@ import {
   AlertCircle,
   HelpCircle,
   ChevronDown,
-  Search
+  Search,
+  Minus,
+  Square,
+  X
 } from 'lucide-react';
+import { WindowMinimise, WindowToggleMaximise, Quit } from '../../wailsjs/runtime/runtime';
 
 export default function Header({
   activeRuntime = 'docker',
@@ -19,11 +23,29 @@ export default function Header({
   onOpenInstaller,
   onOpenCommandPalette
 }) {
+  const handleMinimise = () => {
+    if (typeof WindowMinimise === 'function') WindowMinimise();
+    else if (window.runtime?.WindowMinimise) window.runtime.WindowMinimise();
+  };
+
+  const handleToggleMaximise = () => {
+    if (typeof WindowToggleMaximise === 'function') WindowToggleMaximise();
+    else if (window.runtime?.WindowToggleMaximise) window.runtime.WindowToggleMaximise();
+  };
+
+  const handleClose = () => {
+    if (typeof Quit === 'function') Quit();
+    else if (window.runtime?.Quit) window.runtime.Quit();
+  };
+
   return (
     <header className="flex flex-col select-none shrink-0 border-b border-slate-800 bg-slate-950/80 backdrop-blur">
-      {/* Top Controls Bar */}
-      <div className="h-14 px-4 sm:px-6 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
+      {/* Top Controls Bar - Draggable in frameless mode */}
+      <div 
+        onDoubleClick={handleToggleMaximise}
+        className="wails-drag h-14 px-4 sm:px-6 flex items-center justify-between gap-3 cursor-default"
+      >
+        <div className="flex items-center gap-3 min-w-0 wails-no-drag">
           {/* Runtime Selector dropdown */}
           <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded-lg p-1 shrink-0">
             <button
@@ -66,7 +88,7 @@ export default function Header({
           )}
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 wails-no-drag">
           {/* Install / Setup runtime button */}
           <button
             onClick={onOpenInstaller}
@@ -86,11 +108,36 @@ export default function Header({
           >
             <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-cyan-400' : ''}`} />
           </button>
+
+          {/* Custom Frameless Window Controls */}
+          <div className="flex items-center pl-1 sm:pl-1.5 border-l border-slate-800 gap-0.5 sm:gap-1">
+            <button
+              onClick={handleMinimise}
+              className="p-1.5 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-md transition-colors"
+              title="Minimize"
+            >
+              <Minus className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={handleToggleMaximise}
+              className="p-1.5 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-md transition-colors"
+              title="Maximize / Restore"
+            >
+              <Square className="w-3 h-3" />
+            </button>
+            <button
+              onClick={handleClose}
+              className="p-1.5 text-slate-400 hover:text-white hover:bg-rose-600 rounded-md transition-colors"
+              title="Close"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Downward Search & Command Palette Bar */}
-      <div className="px-4 sm:px-6 pb-2.5 pt-0.5">
+      <div className="px-4 sm:px-6 pb-2.5 pt-0.5 wails-no-drag">
         <button
           onClick={onOpenCommandPalette}
           className="w-full flex items-center justify-between px-3.5 py-1.5 rounded-xl bg-slate-900/80 border border-slate-800/80 hover:border-cyan-500/50 text-xs text-slate-400 hover:text-slate-200 transition-all shadow-xs group"

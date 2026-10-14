@@ -11,7 +11,7 @@ import {
   Zap,
   ExternalLink
 } from 'lucide-react';
-import { BrowserOpenURL } from '../../wailsjs/runtime/runtime';
+import { BrowserOpenURL, WindowToggleMaximise } from '../../wailsjs/runtime/runtime';
 
 import logoImg from '../assets/images/logo.png';
 
@@ -50,12 +50,18 @@ export default function Sidebar({
 
   return (
     <aside className="w-64 bg-slate-950 border-r border-slate-800 flex flex-col h-full select-none">
-      {/* Brand Header */}
-      <div className="h-14 flex items-center px-5 border-b border-slate-800 gap-3">
+      {/* Brand Header - Draggable */}
+      <div 
+        onDoubleClick={() => {
+          if (typeof WindowToggleMaximise === 'function') WindowToggleMaximise();
+          else if (window.runtime?.WindowToggleMaximise) window.runtime.WindowToggleMaximise();
+        }}
+        className="wails-drag h-14 flex items-center px-5 border-b border-slate-800 gap-3 cursor-default"
+      >
         <img
           src={logoImg}
           alt="Dockit Logo"
-          className="w-8 h-8 rounded-xl shadow-lg shadow-cyan-500/15 object-contain"
+          className="w-8 h-8 rounded-xl shadow-lg shadow-cyan-500/15 object-contain pointer-events-none"
         />
         <div className="flex flex-col">
           <div className="flex items-center gap-1.5">
@@ -63,7 +69,7 @@ export default function Sidebar({
             <button
               onClick={onOpenUpdateModal}
               title={updateAvailable ? "New version available! Click to update" : "Dockit version info"}
-              className={`text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded font-mono transition-all flex items-center gap-1 ${
+              className={`wails-no-drag text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded font-mono transition-all flex items-center gap-1 ${
                 updateAvailable
                   ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 animate-pulse'
                   : 'bg-cyan-950 text-cyan-400 border border-cyan-800/60 hover:bg-cyan-900/50'

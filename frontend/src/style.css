@@ -1,6 +1,16 @@
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
 
+.wails-drag {
+    --wails-draggable: drag;
+    -webkit-app-region: drag;
+}
+
+.wails-no-drag {
+    --wails-draggable: no-drag;
+    -webkit-app-region: no-drag;
+}
+
 html, body {
     margin: 0;
     padding: 0;
