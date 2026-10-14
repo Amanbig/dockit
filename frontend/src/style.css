@@ -52,11 +52,14 @@ select option {
 /* -------------------------------------------------------------
    LIGHT MODE STYLING & VARIABLE OVERRIDES
 ------------------------------------------------------------- */
-html.light body,
-html.light #root,
 html.light .bg-slate-950 {
     background-color: #f8fafc !important; /* Soft light gray canvas */
     color: #0f172a !important;
+}
+
+html.light .app-window-frame {
+    border-color: #cbd5e1 !important;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08), inset 0 1px 2px rgba(0, 0, 0, 0.04) !important;
 }
 
 /* Primary cards, panels, sub-bars, headers */
