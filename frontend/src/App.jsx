@@ -205,58 +205,62 @@ export default function App() {
   // Initial load & runtime synchronization
   const refreshAll = useCallback(async () => {
     setIsRefreshing(true);
+    const timeoutPromise = new Promise((resolve) => setTimeout(resolve, 6000));
     try {
-      const [rt, info, metrics, runtimes, cList, iList, vList, nList, favs, cfg, ver] = await Promise.allSettled([
-        GetActiveRuntime(),
-        GetSystemInfo(),
-        GetHostMetrics(),
-        DetectRuntimes(),
-        GetContainers(true),
-        GetImages(false),
-        GetVolumes(),
-        GetNetworks(),
-        GetFavorites(),
-        GetConfig(),
-        GetAppVersion()
+      await Promise.race([
+        Promise.allSettled([
+          GetActiveRuntime(),
+          GetSystemInfo(),
+          GetHostMetrics(),
+          DetectRuntimes(),
+          GetContainers(true),
+          GetImages(false),
+          GetVolumes(),
+          GetNetworks(),
+          GetFavorites(),
+          GetConfig(),
+          GetAppVersion()
+        ]).then(([rt, info, metrics, runtimes, cList, iList, vList, nList, favs, cfg, ver]) => {
+          if (rt?.status === 'fulfilled' && rt.value) setActiveRuntime(rt.value);
+          if (info?.status === 'fulfilled') {
+            setSystemInfo(info.value);
+          } else {
+            setSystemInfo(null);
+          }
+          if (metrics?.status === 'fulfilled' && metrics.value) setHostMetrics(metrics.value);
+          if (runtimes?.status === 'fulfilled' && runtimes.value) setRuntimesStatus(runtimes.value);
+          if (cList?.status === 'fulfilled' && Array.isArray(cList.value)) {
+            setContainers(cList.value);
+          } else {
+            setContainers([]);
+          }
+          if (iList?.status === 'fulfilled' && Array.isArray(iList.value)) {
+            setImages(iList.value);
+          } else {
+            setImages([]);
+          }
+          if (vList?.status === 'fulfilled' && Array.isArray(vList.value)) {
+            setVolumes(vList.value);
+          } else {
+            setVolumes([]);
+          }
+          if (nList?.status === 'fulfilled' && Array.isArray(nList.value)) {
+            setNetworks(nList.value);
+          } else {
+            setNetworks([]);
+          }
+          if (favs?.status === 'fulfilled' && Array.isArray(favs.value)) setFavorites(favs.value);
+          if (ver?.status === 'fulfilled' && ver.value) setAppVersion(ver.value);
+          if (cfg?.status === 'fulfilled' && cfg.value) {
+            setAppConfig(cfg.value);
+            if (cfg.value.ui?.theme) {
+              setTheme(cfg.value.ui.theme);
+              applyThemeToDOM(cfg.value.ui.theme);
+            }
+          }
+        }),
+        timeoutPromise
       ]);
-
-      if (rt.status === 'fulfilled' && rt.value) setActiveRuntime(rt.value);
-      if (info.status === 'fulfilled') {
-        setSystemInfo(info.value);
-      } else {
-        setSystemInfo(null);
-      }
-      if (metrics.status === 'fulfilled' && metrics.value) setHostMetrics(metrics.value);
-      if (runtimes.status === 'fulfilled' && runtimes.value) setRuntimesStatus(runtimes.value);
-      if (cList.status === 'fulfilled' && Array.isArray(cList.value)) {
-        setContainers(cList.value);
-      } else {
-        setContainers([]);
-      }
-      if (iList.status === 'fulfilled' && Array.isArray(iList.value)) {
-        setImages(iList.value);
-      } else {
-        setImages([]);
-      }
-      if (vList.status === 'fulfilled' && Array.isArray(vList.value)) {
-        setVolumes(vList.value);
-      } else {
-        setVolumes([]);
-      }
-      if (nList.status === 'fulfilled' && Array.isArray(nList.value)) {
-        setNetworks(nList.value);
-      } else {
-        setNetworks([]);
-      }
-      if (favs.status === 'fulfilled' && Array.isArray(favs.value)) setFavorites(favs.value);
-      if (ver.status === 'fulfilled' && ver.value) setAppVersion(ver.value);
-      if (cfg.status === 'fulfilled' && cfg.value) {
-        setAppConfig(cfg.value);
-        if (cfg.value.ui?.theme) {
-          setTheme(cfg.value.ui.theme);
-          applyThemeToDOM(cfg.value.ui.theme);
-        }
-      }
     } catch (err) {
       console.error('Error refreshing Dockit state:', err);
     } finally {

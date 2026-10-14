@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
+	"time"
 
 	"dockit/internal/compose"
 	"dockit/internal/config"
@@ -95,24 +96,36 @@ func (a *App) initRuntime(preferred string) error {
 
 	switch preferred {
 	case "podman":
-		rt, err = podmanclient.NewClient(ctx)
-		if err == nil {
+		c, cErr := podmanclient.NewClient(ctx)
+		if cErr == nil && c != nil {
+			rt = c
 			rtType = "podman"
+		} else {
+			err = cErr
 		}
 	case "docker":
-		rt, err = dockerclient.NewClient(ctx)
-		if err == nil {
+		c, cErr := dockerclient.NewClient(ctx)
+		if cErr == nil && c != nil {
+			rt = c
 			rtType = "docker"
+		} else {
+			err = cErr
 		}
 	default: // "auto"
 		// Try Docker first, fallback to Podman
-		rt, err = dockerclient.NewClient(ctx)
-		if err == nil {
+		c, cErr := dockerclient.NewClient(ctx)
+		if cErr == nil && c != nil {
+			rt = c
 			rtType = "docker"
 		} else {
-			rt, err = podmanclient.NewClient(ctx)
-			if err == nil {
+			err = cErr
+			p, pErr := podmanclient.NewClient(ctx)
+			if pErr == nil && p != nil {
+				rt = p
 				rtType = "podman"
+				err = nil
+			} else if pErr != nil {
+				err = pErr
 			}
 		}
 	}
@@ -127,6 +140,12 @@ func (a *App) initRuntime(preferred string) error {
 		a.composeMgr = compose.NewManager(rtType)
 		return nil
 	}
+
+	a.currentRT = nil
+	a.containerSvc = nil
+	a.imageSvc = nil
+	a.volumeSvc = nil
+	a.networkSvc = nil
 
 	// When preferred runtime is offline or not installed, reflect the requested engine
 	if preferred == "docker" || preferred == "podman" {
@@ -174,7 +193,13 @@ func (a *App) GetSystemInfo() (*runtime.SystemInfo, error) {
 	if rt == nil {
 		return nil, fmt.Errorf("no active container runtime")
 	}
-	return rt.Info(a.ctx)
+	ctx := a.ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	return rt.Info(ctx)
 }
 
 // GetHostMetrics retrieves real-time CPU, RAM, and hardware metrics.
@@ -798,7 +823,13 @@ func (a *App) GetCustomValue(key string) string {
 
 // DetectRuntimes checks host machine for Docker and Podman installation & service status.
 func (a *App) DetectRuntimes() (*installer.DetectionResult, error) {
-	return installer.Detect(a.ctx)
+	ctx := a.ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	return installer.Detect(ctx)
 }
 
 // GetInstallPlan returns a detailed step-by-step installation plan for a runtime.
