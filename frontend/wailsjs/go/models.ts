@@ -505,6 +505,24 @@ export namespace registry {
 
 export namespace runtime {
 	
+	export class CategoryDiskUsage {
+	    totalCount: number;
+	    activeCount: number;
+	    totalSize: number;
+	    reclaimable: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new CategoryDiskUsage(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.totalCount = source["totalCount"];
+	        this.activeCount = source["activeCount"];
+	        this.totalSize = source["totalSize"];
+	        this.reclaimable = source["reclaimable"];
+	    }
+	}
 	export class ContainerCreateOptions {
 	    name?: string;
 	    image: string;
@@ -718,6 +736,46 @@ export namespace runtime {
 	    }
 	}
 	
+	export class DiskUsage {
+	    totalSpace: number;
+	    totalReclaimable: number;
+	    images: CategoryDiskUsage;
+	    containers: CategoryDiskUsage;
+	    volumes: CategoryDiskUsage;
+	    buildCache: CategoryDiskUsage;
+	
+	    static createFrom(source: any = {}) {
+	        return new DiskUsage(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.totalSpace = source["totalSpace"];
+	        this.totalReclaimable = source["totalReclaimable"];
+	        this.images = this.convertValues(source["images"], CategoryDiskUsage);
+	        this.containers = this.convertValues(source["containers"], CategoryDiskUsage);
+	        this.volumes = this.convertValues(source["volumes"], CategoryDiskUsage);
+	        this.buildCache = this.convertValues(source["buildCache"], CategoryDiskUsage);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class ImageDeleteResult {
 	    untagged?: string;
 	    deleted?: string;
@@ -797,6 +855,48 @@ export namespace runtime {
 	}
 	
 	
+	export class PruneOptions {
+	    allImages: boolean;
+	    containers: boolean;
+	    volumes: boolean;
+	    buildCache: boolean;
+	    networks: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new PruneOptions(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.allImages = source["allImages"];
+	        this.containers = source["containers"];
+	        this.volumes = source["volumes"];
+	        this.buildCache = source["buildCache"];
+	        this.networks = source["networks"];
+	    }
+	}
+	export class PruneResult {
+	    spaceReclaimed: number;
+	    containersDeleted: string[];
+	    imagesDeleted: string[];
+	    volumesDeleted: string[];
+	    networksDeleted: string[];
+	    buildCacheDeleted: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new PruneResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.spaceReclaimed = source["spaceReclaimed"];
+	        this.containersDeleted = source["containersDeleted"];
+	        this.imagesDeleted = source["imagesDeleted"];
+	        this.volumesDeleted = source["volumesDeleted"];
+	        this.networksDeleted = source["networksDeleted"];
+	        this.buildCacheDeleted = source["buildCacheDeleted"];
+	    }
+	}
 	export class SystemInfo {
 	    id: string;
 	    containers: number;

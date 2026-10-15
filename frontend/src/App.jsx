@@ -5,6 +5,7 @@ import ContainersView from './components/ContainersView';
 import ImagesView from './components/ImagesView';
 import VolumesView from './components/VolumesView';
 import NetworksView from './components/NetworksView';
+import CleanupView from './components/CleanupView';
 import ComposeView from './components/ComposeView';
 import RegistryView from './components/RegistryView';
 import SettingsView from './components/SettingsView';
@@ -92,7 +93,7 @@ export default function App() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [appConfig, setAppConfig] = useState(null);
   const [theme, setTheme] = useState('dark');
-  const [appVersion, setAppVersion] = useState(packageJson?.version || '0.5.0');
+  const [appVersion, setAppVersion] = useState(packageJson?.version || '0.6.0');
 
   // Track whether the frameless window is currently maximized
   const [isMaximised, setIsMaximised] = useState(false);
@@ -645,6 +646,12 @@ export default function App() {
               onCreate={handleCreateNetwork}
               onRemove={handleRemoveNetwork}
               onInspect={handleInspectNetwork}
+            />
+          )}
+
+          {activeTab === 'cleanup' && (
+            <CleanupView
+              activeRuntime={activeRuntime}
             />
           )}
 

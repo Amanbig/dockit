@@ -59,4 +59,8 @@ type Runtime interface {
 	RemoveNetwork(ctx context.Context, networkID string) error
 	ConnectContainerToNetwork(ctx context.Context, networkID string, containerID string) error
 	DisconnectContainerFromNetwork(ctx context.Context, networkID string, containerID string, force bool) error
+
+	// System disk usage and cleanup operations
+	GetDiskUsage(ctx context.Context) (*DiskUsage, error)
+	PruneSystem(ctx context.Context, opts PruneOptions) (*PruneResult, error)
 }

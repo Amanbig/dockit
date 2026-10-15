@@ -134,6 +134,10 @@ export function GetCustomValue(arg1) {
   return window['go']['main']['App']['GetCustomValue'](arg1);
 }
 
+export function GetDiskUsage() {
+  return window['go']['main']['App']['GetDiskUsage']();
+}
+
 export function GetFavorites() {
   return window['go']['main']['App']['GetFavorites']();
 }
@@ -216,6 +220,10 @@ export function OpenComposeProjectFromURL(arg1, arg2) {
 
 export function PauseContainer(arg1) {
   return window['go']['main']['App']['PauseContainer'](arg1);
+}
+
+export function PruneSystem(arg1) {
+  return window['go']['main']['App']['PruneSystem'](arg1);
 }
 
 export function PruneVolumes() {

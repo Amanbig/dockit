@@ -13,7 +13,8 @@ import {
   Activity,
   Cpu,
   AlertCircle,
-  DownloadCloud
+  DownloadCloud,
+  Sparkles
 } from 'lucide-react';
 import { BrowserOpenURL, WindowToggleMaximise } from '../../wailsjs/runtime/runtime';
 
@@ -36,7 +37,7 @@ export default function Sidebar({
   runtimesStatus,
   onOpenInstaller,
   hostMetrics,
-  appVersion = '0.5.0',
+  appVersion = '0.6.0',
   updateAvailable = false,
   onOpenUpdateModal
 }) {
@@ -51,6 +52,7 @@ export default function Sidebar({
     { id: 'images', label: 'Images', icon: Layers },
     { id: 'volumes', label: 'Volumes', icon: HardDrive },
     { id: 'networks', label: 'Networks', icon: Network },
+    { id: 'cleanup', label: 'Disk & Cleanup', icon: Sparkles },
     { id: 'compose', label: 'Compose Projects', icon: FileCode2 },
     { id: 'registry', label: 'Registry Hub', icon: Globe },
     { id: 'settings', label: 'Settings & Setup', icon: Settings },

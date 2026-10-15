@@ -78,6 +78,8 @@ export function GetContainers(arg1:boolean):Promise<Array<containers.Container>>
 
 export function GetCustomValue(arg1:string):Promise<string>;
 
+export function GetDiskUsage():Promise<runtime.DiskUsage>;
+
 export function GetFavorites():Promise<Array<string>>;
 
 export function GetHostMetrics():Promise<host.Metrics>;
@@ -119,6 +121,8 @@ export function OpenComposeProject(arg1:string):Promise<compose.Project>;
 export function OpenComposeProjectFromURL(arg1:string,arg2:string):Promise<compose.Project>;
 
 export function PauseContainer(arg1:string):Promise<void>;
+
+export function PruneSystem(arg1:runtime.PruneOptions):Promise<runtime.PruneResult>;
 
 export function PruneVolumes():Promise<void>;
 

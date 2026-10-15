@@ -257,3 +257,40 @@ type NetworkCreateOptions struct {
 	Attachable bool              `json:"attachable"`
 	Labels     map[string]string `json:"labels,omitempty"`
 }
+
+// DiskUsage represents the breakdown of disk space consumed by the container engine.
+type DiskUsage struct {
+	TotalSpace       int64             `json:"totalSpace"`
+	TotalReclaimable int64             `json:"totalReclaimable"`
+	Images           CategoryDiskUsage `json:"images"`
+	Containers       CategoryDiskUsage `json:"containers"`
+	Volumes          CategoryDiskUsage `json:"volumes"`
+	BuildCache       CategoryDiskUsage `json:"buildCache"`
+}
+
+// CategoryDiskUsage represents storage statistics for a single category of resources.
+type CategoryDiskUsage struct {
+	TotalCount  int64 `json:"totalCount"`
+	ActiveCount int64 `json:"activeCount"`
+	TotalSize   int64 `json:"totalSize"`
+	Reclaimable int64 `json:"reclaimable"`
+}
+
+// PruneOptions specifies which resources to clean up.
+type PruneOptions struct {
+	AllImages  bool `json:"allImages"`  // true: prune all unused images; false: dangling only
+	Containers bool `json:"containers"` // prune stopped containers
+	Volumes    bool `json:"volumes"`    // prune unused volumes
+	BuildCache bool `json:"buildCache"` // prune build cache
+	Networks   bool `json:"networks"`   // prune unused networks
+}
+
+// PruneResult contains the outcome of a cleanup operation.
+type PruneResult struct {
+	SpaceReclaimed    int64    `json:"spaceReclaimed"`
+	ContainersDeleted []string `json:"containersDeleted"`
+	ImagesDeleted     []string `json:"imagesDeleted"`
+	VolumesDeleted    []string `json:"volumesDeleted"`
+	NetworksDeleted   []string `json:"networksDeleted"`
+	BuildCacheDeleted []string `json:"buildCacheDeleted"`
+}

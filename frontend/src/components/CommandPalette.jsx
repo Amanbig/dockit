@@ -82,6 +82,7 @@ export default function CommandPalette({
       { id: 'nav-images', title: 'Go to Images', subtitle: 'Local images, pulls, and tags', icon: Disc, action: () => onNavigate('images'), shortcut: 'I' },
       { id: 'nav-volumes', title: 'Go to Volumes', subtitle: 'Persistent data volumes', icon: HardDrive, action: () => onNavigate('volumes'), shortcut: 'V' },
       { id: 'nav-networks', title: 'Go to Networks', subtitle: 'Bridge, host, and overlay networks', icon: Network, action: () => onNavigate('networks'), shortcut: 'N' },
+      { id: 'nav-cleanup', title: 'Go to Disk & Cleanup', subtitle: 'Analyze disk usage and reclaim space', icon: Sparkles, action: () => onNavigate('cleanup'), shortcut: 'D' },
       { id: 'nav-compose', title: 'Go to Compose Studio', subtitle: 'Multi-container projects and .env', icon: Layers, action: () => onNavigate('compose'), shortcut: 'S' },
       { id: 'nav-registry', title: 'Go to Hub & Registries', subtitle: 'Search Docker Hub, GHCR, Quay', icon: DownloadCloud, action: () => onNavigate('registry'), shortcut: 'R' },
       { id: 'nav-settings', title: 'Go to Settings', subtitle: 'Preferences, engine, and themes', icon: Settings, action: () => onNavigate('settings'), shortcut: ',' }

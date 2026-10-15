@@ -841,3 +841,41 @@ func (a *App) GetInstallPlan(targetRuntime string) (*installer.InstallPlan, erro
 func (a *App) InstallRuntime(targetRuntime string) error {
 	return installer.Install(a.ctx, targetRuntime, nil)
 }
+
+// ==========================================
+// System Disk Usage & Cleanup Methods
+// ==========================================
+
+// GetDiskUsage returns the total and category breakdown of disk space and reclaimable space.
+func (a *App) GetDiskUsage() (*runtime.DiskUsage, error) {
+	a.mu.RLock()
+	rt := a.currentRT
+	a.mu.RUnlock()
+	if rt == nil {
+		return nil, fmt.Errorf("no active container runtime connected")
+	}
+	ctx := a.ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	return rt.GetDiskUsage(ctx)
+}
+
+// PruneSystem cleans up stopped containers, unused images, volumes, build cache, and networks based on options.
+func (a *App) PruneSystem(opts runtime.PruneOptions) (*runtime.PruneResult, error) {
+	a.mu.RLock()
+	rt := a.currentRT
+	a.mu.RUnlock()
+	if rt == nil {
+		return nil, fmt.Errorf("no active container runtime connected")
+	}
+	ctx := a.ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
+	defer cancel()
+	return rt.PruneSystem(ctx, opts)
+}
