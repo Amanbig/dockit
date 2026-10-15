@@ -33,6 +33,18 @@ export default function UpdateModal({
   const [errorMessage, setErrorMessage] = useState('');
   const [isRestarting, setIsRestarting] = useState(false);
 
+  const [selectedAsset, setSelectedAsset] = useState(null);
+
+  useEffect(() => {
+    if (updateInfo?.downloadUrl && updateInfo?.assetFileName) {
+      setSelectedAsset({
+        name: updateInfo.assetFileName,
+        downloadUrl: updateInfo.downloadUrl,
+        type: updateInfo.installType || 'binary'
+      });
+    }
+  }, [updateInfo]);
+
   useEffect(() => {
     let timer;
     if (installState === 'downloading' || installState === 'extracting' || installState === 'applying') {
@@ -66,7 +78,10 @@ export default function UpdateModal({
   const hasUpdate = updateInfo?.available;
 
   const handleStartInAppUpdate = async () => {
-    if (!updateInfo?.downloadUrl || !updateInfo?.assetFileName) {
+    const targetUrl = selectedAsset?.downloadUrl || updateInfo?.downloadUrl;
+    const targetFile = selectedAsset?.name || updateInfo?.assetFileName;
+
+    if (!targetUrl || !targetFile) {
       handleManualBrowserDownload();
       return;
     }
@@ -77,7 +92,7 @@ export default function UpdateModal({
 
     try {
       // Async trigger on Go side
-      DownloadAndApplyUpdate(updateInfo.downloadUrl, updateInfo.assetFileName)
+      DownloadAndApplyUpdate(targetUrl, targetFile)
         .then(() => {
           setInstallState('ready');
         })
@@ -216,7 +231,15 @@ export default function UpdateModal({
                 <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                 {installState === 'downloading' && `Downloading: ${progress}%`}
                 {installState === 'extracting' && 'Extracting binary...'}
-                {installState === 'applying' && 'Replacing application executable in-place...'}
+                {installState === 'applying' && (
+                  (selectedAsset?.type || updateInfo?.installType) === 'deb'
+                    ? 'Installing .deb package (system authorization prompt may appear)...'
+                    : (selectedAsset?.type || updateInfo?.installType) === 'rpm'
+                    ? 'Installing .rpm package (system authorization prompt may appear)...'
+                    : (selectedAsset?.type || updateInfo?.installType) === 'exe'
+                    ? 'Launching Windows installer...'
+                    : 'Applying update in-place...'
+                )}
               </span>
               {progressInfo.totalBytes > 0 && (
                 <span className="text-[11px] font-mono text-slate-400">
@@ -233,7 +256,9 @@ export default function UpdateModal({
               />
             </div>
             <p className="text-[11px] text-slate-400">
-              You can keep using Dockit while the update is applied smoothly in the background.
+              {(selectedAsset?.type || updateInfo?.installType) === 'deb' || (selectedAsset?.type || updateInfo?.installType) === 'rpm'
+                ? 'Your desktop password will be requested to grant permission to install the updated package.'
+                : 'You can keep using Dockit while the update is applied smoothly in the background.'}
             </p>
           </div>
         )}
@@ -295,20 +320,83 @@ export default function UpdateModal({
               )}
             </div>
 
-            {/* Target Package Banner */}
-            {updateInfo?.assetFileName && (
+            {/* Target Package Banner or Asset Selector */}
+            {updateInfo?.availableAssets && updateInfo.availableAssets.length > 1 ? (
+              <div className="space-y-2 p-3 rounded-lg bg-cyan-950/30 border border-cyan-800/40 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400 text-[11px] font-medium">Select package to install:</span>
+                  {updateInfo.needsElevation && (
+                    <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                      <ShieldCheck className="w-3 h-3" />
+                      Polkit / Root
+                    </span>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 gap-1.5 max-h-32 overflow-y-auto pr-1">
+                  {updateInfo.availableAssets.map((asset) => {
+                    const isSelected = (selectedAsset?.name === asset.name) || (!selectedAsset && asset.isDefault);
+                    return (
+                      <button
+                        key={asset.name}
+                        onClick={() => setSelectedAsset({ name: asset.name, downloadUrl: asset.downloadUrl, type: asset.type })}
+                        className={`flex items-center justify-between p-2 rounded-lg border text-left transition-all ${
+                          isSelected
+                            ? 'bg-cyan-500/20 border-cyan-500/60 text-cyan-200'
+                            : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 truncate">
+                          <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${
+                            asset.type === 'deb' || asset.type === 'rpm'
+                              ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                              : 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
+                          }`}>
+                            {asset.type}
+                          </span>
+                          <span className="font-mono text-xs truncate">{asset.name}</span>
+                          {asset.isDefault && (
+                            <span className="text-[10px] text-cyan-400/80 italic shrink-0">(detected)</span>
+                          )}
+                        </div>
+                        {asset.size > 0 && (
+                          <span className="text-[11px] text-slate-500 font-mono ml-2 shrink-0">
+                            {formatSize(asset.size)}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : updateInfo?.assetFileName ? (
               <div className="p-3 rounded-lg bg-cyan-950/30 border border-cyan-800/40 flex items-center justify-between gap-3 text-xs">
                 <div className="truncate">
-                  <span className="text-slate-400 block text-[11px]">In-place binary package:</span>
+                  <span className="text-slate-400 block text-[11px]">
+                    {updateInfo.installType === 'deb'
+                      ? 'Detected Native Package (.deb):'
+                      : updateInfo.installType === 'rpm'
+                      ? 'Detected Native Package (.rpm):'
+                      : updateInfo.installType === 'nsis'
+                      ? 'Setup Wizard Installer (.exe):'
+                      : 'In-place binary package:'}
+                  </span>
                   <span className="font-mono text-cyan-300 font-medium truncate block">
                     {updateInfo.assetFileName}
                   </span>
                 </div>
-                <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-                  {updateInfo.platform}
-                </span>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {updateInfo.needsElevation && (
+                    <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                      <ShieldCheck className="w-3 h-3" />
+                      Polkit / Root
+                    </span>
+                  )}
+                  <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                    {updateInfo.platform}
+                  </span>
+                </div>
               </div>
-            )}
+            ) : null}
           </div>
         )}
 
