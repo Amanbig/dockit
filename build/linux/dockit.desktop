@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=Dockit
 Comment=Cross-platform Docker & Podman desktop management
-Exec=/usr/bin/dockit
+Exec=env WEBKIT_DISABLE_DMABUF_RENDERER=1 /usr/bin/dockit
 Icon=dockit
 Terminal=false
 Type=Application

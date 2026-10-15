@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"os"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -9,6 +10,15 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options/linux"
 	"github.com/wailsapp/wails/v2/pkg/options/windows"
 )
+
+func init() {
+	// WebKitGTK 2.42+ uses DMA-BUF / GBM buffers by default, which fails on NVIDIA drivers
+	// with "KMS: DRM_IOCTL_MODE_CREATE_DUMB failed: Permission denied" and "Failed to create GBM buffer".
+	// Setting WEBKIT_DISABLE_DMABUF_RENDERER=1 tells WebKitGTK to fall back to standard rendering.
+	if os.Getenv("WEBKIT_DISABLE_DMABUF_RENDERER") == "" {
+		_ = os.Setenv("WEBKIT_DISABLE_DMABUF_RENDERER", "1")
+	}
+}
 
 //go:embed all:frontend/dist
 var assets embed.FS
@@ -41,6 +51,7 @@ func main() {
 			Icon:                appIcon,
 			ProgramName:         "dockit",
 			WindowIsTranslucent: true,
+			WebviewGpuPolicy:    linux.WebviewGpuPolicyOnDemand,
 		},
 		Windows: &windows.Options{
 			DisableFramelessWindowDecorations: false,

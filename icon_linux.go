@@ -42,7 +42,7 @@ func installDesktopIntegration(iconBytes []byte) {
 	desktopContent := "[Desktop Entry]\n" +
 		"Name=Dockit\n" +
 		"Comment=Cross-platform Docker & Podman desktop management\n" +
-		"Exec=" + execPath + "\n" +
+		"Exec=env WEBKIT_DISABLE_DMABUF_RENDERER=1 " + execPath + "\n" +
 		"Icon=dockit\n" +
 		"Terminal=false\n" +
 		"Type=Application\n" +
