@@ -351,19 +351,29 @@ html.light div[class*="bg-cyan-950/30"] span.text-cyan-300 {
     color: #0891b2 !important;
 }
 
-html.light div[class*="bg-emerald-950/20"] {
+html.light div[class*="bg-emerald-950/20"],
+html.light div[class*="bg-emerald-950/30"],
+html.light div[class*="bg-emerald-950"] {
     background-color: #ecfdf5 !important;
     border-color: #a7f3d0 !important;
     color: #065f46 !important;
 }
 
-html.light div[class*="bg-emerald-950/20"] p {
-    color: #047857 !important;
+html.light div[class*="bg-emerald-950/20"] p,
+html.light div[class*="bg-emerald-950/30"] p,
+html.light div[class*="bg-emerald-950"] p,
+html.light div[class*="bg-emerald-950"] span {
+    color: #065f46 !important;
+}
+
+html.light div[class*="bg-emerald-950"] svg {
+    color: #059669 !important;
 }
 
 html.light .engine-status-banner-rose,
 html.light div[class*="bg-rose-950/40"],
-html.light div[class*="bg-rose-950/30"] {
+html.light div[class*="bg-rose-950/30"],
+html.light div[class*="bg-rose-950"] {
     background-color: #fff1f2 !important;
     border-color: #fecdd3 !important;
     color: #9f1239 !important;
@@ -371,7 +381,9 @@ html.light div[class*="bg-rose-950/30"] {
 
 html.light .engine-status-banner-rose span,
 html.light div[class*="bg-rose-950/40"] span,
-html.light div[class*="bg-rose-950/30"] p {
+html.light div[class*="bg-rose-950/30"] p,
+html.light div[class*="bg-rose-950"] p,
+html.light div[class*="bg-rose-950"] span {
     color: #9f1239 !important;
 }
 
@@ -380,19 +392,100 @@ html.light .engine-status-banner-rose svg {
 }
 
 html.light .engine-status-banner-amber,
-html.light div[class*="bg-amber-950/40"] {
+html.light div[class*="bg-amber-950/40"],
+html.light div[class*="bg-amber-950"] {
     background-color: #fffbeb !important;
     border-color: #fde68a !important;
     color: #92400e !important;
 }
 
 html.light .engine-status-banner-amber span,
-html.light div[class*="bg-amber-950/40"] span {
+html.light div[class*="bg-amber-950/40"] span,
+html.light div[class*="bg-amber-950"] span,
+html.light div[class*="bg-amber-950"] p {
     color: #92400e !important;
 }
 
 html.light .engine-status-banner-amber svg {
     color: #d97706 !important;
+}
+
+/* Category Resource Badges & Icons in Light Mode */
+html.light div[class*="bg-purple-500/10"],
+html.light span[class*="bg-purple-500/10"] {
+    background-color: #faf5ff !important;
+    border-color: #e9d5ff !important;
+    color: #7e22ce !important;
+}
+
+html.light div[class*="bg-purple-500/10"] svg,
+html.light span[class*="bg-purple-500/10"] svg {
+    color: #7e22ce !important;
+}
+
+html.light div[class*="bg-blue-500/10"],
+html.light span[class*="bg-blue-500/10"] {
+    background-color: #eff6ff !important;
+    border-color: #bfdbfe !important;
+    color: #1d4ed8 !important;
+}
+
+html.light div[class*="bg-blue-500/10"] svg,
+html.light span[class*="bg-blue-500/10"] svg {
+    color: #1d4ed8 !important;
+}
+
+/* Disk & Cleanup Dashboard Specific Light Mode Styles */
+html.light .cleanup-card-reclaimable,
+html.light div[class*="from-cyan-950"] {
+    background: linear-gradient(135deg, #ecfdf5 0%, #f0fdfa 50%, #f0fdf4 100%) !important;
+    border-color: #a7f3d0 !important;
+    box-shadow: 0 4px 16px -2px rgba(16, 185, 129, 0.1) !important;
+}
+
+html.light .cleanup-card-reclaimable .text-cyan-300,
+html.light .cleanup-card-reclaimable .text-cyan-400 {
+    color: #0f766e !important;
+}
+
+html.light .cleanup-card-reclaimable .text-emerald-400 {
+    color: #047857 !important;
+}
+
+html.light .cleanup-card-reclaimable .text-slate-400 {
+    color: #475569 !important;
+}
+
+html.light .cleanup-card-reclaimable span[class*="bg-emerald-500"] {
+    background-color: #d1fae5 !important;
+    color: #065f46 !important;
+    border-color: #6ee7b7 !important;
+}
+
+html.light .cleanup-card-reclaimable .bg-slate-800 {
+    background-color: #d1fae5 !important;
+}
+
+html.light .cleanup-quick-btn {
+    background-color: #ecfeff !important;
+    color: #0891b2 !important;
+    border-color: #a5f3fc !important;
+}
+
+html.light .cleanup-quick-btn:hover {
+    background-color: #cffafe !important;
+    color: #0e7490 !important;
+    border-color: #67e8f9 !important;
+}
+
+html.light .cleanup-modal-label:hover,
+html.light .hover\:bg-slate-900:hover {
+    background-color: #f1f5f9 !important;
+}
+
+/* Modal backdrop dimming in light mode */
+html.light div.fixed.inset-0[class*="bg-slate-950/80"] {
+    background-color: rgba(15, 23, 42, 0.45) !important;
 }
 
 /* Release notes box inside Update Modal */

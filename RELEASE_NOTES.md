@@ -1,3 +1,21 @@
+# Dockit v0.6.1 🚀
+
+Dockit **v0.6.1** brings refined **Light Mode contrast and aesthetics** across the Disk & Cleanup dashboard, transparent **Apache 2.0 open-source licensing and repository attribution** in the Settings view, and minor visual polish.
+
+---
+
+### ✨ What's New & Highlights
+
+#### ☀️ Light Mode Visual & Contrast Refinements
+- **Refined Reclaimable Space Card**: Replaced dark gradient background with a clean mint-teal surface, bold emerald numbers, high-contrast subtitles, and crisp progress bar track.
+- **Enhanced Button & Badge Styling**: Styled Quick Clean button, category icons (Images, Volumes, Containers, Build Cache), and alert banners for WCAG-compliant readability in Light Mode.
+- **Improved Modal Overlays**: Calibrated backdrop dimming and option hover states for consistent focus across themes.
+
+#### 📜 Open-Source License & Attribution
+- **Apache-2.0 Badge in Settings**: Direct link to the Apache 2.0 license and source repository (`Amanbig/dockit`) in the About Dockit section.
+
+---
+
 # Dockit v0.6.0 🚀
 
 Dockit **v0.6.0** introduces a brand-new **Visual Disk Space & Prune Dashboard** with 1-click storage reclamation, a **Package-Aware Auto-Updater** with native PolicyKit (`pkexec`) root authorization for `.deb` and `.rpm` installations, and resolved **WebKitGTK 2.42+ / NVIDIA driver compatibility** on Linux Mint & Ubuntu!

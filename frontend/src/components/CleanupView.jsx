@@ -194,7 +194,7 @@ export default function CleanupView({ activeRuntime = 'docker' }) {
           </div>
 
           {/* Reclaimable Storage Card */}
-          <div className="p-5 rounded-2xl bg-gradient-to-br from-cyan-950/40 via-slate-950/60 to-emerald-950/30 border border-cyan-800/40 relative overflow-hidden flex flex-col justify-between shadow-lg shadow-cyan-500/5">
+          <div className="cleanup-card-reclaimable p-5 rounded-2xl bg-gradient-to-br from-cyan-950/40 via-slate-950/60 to-emerald-950/30 border border-cyan-800/40 relative overflow-hidden flex flex-col justify-between shadow-lg shadow-cyan-500/5">
             <div className="flex items-center justify-between text-xs text-cyan-300 mb-2">
               <span className="font-semibold uppercase tracking-wider text-[11px] flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
@@ -237,7 +237,7 @@ export default function CleanupView({ activeRuntime = 'docker' }) {
             <button
               onClick={handleQuickPrune}
               disabled={pruning || reclaimableSize === 0}
-              className="mt-4 w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-[0.99] text-xs font-bold text-cyan-300 border border-cyan-800/40 hover:border-cyan-600 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="cleanup-quick-btn mt-4 w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-[0.99] text-xs font-bold text-cyan-300 border border-cyan-800/40 hover:border-cyan-600 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {pruning ? (
                 <>
@@ -434,7 +434,7 @@ export default function CleanupView({ activeRuntime = 'docker' }) {
             </div>
 
             <div className="space-y-2.5 p-3 rounded-xl bg-slate-950/70 border border-slate-800 text-xs">
-              <label className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-900 cursor-pointer transition-colors">
+              <label className="cleanup-modal-label flex items-center justify-between p-2 rounded-lg hover:bg-slate-900 cursor-pointer transition-colors">
                 <div className="flex items-center gap-2.5">
                   <input
                     type="checkbox"
@@ -447,7 +447,7 @@ export default function CleanupView({ activeRuntime = 'docker' }) {
                 <span className="font-mono text-slate-400">{formatBytes(diskUsage?.containers?.reclaimable)}</span>
               </label>
 
-              <label className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-900 cursor-pointer transition-colors">
+              <label className="cleanup-modal-label flex items-center justify-between p-2 rounded-lg hover:bg-slate-900 cursor-pointer transition-colors">
                 <div className="flex items-center gap-2.5">
                   <input
                     type="checkbox"
@@ -463,7 +463,7 @@ export default function CleanupView({ activeRuntime = 'docker' }) {
                 <span className="font-mono text-slate-400">{formatBytes(diskUsage?.images?.reclaimable)}</span>
               </label>
 
-              <label className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-900 cursor-pointer transition-colors">
+              <label className="cleanup-modal-label flex items-center justify-between p-2 rounded-lg hover:bg-slate-900 cursor-pointer transition-colors">
                 <div className="flex items-center gap-2.5">
                   <input
                     type="checkbox"
@@ -476,7 +476,7 @@ export default function CleanupView({ activeRuntime = 'docker' }) {
                 <span className="font-mono text-slate-400">{formatBytes(diskUsage?.volumes?.reclaimable)}</span>
               </label>
 
-              <label className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-900 cursor-pointer transition-colors">
+              <label className="cleanup-modal-label flex items-center justify-between p-2 rounded-lg hover:bg-slate-900 cursor-pointer transition-colors">
                 <div className="flex items-center gap-2.5">
                   <input
                     type="checkbox"
@@ -489,7 +489,7 @@ export default function CleanupView({ activeRuntime = 'docker' }) {
                 <span className="font-mono text-slate-400">{formatBytes(diskUsage?.buildCache?.reclaimable)}</span>
               </label>
 
-              <label className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-900 cursor-pointer transition-colors">
+              <label className="cleanup-modal-label flex items-center justify-between p-2 rounded-lg hover:bg-slate-900 cursor-pointer transition-colors">
                 <div className="flex items-center gap-2.5">
                   <input
                     type="checkbox"
