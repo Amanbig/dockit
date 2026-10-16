@@ -33,7 +33,7 @@ export default function SettingsView({
   activeRuntime,
   theme,
   onSetTheme,
-  appVersion = '0.6.2',
+  appVersion = '0.6.3',
   onCheckForUpdates,
   isCheckingUpdates = false,
   onToast
