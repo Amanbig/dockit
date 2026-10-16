@@ -8,10 +8,12 @@ import {
   FileText, 
   Info, 
   Plus, 
-  Search,
+  Search, 
   RefreshCw,
-  X
+  X,
+  SlidersHorizontal
 } from 'lucide-react';
+import EnvEditorModal, { parseEnvString } from './EnvEditorModal';
 
 export default function ContainersView({
   containers = [],
@@ -37,6 +39,7 @@ export default function ContainersView({
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEnvModal, setShowEnvModal] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
   const [batchExecuting, setBatchExecuting] = useState(false);
   const headerCheckboxRef = useRef(null);
@@ -59,6 +62,10 @@ export default function ContainersView({
     volume: '',
     restartPolicy: 'no'
   });
+
+  const parsedEnvList = typeof createForm.env === 'string'
+    ? parseEnvString(createForm.env).map(r => `${r.key}=${r.value}`)
+    : (Array.isArray(createForm.env) ? createForm.env : []);
   const [loadingActions, setLoadingActions] = useState({});
 
   const executeAction = async (e, containerId, actionName, actionFn) => {
@@ -219,9 +226,18 @@ export default function ContainersView({
     }
 
     const envList = [];
-    if (createForm.env.trim()) {
-      createForm.env.split(',').forEach(kv => {
-        if (kv.trim()) envList.push(kv.trim());
+    if (typeof createForm.env === 'string' && createForm.env.trim()) {
+      createForm.env.split(/\r?\n|,/).forEach(kv => {
+        const trimmed = kv.trim();
+        if (trimmed && !trimmed.startsWith('#')) {
+          envList.push(trimmed);
+        }
+      });
+    } else if (Array.isArray(createForm.env)) {
+      createForm.env.forEach(kv => {
+        if (typeof kv === 'string' && kv.trim() && !kv.trim().startsWith('#')) {
+          envList.push(kv.trim());
+        }
       });
     }
 
@@ -618,14 +634,72 @@ export default function ContainersView({
               </div>
 
               <div>
-                <label className="block text-slate-300 font-medium mb-1">Environment Variables</label>
-                <input
-                  type="text"
-                  placeholder="e.g. NODE_ENV=production, PORT=80"
-                  value={createForm.env}
-                  onChange={(e) => setCreateForm({ ...createForm, env: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500"
-                />
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-slate-300 font-medium">Environment Variables</label>
+                  {parsedEnvList.length > 0 && (
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                      {parsedEnvList.length} set
+                    </span>
+                  )}
+                </div>
+
+                <div 
+                  onClick={() => setShowEnvModal(true)}
+                  className="w-full bg-slate-950 border border-slate-800 hover:border-cyan-500/50 rounded-lg p-2.5 cursor-pointer transition group"
+                  title="Click to manage environment variables"
+                >
+                  {parsedEnvList.length === 0 ? (
+                    <div className="flex items-center justify-between py-0.5">
+                      <div className="flex items-center gap-2 text-slate-400 group-hover:text-slate-300 transition-colors">
+                        <SlidersHorizontal className="w-3.5 h-3.5 text-cyan-400" />
+                        <span className="text-xs">Configure Environment Variables...</span>
+                      </div>
+                      <span className="text-[11px] text-cyan-400 group-hover:underline flex items-center gap-1 font-medium">
+                        + Add / Import
+                      </span>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div className="flex items-center gap-1.5 text-[11px] text-slate-300 font-medium">
+                          <SlidersHorizontal className="w-3 h-3 text-cyan-400" />
+                          <span>Configured Variables ({parsedEnvList.length})</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCreateForm(prev => ({ ...prev, env: '' }));
+                            }}
+                            className="text-[11px] text-rose-400 hover:text-rose-300 hover:underline cursor-pointer"
+                          >
+                            Clear
+                          </button>
+                          <span className="text-[11px] text-cyan-400 group-hover:underline font-medium">
+                            Edit Table / .env
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-1 max-h-16 overflow-y-auto">
+                        {parsedEnvList.slice(0, 5).map((item, idx) => (
+                          <span
+                            key={idx}
+                            className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-[10px] font-mono text-cyan-300 max-w-[180px] truncate"
+                            title={item}
+                          >
+                            {item}
+                          </span>
+                        ))}
+                        {parsedEnvList.length > 5 && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-900/80 border border-slate-800 text-[10px] text-slate-400">
+                            +{parsedEnvList.length - 5} more
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div>
@@ -720,6 +794,14 @@ export default function ContainersView({
           </div>
         </div>
       )}
+
+      {/* Modal: Environment Variables Editor */}
+      <EnvEditorModal
+        isOpen={showEnvModal}
+        initialEnv={createForm.env}
+        onSave={(newEnv) => setCreateForm(prev => ({ ...prev, env: newEnv }))}
+        onClose={() => setShowEnvModal(false)}
+      />
     </div>
   );
 }
