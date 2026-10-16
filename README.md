@@ -25,7 +25,7 @@ Built with **Go (Wails v2)** + **React 19** + **Tailwind CSS v4** + **Base UI / 
 - **In-Container Terminal Shell (Exec)**: Launch an interactive shell terminal (`/bin/sh`, `/bin/bash`) directly into running containers to run commands and inspect runtime state.
 - **Log Streaming, Search Navigation & Highlighting**: Live container logs with auto-scroll to latest entries on open/stream, interactive Next/Previous match navigation arrows (<kbd>▲</kbd> / <kbd>▼</kbd> and <kbd>Enter</kbd> / <kbd>Shift+Enter</kbd>), dynamic active match highlighting with live match counters (`1/14`), toggleable full-context vs filtered line modes, and clipboard copy.
 - **Inspect Inspector**: Deep JSON inspection of low-level container configurations and network settings.
-- **Create Container Wizard**: Interactive dialog to spin up containers with port mappings, environment variables, restart policies, and network attachments.
+- **Create Container Wizard**: Interactive dialog to spin up containers with port mappings, restart policies, network attachments, and a dedicated **Interactive Environment Variables Manager** supporting a visual key-value table, raw `.env` multi-line editing, and 1-click `.env` file uploading with live preview chips and overflow protection.
 
 ### 🖼️ Images & Local Cache
 - List local images with repository tags, IDs, and human-readable sizes.

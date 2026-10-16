@@ -1,10 +1,17 @@
 # Dockit v0.6.5 🚀
 
-Dockit **v0.6.5** brings multi-select checkboxes and 1-click batch actions across Containers, Images, and Volumes, a major upgrade to **Container Logs** with interactive search match navigation arrows (`▲` / `▼`), active highlight focusing, and auto-scrolling to latest logs. It also introduces a robust **Reliability & Error Handling Architecture** (replacing native alerts with floating toast notifications and in-app confirm dialogs), automatic native package selection in the **In-App Updater**, and refined **Disk Space & Prune Dashboard** visuals.
+Dockit **v0.6.5** brings multi-select checkboxes and 1-click batch actions across Containers, Images, and Volumes, an **Interactive Environment Variables Manager** (with visual Key-Value table, Raw `.env` mode, and 1-click file upload), a major upgrade to **Container Logs** with interactive search match navigation arrows (`▲` / `▼`), active highlight focusing, and auto-scrolling to latest logs. It also introduces a robust **Reliability & Error Handling Architecture** (replacing native alerts with floating toast notifications and in-app confirm dialogs), automatic native package selection in the **In-App Updater**, and refined **Disk Space & Prune Dashboard** visuals.
 
 ---
 
 ### ✨ What's New & Highlights
+
+#### ⚙️ Interactive Environment Variables Manager & `.env` Importer
+- **Visual Key-Value Table Editor**: Dedicated table interface to add, edit, and delete environment variables with monospace styling and keyboard support (<kbd>Enter</kbd> on the last value input automatically creates and focuses a new row).
+- **Direct Raw `.env` Syntax Mode**: Full monospace text editor tab supporting standard `.env` syntax (`KEY=VALUE`), ignoring comments (`#`) and blank lines, with seamless two-way synchronization between Table and Raw modes.
+- **1-Click `.env` File Upload**: Dedicated "Import .env" button to load local `.env` and `.txt` files directly into the container configuration with automatic parsing and variable merging.
+- **Form Preview & Overflow Protection**: Replaced the plain single text field in the Create Container modal with an interactive card trigger featuring live variable counts (`X set`), preview chips with truncation tooltips for long keys/values, and a clean `+N more` counter for large variable sets.
+- **Engine Support**: Transparently handles arrays, multiline `.env` strings, and legacy comma-delimited strings on container creation.
 
 #### 📜 Container Logs Search Navigation & Auto-Scroll
 - **Interactive Find in Logs (`▲` / `▼`)**: Dedicated Previous Match (`▲` / <kbd>Shift+Enter</kbd>) and Next Match (`▼` / <kbd>Enter</kbd>) navigation buttons jump directly from match to match and smoothly center the log viewport on the selected occurrence.
