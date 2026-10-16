@@ -1,6 +1,6 @@
-# Dockit v0.6.3 🚀
+# Dockit v0.6.5 🚀
 
-Dockit **v0.6.3** brings a major upgrade to **Container Logs** with interactive search match navigation arrows (`▲` / `▼`), active highlight focusing, and auto-scrolling to latest logs. It also introduces a robust **Reliability & Error Handling Architecture** (replacing native alerts with floating toast notifications and in-app confirm dialogs), automatic native package selection in the **In-App Updater**, and refined **Disk Space & Prune Dashboard** visuals.
+Dockit **v0.6.5** brings multi-select checkboxes and 1-click batch actions across Containers, Images, and Volumes, a major upgrade to **Container Logs** with interactive search match navigation arrows (`▲` / `▼`), active highlight focusing, and auto-scrolling to latest logs. It also introduces a robust **Reliability & Error Handling Architecture** (replacing native alerts with floating toast notifications and in-app confirm dialogs), automatic native package selection in the **In-App Updater**, and refined **Disk Space & Prune Dashboard** visuals.
 
 ---
 
