@@ -46,8 +46,18 @@ export default function ComposeView({
   onSaveSnapshot,
   onRestoreSnapshot,
   onReadEnv,
-  onSaveEnv
+  onSaveEnv,
+  onToast
 }) {
+  const notify = (msg, type = 'info', title = null) => {
+    if (onToast) {
+      onToast(msg, type, title);
+    } else {
+      if (type === 'error') alert(`Error: ${msg}`);
+      else alert(msg);
+    }
+  };
+
   const [project, setProject] = useState(null);
   const [recentProjects, setRecentProjects] = useState([]);
   const [localPathInput, setLocalPathInput] = useState('');
@@ -132,7 +142,7 @@ export default function ComposeView({
       setActiveTab('services');
       saveRecentProject(proj);
     } catch (err) {
-      alert(`Failed to load compose project: ${err}`);
+      notify(`Failed to load compose project: ${err}`, 'error', 'Load Failed');
     } finally {
       setLoading(false);
     }
@@ -146,7 +156,7 @@ export default function ComposeView({
       const refreshed = await onRefreshProject(projectKey);
       if (refreshed) setProject(refreshed);
     } catch (err) {
-      alert(`Failed to start ${sName}: ${err}`);
+      notify(`Failed to start ${sName}: ${err}`, 'error', 'Start Failed');
     } finally {
       setServiceLoading(prev => ({ ...prev, [sName]: false }));
     }
@@ -160,7 +170,7 @@ export default function ComposeView({
       const refreshed = await onRefreshProject(projectKey);
       if (refreshed) setProject(refreshed);
     } catch (err) {
-      alert(`Failed to stop ${sName}: ${err}`);
+      notify(`Failed to stop ${sName}: ${err}`, 'error', 'Stop Failed');
     } finally {
       setServiceLoading(prev => ({ ...prev, [sName]: false }));
     }
@@ -174,7 +184,7 @@ export default function ComposeView({
       const refreshed = await onRefreshProject(projectKey);
       if (refreshed) setProject(refreshed);
     } catch (err) {
-      alert(`Failed to restart ${sName}: ${err}`);
+      notify(`Failed to restart ${sName}: ${err}`, 'error', 'Restart Failed');
     } finally {
       setServiceLoading(prev => ({ ...prev, [sName]: false }));
     }
@@ -194,7 +204,7 @@ export default function ComposeView({
         await loadProjectFromPath(selected.trim());
       }
     } catch (err) {
-      alert(`Directory selection failed: ${err}`);
+      notify(`Directory selection failed: ${err}`, 'error', 'Picker Failed');
     }
   };
 
@@ -213,7 +223,7 @@ export default function ComposeView({
       setShowUrlDialog(false);
       saveRecentProject(proj);
     } catch (err) {
-      alert(`Failed to clone project: ${err}`);
+      notify(`Failed to clone project: ${err}`, 'error', 'Clone Failed');
     } finally {
       setLoading(false);
     }
@@ -228,9 +238,9 @@ export default function ComposeView({
       const refreshed = await onRefreshProject(projectKey);
       setProject(refreshed);
       setEditorYaml(refreshed.temporaryContent || refreshed.content || '');
-      alert('Changes staged! Testing sandbox updated with Git blob hash.');
+      notify('Changes staged! Testing sandbox updated with Git blob hash.', 'success', 'YAML Staged');
     } catch (err) {
-      alert(`Stage failed: ${err}`);
+      notify(`Stage failed: ${err}`, 'error', 'Stage Failed');
     }
   };
 
@@ -242,9 +252,9 @@ export default function ComposeView({
       const refreshed = await onRefreshProject(projectKey);
       setProject(refreshed);
       setEditorYaml(refreshed.temporaryContent || refreshed.content || '');
-      alert('Staged changes permanently committed to disk!');
+      notify('Staged changes permanently committed to disk!', 'success', 'Applied to Disk');
     } catch (err) {
-      alert(`Apply failed: ${err}`);
+      notify(`Apply failed: ${err}`, 'error', 'Apply Failed');
     }
   };
 
@@ -255,9 +265,9 @@ export default function ComposeView({
       const refreshed = await onRefreshProject(projectKey);
       setProject(refreshed);
       setEditorYaml(refreshed.content || '');
-      alert('Staged sandbox changes discarded. Restored clean disk version.');
+      notify('Staged sandbox changes discarded. Restored clean disk version.', 'info', 'Discarded');
     } catch (err) {
-      alert(`Discard failed: ${err}`);
+      notify(`Discard failed: ${err}`, 'error', 'Discard Failed');
     }
   };
 
@@ -269,9 +279,10 @@ export default function ComposeView({
       setOriginalEnv(envContent);
       setHasEnv(true);
       setEnvSavedSuccess(true);
+      notify('.env configuration saved successfully.', 'success', 'Environment Saved');
       setTimeout(() => setEnvSavedSuccess(false), 2500);
     } catch (err) {
-      alert(`Failed to save .env file: ${err}`);
+      notify(`Failed to save .env file: ${err}`, 'error', 'Save Failed');
     } finally {
       setIsSavingEnv(false);
     }
@@ -308,9 +319,9 @@ SECRET_KEY=dockit_super_secret_key
       setProject(refreshed);
       setSnapshotMsg('');
       setShowSnapshotModal(false);
-      alert('Git-like SHA-256 snapshot revision successfully saved!');
+      notify('Git-like SHA-256 snapshot revision successfully saved!', 'success', 'Snapshot Saved');
     } catch (err) {
-      alert(`Failed to save snapshot: ${err}`);
+      notify(`Failed to save snapshot: ${err}`, 'error', 'Save Snapshot Failed');
     }
   };
 
@@ -322,9 +333,9 @@ SECRET_KEY=dockit_super_secret_key
       setProject(restored);
       setEditorYaml(restored.temporaryContent || restored.content || '');
       setActiveTab('editor');
-      alert(`Snapshot ${hash.slice(0, 8)} staged into sandbox. You can now test run or apply it to disk.`);
+      notify(`Snapshot ${hash.slice(0, 8)} staged into sandbox.`, 'success', 'Snapshot Restored');
     } catch (err) {
-      alert(`Failed to restore snapshot: ${err}`);
+      notify(`Failed to restore snapshot: ${err}`, 'error', 'Restore Failed');
     }
   };
 
@@ -342,7 +353,7 @@ SECRET_KEY=dockit_super_secret_key
       setProject(refreshed);
       setActiveTab('output');
     } catch (err) {
-      alert(`Compose Up failed: ${err}`);
+      notify(`Compose Up failed: ${err}`, 'error', 'Compose Up Failed');
     } finally {
       setLoading(false);
     }
@@ -363,7 +374,7 @@ SECRET_KEY=dockit_super_secret_key
       setProject(refreshed);
       setActiveTab('output');
     } catch (err) {
-      alert(`Compose Down failed: ${err}`);
+      notify(`Compose Down failed: ${err}`, 'error', 'Compose Down Failed');
     } finally {
       setLoading(false);
     }
@@ -379,7 +390,7 @@ SECRET_KEY=dockit_super_secret_key
       setProject(refreshed);
       setActiveTab('output');
     } catch (err) {
-      alert(`Restart stack failed: ${err}`);
+      notify(`Restart stack failed: ${err}`, 'error', 'Restart Failed');
     } finally {
       setLoading(false);
     }

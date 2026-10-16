@@ -15,6 +15,7 @@ import LogsModal from './components/LogsModal';
 import InspectModal from './components/InspectModal';
 import InstallerModal from './components/InstallerModal';
 import CommandPalette from './components/CommandPalette';
+import { ToastContainer, formatEngineError } from './components/Toast';
 import { Sparkles, ArrowRight, X, AlertCircle } from 'lucide-react';
 import packageJson from '../package.json';
 
@@ -144,18 +145,41 @@ export default function App() {
   const [updateInfo, setUpdateInfo] = useState(null);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [toasts, setToasts] = useState([]);
 
-  // Global keyboard shortcut for Command Palette (Ctrl+K or Cmd+K)
+  const addToast = useCallback((message, type = 'info', title = null, duration = 4500) => {
+    const id = Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
+    setToasts(prev => [...prev.slice(-4), { id, message, type, title, duration }]);
+    return id;
+  }, []);
+
+  const removeToast = useCallback((id) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  }, []);
+
+  // Global keyboard shortcuts (Ctrl+K for Command Palette, Esc for modals)
   useEffect(() => {
     const handleKeyDown = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setCommandPaletteOpen(prev => !prev);
+      } else if (e.key === 'Escape') {
+        if (commandPaletteOpen) {
+          setCommandPaletteOpen(false);
+        } else if (inspectModal.open) {
+          setInspectModal({ open: false, title: '', data: null });
+        } else if (logsModal.open) {
+          setLogsModal({ open: false, id: '', name: '' });
+        } else if (updateModalOpen) {
+          setUpdateModalOpen(false);
+        } else if (showInstaller) {
+          setShowInstaller(false);
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [commandPaletteOpen, inspectModal.open, logsModal.open, updateModalOpen, showInstaller]);
 
   // Apply theme to document root
   const applyThemeToDOM = async (t) => {
@@ -306,12 +330,12 @@ export default function App() {
     } catch (err) {
       console.warn('Update check failed:', err);
       if (manual) {
-        alert(`Could not check for updates: ${err}`);
+        addToast(`Could not check for updates: ${err}`, 'warning', 'Update Check');
       }
     } finally {
       setIsCheckingUpdate(false);
     }
-  }, []);
+  }, [addToast]);
 
   // Background check for update shortly after app startup (if enabled in preferences)
   useEffect(() => {
@@ -327,52 +351,85 @@ export default function App() {
     try {
       const chosen = await SwitchRuntime(target);
       setActiveRuntime(chosen || target);
+      addToast(`Switched active engine to ${chosen || target}`, 'success');
       await refreshAll();
     } catch (err) {
       console.warn(`Could not connect to ${target}:`, err);
       setActiveRuntime(target);
+      addToast(formatEngineError(err), 'error', `Failed to Switch to ${target}`);
       await refreshAll();
     }
   };
 
   // Container handlers
   const handleStartContainer = async (id) => {
-    await StartContainer(id);
-    refreshAll();
+    try {
+      await StartContainer(id);
+      addToast('Container started successfully', 'success');
+      refreshAll();
+    } catch (err) {
+      addToast(formatEngineError(err), 'error', 'Failed to Start Container');
+    }
   };
 
   const handleStopContainer = async (id) => {
-    await StopContainer(id, 10);
-    refreshAll();
+    try {
+      await StopContainer(id, 10);
+      addToast('Container stopped', 'info');
+      refreshAll();
+    } catch (err) {
+      addToast(formatEngineError(err), 'error', 'Failed to Stop Container');
+    }
   };
 
   const handleRestartContainer = async (id) => {
-    await RestartContainer(id, 10);
-    refreshAll();
+    try {
+      await RestartContainer(id, 10);
+      addToast('Container restarted', 'success');
+      refreshAll();
+    } catch (err) {
+      addToast(formatEngineError(err), 'error', 'Failed to Restart Container');
+    }
   };
 
   const handlePauseContainer = async (id) => {
-    await PauseContainer(id);
-    refreshAll();
+    try {
+      await PauseContainer(id);
+      addToast('Container paused', 'info');
+      refreshAll();
+    } catch (err) {
+      addToast(formatEngineError(err), 'error', 'Failed to Pause Container');
+    }
   };
 
   const handleUnpauseContainer = async (id) => {
-    await UnpauseContainer(id);
-    refreshAll();
+    try {
+      await UnpauseContainer(id);
+      addToast('Container resumed', 'success');
+      refreshAll();
+    } catch (err) {
+      addToast(formatEngineError(err), 'error', 'Failed to Resume Container');
+    }
   };
 
   const handleRemoveContainer = async (id, force = false) => {
     if (!window.confirm('Delete this container?')) return;
-    await RemoveContainer(id, force, true);
-    refreshAll();
+    try {
+      await RemoveContainer(id, force, true);
+      addToast('Container deleted', 'success');
+      refreshAll();
+    } catch (err) {
+      addToast(formatEngineError(err), 'error', 'Failed to Delete Container');
+    }
   };
 
   const handleCreateContainer = async (opts) => {
     try {
       await CreateContainer(opts);
+      addToast('Container created successfully', 'success');
       refreshAll();
     } catch (err) {
-      alert(`Create container failed: ${err}`);
+      addToast(formatEngineError(err), 'error', 'Container Creation Failed');
     }
   };
 
@@ -385,30 +442,42 @@ export default function App() {
         data
       });
     } catch (err) {
-      alert(`Inspect failed: ${err}`);
+      addToast(formatEngineError(err), 'error', 'Inspect Failed');
     }
   };
 
   // Image handlers
   const handlePullImage = async (ref) => {
     try {
+      addToast(`Pulling ${ref}...`, 'info', 'Pull Started');
       await PullImage(ref);
+      addToast(`Successfully pulled ${ref}`, 'success');
       refreshAll();
     } catch (err) {
-      alert(`Pull image failed: ${err}`);
+      addToast(formatEngineError(err), 'error', `Failed to Pull ${ref}`);
       throw err;
     }
   };
 
   const handleRemoveImage = async (id, force = false) => {
     if (!window.confirm('Delete this image?')) return;
-    await RemoveImage(id, force);
-    refreshAll();
+    try {
+      await RemoveImage(id, force);
+      addToast('Image deleted successfully', 'success');
+      refreshAll();
+    } catch (err) {
+      addToast(formatEngineError(err), 'error', 'Failed to Delete Image');
+    }
   };
 
   const handleTagImage = async (id, newTag) => {
-    await TagImage(id, newTag);
-    refreshAll();
+    try {
+      await TagImage(id, newTag);
+      addToast(`Tagged image as ${newTag}`, 'success');
+      refreshAll();
+    } catch (err) {
+      addToast(formatEngineError(err), 'error', 'Failed to Tag Image');
+    }
   };
 
   const handleInspectImage = async (id, name) => {
@@ -420,7 +489,7 @@ export default function App() {
         data
       });
     } catch (err) {
-      alert(`Inspect failed: ${err}`);
+      addToast(formatEngineError(err), 'error', 'Inspect Failed');
     }
   };
 
@@ -428,21 +497,32 @@ export default function App() {
   const handleCreateVolume = async (opts) => {
     try {
       await CreateVolume(opts);
+      addToast('Volume created successfully', 'success');
       refreshAll();
     } catch (err) {
-      alert(`Create volume failed: ${err}`);
+      addToast(formatEngineError(err), 'error', 'Failed to Create Volume');
     }
   };
 
   const handleRemoveVolume = async (name, force = false) => {
     if (!window.confirm(`Delete volume "${name}"?`)) return;
-    await RemoveVolume(name, force);
-    refreshAll();
+    try {
+      await RemoveVolume(name, force);
+      addToast(`Volume "${name}" deleted`, 'success');
+      refreshAll();
+    } catch (err) {
+      addToast(formatEngineError(err), 'error', 'Failed to Delete Volume');
+    }
   };
 
   const handlePruneVolumes = async () => {
-    await PruneVolumes();
-    refreshAll();
+    try {
+      await PruneVolumes();
+      addToast('Unused volumes pruned', 'success');
+      refreshAll();
+    } catch (err) {
+      addToast(formatEngineError(err), 'error', 'Failed to Prune Volumes');
+    }
   };
 
   const handleInspectVolume = async (name) => {
@@ -454,7 +534,7 @@ export default function App() {
         data
       });
     } catch (err) {
-      alert(`Inspect failed: ${err}`);
+      addToast(formatEngineError(err), 'error', 'Inspect Failed');
     }
   };
 
@@ -462,16 +542,22 @@ export default function App() {
   const handleCreateNetwork = async (opts) => {
     try {
       await CreateNetwork(opts);
+      addToast('Network created successfully', 'success');
       refreshAll();
     } catch (err) {
-      alert(`Create network failed: ${err}`);
+      addToast(formatEngineError(err), 'error', 'Failed to Create Network');
     }
   };
 
   const handleRemoveNetwork = async (id) => {
     if (!window.confirm('Delete this network?')) return;
-    await RemoveNetwork(id);
-    refreshAll();
+    try {
+      await RemoveNetwork(id);
+      addToast('Network deleted successfully', 'success');
+      refreshAll();
+    } catch (err) {
+      addToast(formatEngineError(err), 'error', 'Failed to Delete Network');
+    }
   };
 
   const handleInspectNetwork = async (id) => {
@@ -483,7 +569,7 @@ export default function App() {
         data
       });
     } catch (err) {
-      alert(`Inspect failed: ${err}`);
+      addToast(formatEngineError(err), 'error', 'Inspect Failed');
     }
   };
 
@@ -592,6 +678,7 @@ export default function App() {
                 containerId={selectedContainerId}
                 onBack={() => setSelectedContainerId(null)}
                 onRefreshList={refreshAll}
+                onToast={addToast}
               />
             ) : (
               <ContainersView
@@ -673,6 +760,7 @@ export default function App() {
               onRestoreSnapshot={ComposeRestoreSnapshot}
               onReadEnv={ComposeReadEnv}
               onSaveEnv={ComposeSaveEnv}
+              onToast={addToast}
             />
           )}
 
@@ -686,6 +774,7 @@ export default function App() {
               onAddFavorite={handleAddFavorite}
               onRemoveFavorite={handleRemoveFavorite}
               favorites={favorites}
+              onToast={addToast}
             />
           )}
 
@@ -700,6 +789,7 @@ export default function App() {
               appVersion={appVersion}
               onCheckForUpdates={() => handleCheckForUpdates(true)}
               isCheckingUpdates={isCheckingUpdate}
+              onToast={addToast}
             />
           )}
         </main>
@@ -818,6 +908,9 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Global Toast Notification System */}
+      <ToastContainer toasts={toasts} onDismiss={removeToast} />
       </div>
     </div>
   );

@@ -102,7 +102,8 @@ export default function RegistryView({
   onPull,
   onAddFavorite,
   onRemoveFavorite,
-  favorites = []
+  favorites = [],
+  onToast
 }) {
   const [query, setQuery] = useState('');
   const [selectedRegistry, setSelectedRegistry] = useState('all'); // 'all' | 'dockerhub' | 'ghcr'
@@ -145,7 +146,8 @@ export default function RegistryView({
       setMetadata(null);
       setTags([]);
     } catch (err) {
-      alert(`Search failed: ${err}`);
+      if (onToast) onToast(err.message || String(err), 'error', 'Search Failed');
+      else alert(`Search failed: ${err}`);
     } finally {
       setSearching(false);
     }
@@ -186,9 +188,10 @@ export default function RegistryView({
     try {
       setPullingTag(tagName);
       await onPull(fullRef);
-      alert(`Successfully initiated pull for ${fullRef}`);
+      if (onToast) onToast(`Successfully initiated pull for ${fullRef}`, 'success', 'Pull Started');
     } catch (err) {
-      alert(`Failed to pull ${fullRef}: ${err}`);
+      if (onToast) onToast(err.message || String(err), 'error', 'Pull Failed');
+      else alert(`Failed to pull ${fullRef}: ${err}`);
     } finally {
       setPullingTag(null);
     }

@@ -8,7 +8,8 @@ import {
   FileText, 
   Info, 
   Plus, 
-  Search
+  Search,
+  RefreshCw
 } from 'lucide-react';
 
 export default function ContainersView({
@@ -41,6 +42,22 @@ export default function ContainersView({
     volume: '',
     restartPolicy: 'no'
   });
+  const [loadingActions, setLoadingActions] = useState({});
+
+  const executeAction = async (e, containerId, actionName, actionFn) => {
+    e.stopPropagation();
+    if (loadingActions[containerId]) return;
+    setLoadingActions(prev => ({ ...prev, [containerId]: actionName }));
+    try {
+      await actionFn(containerId);
+    } finally {
+      setLoadingActions(prev => {
+        const next = { ...prev };
+        delete next[containerId];
+        return next;
+      });
+    }
+  };
 
   const getContainerState = (c) => {
     const raw = (c.state || c.status || '').toLowerCase();
@@ -275,50 +292,75 @@ export default function ContainersView({
                           {isRunning ? (
                             <>
                               <button
-                                onClick={(e) => { e.stopPropagation(); onStop(c.id); }}
+                                onClick={(e) => executeAction(e, c.id, 'stop', onStop)}
+                                disabled={Boolean(loadingActions[c.id])}
                                 title="Stop Container"
-                                className="p-1.5 text-amber-400 hover:bg-amber-400/10 rounded-md transition-colors"
+                                className="p-1.5 text-amber-400 hover:bg-amber-400/10 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                               >
-                                <Square className="w-3.5 h-3.5" />
+                                {loadingActions[c.id] === 'stop' ? (
+                                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <Square className="w-3.5 h-3.5" />
+                                )}
                               </button>
                               <button
-                                onClick={(e) => { e.stopPropagation(); onPause(c.id); }}
+                                onClick={(e) => executeAction(e, c.id, 'pause', onPause)}
+                                disabled={Boolean(loadingActions[c.id])}
                                 title="Pause Container"
-                                className="p-1.5 text-slate-400 hover:bg-slate-800 rounded-md transition-colors"
+                                className="p-1.5 text-slate-400 hover:bg-slate-800 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                               >
-                                <Pause className="w-3.5 h-3.5" />
+                                {loadingActions[c.id] === 'pause' ? (
+                                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <Pause className="w-3.5 h-3.5" />
+                                )}
                               </button>
                             </>
                           ) : isPaused ? (
                             <button
-                              onClick={(e) => { e.stopPropagation(); onUnpause(c.id); }}
+                              onClick={(e) => executeAction(e, c.id, 'unpause', onUnpause)}
+                              disabled={Boolean(loadingActions[c.id])}
                               title="Unpause Container"
-                              className="p-1.5 text-emerald-400 hover:bg-emerald-400/10 rounded-md transition-colors"
+                              className="p-1.5 text-emerald-400 hover:bg-emerald-400/10 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                             >
-                              <Play className="w-3.5 h-3.5" />
+                              {loadingActions[c.id] === 'unpause' ? (
+                                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <Play className="w-3.5 h-3.5" />
+                              )}
                             </button>
                           ) : (
                             <button
-                              onClick={(e) => { e.stopPropagation(); onStart(c.id); }}
+                              onClick={(e) => executeAction(e, c.id, 'start', onStart)}
+                              disabled={Boolean(loadingActions[c.id])}
                               title="Start Container"
-                              className="p-1.5 text-emerald-400 hover:bg-emerald-400/10 rounded-md transition-colors"
+                              className="p-1.5 text-emerald-400 hover:bg-emerald-400/10 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                             >
-                              <Play className="w-3.5 h-3.5" />
+                              {loadingActions[c.id] === 'start' ? (
+                                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <Play className="w-3.5 h-3.5" />
+                              )}
                             </button>
                           )}
 
                           <button
-                            onClick={(e) => { e.stopPropagation(); onRestart(c.id); }}
+                            onClick={(e) => executeAction(e, c.id, 'restart', onRestart)}
+                            disabled={Boolean(loadingActions[c.id])}
                             title="Restart Container"
-                            className="p-1.5 text-slate-400 hover:bg-slate-800 rounded-md transition-colors"
+                            className="p-1.5 text-slate-400 hover:bg-slate-800 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                           >
-                            <RotateCw className="w-3.5 h-3.5" />
+                            {loadingActions[c.id] === 'restart' ? (
+                              <RefreshCw className="w-3.5 h-3.5 animate-spin text-cyan-400" />
+                            ) : (
+                              <RotateCw className="w-3.5 h-3.5" />
+                            )}
                           </button>
 
                           <button
                             onClick={(e) => { e.stopPropagation(); onOpenLogs(c.id, c.name); }}
                             title="View Container Logs"
-                            className="p-1.5 text-cyan-400 hover:bg-cyan-400/10 rounded-md transition-colors"
+                            className="p-1.5 text-cyan-400 hover:bg-cyan-400/10 rounded-md transition-colors cursor-pointer"
                           >
                             <FileText className="w-3.5 h-3.5" />
                           </button>
@@ -326,17 +368,22 @@ export default function ContainersView({
                           <button
                             onClick={(e) => { e.stopPropagation(); onInspect(c.id, c.name); }}
                             title="Inspect Container Details"
-                            className="p-1.5 text-blue-400 hover:bg-blue-400/10 rounded-md transition-colors"
+                            className="p-1.5 text-blue-400 hover:bg-blue-400/10 rounded-md transition-colors cursor-pointer"
                           >
                             <Info className="w-3.5 h-3.5" />
                           </button>
 
                           <button
-                            onClick={(e) => { e.stopPropagation(); onRemove(c.id, false); }}
+                            onClick={(e) => executeAction(e, c.id, 'remove', (id) => onRemove(id, false))}
+                            disabled={Boolean(loadingActions[c.id])}
                             title="Delete Container"
-                            className="p-1.5 text-rose-400 hover:bg-rose-400/10 rounded-md transition-colors"
+                            className="p-1.5 text-rose-400 hover:bg-rose-400/10 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            {loadingActions[c.id] === 'remove' ? (
+                              <RefreshCw className="w-3.5 h-3.5 animate-spin text-rose-400" />
+                            ) : (
+                              <Trash2 className="w-3.5 h-3.5" />
+                            )}
                           </button>
                         </div>
                       </td>

@@ -185,6 +185,18 @@ func (a *App) SwitchRuntime(targetRuntime string) (string, error) {
 	return a.GetActiveRuntime(), err
 }
 
+// getContext returns a derived context with a timeout, falling back to Background() if a.ctx is nil.
+func (a *App) getContext(timeout time.Duration) (context.Context, context.CancelFunc) {
+	ctx := a.ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if timeout > 0 {
+		return context.WithTimeout(ctx, timeout)
+	}
+	return ctx, func() {}
+}
+
 // GetSystemInfo retrieves runtime daemon host and system metrics.
 func (a *App) GetSystemInfo() (*runtime.SystemInfo, error) {
 	a.mu.RLock()
@@ -193,11 +205,7 @@ func (a *App) GetSystemInfo() (*runtime.SystemInfo, error) {
 	if rt == nil {
 		return nil, fmt.Errorf("no active container runtime")
 	}
-	ctx := a.ctx
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	ctx, cancel := a.getContext(5 * time.Second)
 	defer cancel()
 	return rt.Info(ctx)
 }
@@ -215,7 +223,9 @@ func (a *App) GetSystemVersion() (*runtime.SystemVersion, error) {
 	if rt == nil {
 		return nil, fmt.Errorf("no active container runtime")
 	}
-	return rt.Version(a.ctx)
+	ctx, cancel := a.getContext(5 * time.Second)
+	defer cancel()
+	return rt.Version(ctx)
 }
 
 // GetAppVersion returns the current application version string.
@@ -255,7 +265,9 @@ func (a *App) GetContainers(all bool) ([]containers.Container, error) {
 	if svc == nil {
 		return nil, fmt.Errorf("container runtime not connected")
 	}
-	return svc.List(a.ctx, all)
+	ctx, cancel := a.getContext(15 * time.Second)
+	defer cancel()
+	return svc.List(ctx, all)
 }
 
 // GetContainer returns details for a single container by ID or name.
@@ -266,7 +278,9 @@ func (a *App) GetContainer(idOrName string) (*containers.Container, error) {
 	if svc == nil {
 		return nil, fmt.Errorf("container runtime not connected")
 	}
-	return svc.Get(a.ctx, idOrName)
+	ctx, cancel := a.getContext(15 * time.Second)
+	defer cancel()
+	return svc.Get(ctx, idOrName)
 }
 
 // InspectContainer returns full low-level inspect information for a container.
@@ -277,7 +291,9 @@ func (a *App) InspectContainer(id string) (*runtime.ContainerInspect, error) {
 	if svc == nil {
 		return nil, fmt.Errorf("container runtime not connected")
 	}
-	return svc.Inspect(a.ctx, id)
+	ctx, cancel := a.getContext(15 * time.Second)
+	defer cancel()
+	return svc.Inspect(ctx, id)
 }
 
 // GetContainerResourceStats returns real-time CPU, Memory, Network, and Block I/O statistics for a container.
@@ -288,7 +304,9 @@ func (a *App) GetContainerResourceStats(id string) (*containers.ResourceStats, e
 	if svc == nil {
 		return nil, fmt.Errorf("container runtime not connected")
 	}
-	return svc.GetResourceStats(a.ctx, id)
+	ctx, cancel := a.getContext(10 * time.Second)
+	defer cancel()
+	return svc.GetResourceStats(ctx, id)
 }
 
 // CreateContainer creates a new container with the specified parameters.
@@ -299,7 +317,9 @@ func (a *App) CreateContainer(opts runtime.ContainerCreateOptions) (string, erro
 	if svc == nil {
 		return "", fmt.Errorf("container runtime not connected")
 	}
-	return svc.Create(a.ctx, opts)
+	ctx, cancel := a.getContext(30 * time.Second)
+	defer cancel()
+	return svc.Create(ctx, opts)
 }
 
 // StartContainer begins execution of a stopped container.
@@ -310,7 +330,9 @@ func (a *App) StartContainer(id string) error {
 	if svc == nil {
 		return fmt.Errorf("container runtime not connected")
 	}
-	return svc.Start(a.ctx, id)
+	ctx, cancel := a.getContext(30 * time.Second)
+	defer cancel()
+	return svc.Start(ctx, id)
 }
 
 // StopContainer stops a running container.
@@ -321,7 +343,13 @@ func (a *App) StopContainer(id string, timeout *int) error {
 	if svc == nil {
 		return fmt.Errorf("container runtime not connected")
 	}
-	return svc.Stop(a.ctx, id, timeout)
+	timeoutDuration := 30 * time.Second
+	if timeout != nil && *timeout > 0 {
+		timeoutDuration = time.Duration(*timeout+15) * time.Second
+	}
+	ctx, cancel := a.getContext(timeoutDuration)
+	defer cancel()
+	return svc.Stop(ctx, id, timeout)
 }
 
 // RestartContainer restarts a container.
@@ -332,7 +360,13 @@ func (a *App) RestartContainer(id string, timeout *int) error {
 	if svc == nil {
 		return fmt.Errorf("container runtime not connected")
 	}
-	return svc.Restart(a.ctx, id, timeout)
+	timeoutDuration := 30 * time.Second
+	if timeout != nil && *timeout > 0 {
+		timeoutDuration = time.Duration(*timeout+15) * time.Second
+	}
+	ctx, cancel := a.getContext(timeoutDuration)
+	defer cancel()
+	return svc.Restart(ctx, id, timeout)
 }
 
 // PauseContainer pauses a running container.
@@ -343,7 +377,9 @@ func (a *App) PauseContainer(id string) error {
 	if svc == nil {
 		return fmt.Errorf("container runtime not connected")
 	}
-	return svc.Pause(a.ctx, id)
+	ctx, cancel := a.getContext(15 * time.Second)
+	defer cancel()
+	return svc.Pause(ctx, id)
 }
 
 // UnpauseContainer resumes execution of a paused container.
@@ -354,7 +390,9 @@ func (a *App) UnpauseContainer(id string) error {
 	if svc == nil {
 		return fmt.Errorf("container runtime not connected")
 	}
-	return svc.Unpause(a.ctx, id)
+	ctx, cancel := a.getContext(15 * time.Second)
+	defer cancel()
+	return svc.Unpause(ctx, id)
 }
 
 // RemoveContainer deletes a container.
@@ -365,7 +403,9 @@ func (a *App) RemoveContainer(id string, force, removeVolumes bool) error {
 	if svc == nil {
 		return fmt.Errorf("container runtime not connected")
 	}
-	return svc.Remove(a.ctx, id, force, removeVolumes)
+	ctx, cancel := a.getContext(30 * time.Second)
+	defer cancel()
+	return svc.Remove(ctx, id, force, removeVolumes)
 }
 
 // GetContainerLogs returns logs for a container as text.
@@ -376,7 +416,9 @@ func (a *App) GetContainerLogs(id string) (string, error) {
 	if svc == nil {
 		return "", fmt.Errorf("container runtime not connected")
 	}
-	return svc.Logs(a.ctx, id)
+	ctx, cancel := a.getContext(15 * time.Second)
+	defer cancel()
+	return svc.Logs(ctx, id)
 }
 
 // ExecContainer executes a command inside a running container and returns output.
@@ -402,7 +444,9 @@ func (a *App) GetImages(all bool) ([]images.Image, error) {
 	if svc == nil {
 		return nil, fmt.Errorf("container runtime not connected")
 	}
-	return svc.List(a.ctx, all)
+	ctx, cancel := a.getContext(15 * time.Second)
+	defer cancel()
+	return svc.List(ctx, all)
 }
 
 // InspectImage returns inspect details for an image.
@@ -413,7 +457,9 @@ func (a *App) InspectImage(id string) (*runtime.ImageInspect, error) {
 	if svc == nil {
 		return nil, fmt.Errorf("container runtime not connected")
 	}
-	return svc.Inspect(a.ctx, id)
+	ctx, cancel := a.getContext(15 * time.Second)
+	defer cancel()
+	return svc.Inspect(ctx, id)
 }
 
 // PullImage pulls an image from a remote registry until complete.
@@ -441,7 +487,9 @@ func (a *App) TagImage(source, target string) error {
 	if svc == nil {
 		return fmt.Errorf("container runtime not connected")
 	}
-	return svc.Tag(a.ctx, source, target)
+	ctx, cancel := a.getContext(15 * time.Second)
+	defer cancel()
+	return svc.Tag(ctx, source, target)
 }
 
 // RemoveImage deletes an image from local storage.
@@ -452,7 +500,9 @@ func (a *App) RemoveImage(id string, force bool) ([]runtime.ImageDeleteResult, e
 	if svc == nil {
 		return nil, fmt.Errorf("container runtime not connected")
 	}
-	return svc.Remove(a.ctx, id, force)
+	ctx, cancel := a.getContext(30 * time.Second)
+	defer cancel()
+	return svc.Remove(ctx, id, force)
 }
 
 // ==========================================
@@ -467,7 +517,9 @@ func (a *App) GetVolumes() ([]volumes.Volume, error) {
 	if svc == nil {
 		return nil, fmt.Errorf("container runtime not connected")
 	}
-	return svc.List(a.ctx)
+	ctx, cancel := a.getContext(15 * time.Second)
+	defer cancel()
+	return svc.List(ctx)
 }
 
 // CreateVolume creates a new volume.
@@ -478,7 +530,9 @@ func (a *App) CreateVolume(opts runtime.VolumeCreateOptions) (*volumes.Volume, e
 	if svc == nil {
 		return nil, fmt.Errorf("container runtime not connected")
 	}
-	return svc.Create(a.ctx, opts)
+	ctx, cancel := a.getContext(20 * time.Second)
+	defer cancel()
+	return svc.Create(ctx, opts)
 }
 
 // InspectVolume returns inspection details for a volume.
@@ -489,7 +543,9 @@ func (a *App) InspectVolume(name string) (*volumes.Volume, error) {
 	if svc == nil {
 		return nil, fmt.Errorf("container runtime not connected")
 	}
-	return svc.Inspect(a.ctx, name)
+	ctx, cancel := a.getContext(15 * time.Second)
+	defer cancel()
+	return svc.Inspect(ctx, name)
 }
 
 // RemoveVolume deletes a volume.
@@ -500,7 +556,9 @@ func (a *App) RemoveVolume(name string, force bool) error {
 	if svc == nil {
 		return fmt.Errorf("container runtime not connected")
 	}
-	return svc.Remove(a.ctx, name, force)
+	ctx, cancel := a.getContext(20 * time.Second)
+	defer cancel()
+	return svc.Remove(ctx, name, force)
 }
 
 // PruneVolumes removes unused volumes.
@@ -511,7 +569,9 @@ func (a *App) PruneVolumes() error {
 	if svc == nil {
 		return fmt.Errorf("container runtime not connected")
 	}
-	return svc.Prune(a.ctx)
+	ctx, cancel := a.getContext(60 * time.Second)
+	defer cancel()
+	return svc.Prune(ctx)
 }
 
 // ==========================================
@@ -526,7 +586,9 @@ func (a *App) GetNetworks() ([]networks.Network, error) {
 	if svc == nil {
 		return nil, fmt.Errorf("container runtime not connected")
 	}
-	return svc.List(a.ctx)
+	ctx, cancel := a.getContext(15 * time.Second)
+	defer cancel()
+	return svc.List(ctx)
 }
 
 // CreateNetwork creates a new network.
@@ -537,7 +599,9 @@ func (a *App) CreateNetwork(opts runtime.NetworkCreateOptions) (*networks.Networ
 	if svc == nil {
 		return nil, fmt.Errorf("container runtime not connected")
 	}
-	return svc.Create(a.ctx, opts)
+	ctx, cancel := a.getContext(20 * time.Second)
+	defer cancel()
+	return svc.Create(ctx, opts)
 }
 
 // InspectNetwork returns inspection details for a network.
@@ -548,7 +612,9 @@ func (a *App) InspectNetwork(id string) (*networks.Network, error) {
 	if svc == nil {
 		return nil, fmt.Errorf("container runtime not connected")
 	}
-	return svc.Inspect(a.ctx, id)
+	ctx, cancel := a.getContext(15 * time.Second)
+	defer cancel()
+	return svc.Inspect(ctx, id)
 }
 
 // RemoveNetwork deletes an existing network.
@@ -559,7 +625,9 @@ func (a *App) RemoveNetwork(id string) error {
 	if svc == nil {
 		return fmt.Errorf("container runtime not connected")
 	}
-	return svc.Remove(a.ctx, id)
+	ctx, cancel := a.getContext(20 * time.Second)
+	defer cancel()
+	return svc.Remove(ctx, id)
 }
 
 // ConnectContainerToNetwork connects a container to a network.
@@ -570,7 +638,9 @@ func (a *App) ConnectContainerToNetwork(networkID, containerID string) error {
 	if svc == nil {
 		return fmt.Errorf("container runtime not connected")
 	}
-	return svc.Connect(a.ctx, networkID, containerID)
+	ctx, cancel := a.getContext(20 * time.Second)
+	defer cancel()
+	return svc.Connect(ctx, networkID, containerID)
 }
 
 // DisconnectContainerFromNetwork detaches a container from a network.
@@ -581,7 +651,9 @@ func (a *App) DisconnectContainerFromNetwork(networkID, containerID string, forc
 	if svc == nil {
 		return fmt.Errorf("container runtime not connected")
 	}
-	return svc.Disconnect(a.ctx, networkID, containerID, force)
+	ctx, cancel := a.getContext(20 * time.Second)
+	defer cancel()
+	return svc.Disconnect(ctx, networkID, containerID, force)
 }
 
 // ==========================================

@@ -35,7 +35,8 @@ export default function SettingsView({
   onSetTheme,
   appVersion = '0.6.2',
   onCheckForUpdates,
-  isCheckingUpdates = false
+  isCheckingUpdates = false,
+  onToast
 }) {
   const [selectedTheme, setSelectedTheme] = useState(theme || config?.ui?.theme || 'dark');
   const [defaultRuntime, setDefaultRuntime] = useState(activeRuntime || 'docker');
@@ -100,8 +101,15 @@ export default function SettingsView({
       }
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 2000);
+      if (onToast) {
+        onToast('Settings saved successfully', 'success');
+      }
     } catch (err) {
-      alert(`Save failed: ${err}`);
+      if (onToast) {
+        onToast(err.message || String(err), 'error', 'Failed to Save Settings');
+      } else {
+        alert(`Save failed: ${err}`);
+      }
     }
   };
 

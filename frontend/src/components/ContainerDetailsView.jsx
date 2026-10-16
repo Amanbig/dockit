@@ -37,8 +37,9 @@ import {
   RemoveContainer,
   ExecContainer
 } from '../../wailsjs/go/main/App';
+import { formatEngineError } from './Toast';
 
-export default function ContainerDetailsView({ containerId, onBack, onRefreshList }) {
+export default function ContainerDetailsView({ containerId, onBack, onRefreshList, onToast }) {
   const [details, setDetails] = useState(null);
   const [logs, setLogs] = useState('');
   const [loading, setLoading] = useState(true);
@@ -208,12 +209,24 @@ export default function ContainerDetailsView({ containerId, onBack, onRefreshLis
   const isPaused = details?.state?.paused;
   const stateStatus = details?.state?.status || (isRunning ? 'running' : 'stopped');
 
+  const notifyError = (err, fallbackTitle) => {
+    const formatted = formatEngineError(err);
+    if (onToast) {
+      onToast(formatted, 'error', fallbackTitle);
+    } else {
+      alert(`${fallbackTitle}: ${formatted}`);
+    }
+  };
+
   const handleStart = async () => {
     setActionInProgress(true);
     try {
       await StartContainer(containerId);
+      if (onToast) onToast('Container started successfully', 'success');
       await fetchDetails();
       if (onRefreshList) onRefreshList();
+    } catch (err) {
+      notifyError(err, 'Failed to Start Container');
     } finally {
       setActionInProgress(false);
     }
@@ -223,8 +236,11 @@ export default function ContainerDetailsView({ containerId, onBack, onRefreshLis
     setActionInProgress(true);
     try {
       await StopContainer(containerId, 10);
+      if (onToast) onToast('Container stopped', 'info');
       await fetchDetails();
       if (onRefreshList) onRefreshList();
+    } catch (err) {
+      notifyError(err, 'Failed to Stop Container');
     } finally {
       setActionInProgress(false);
     }
@@ -234,8 +250,11 @@ export default function ContainerDetailsView({ containerId, onBack, onRefreshLis
     setActionInProgress(true);
     try {
       await RestartContainer(containerId, 10);
+      if (onToast) onToast('Container restarted', 'success');
       await fetchDetails();
       if (onRefreshList) onRefreshList();
+    } catch (err) {
+      notifyError(err, 'Failed to Restart Container');
     } finally {
       setActionInProgress(false);
     }
@@ -245,8 +264,11 @@ export default function ContainerDetailsView({ containerId, onBack, onRefreshLis
     setActionInProgress(true);
     try {
       await PauseContainer(containerId);
+      if (onToast) onToast('Container paused', 'info');
       await fetchDetails();
       if (onRefreshList) onRefreshList();
+    } catch (err) {
+      notifyError(err, 'Failed to Pause Container');
     } finally {
       setActionInProgress(false);
     }
@@ -256,8 +278,11 @@ export default function ContainerDetailsView({ containerId, onBack, onRefreshLis
     setActionInProgress(true);
     try {
       await UnpauseContainer(containerId);
+      if (onToast) onToast('Container resumed', 'success');
       await fetchDetails();
       if (onRefreshList) onRefreshList();
+    } catch (err) {
+      notifyError(err, 'Failed to Resume Container');
     } finally {
       setActionInProgress(false);
     }
@@ -267,10 +292,11 @@ export default function ContainerDetailsView({ containerId, onBack, onRefreshLis
     if (!window.confirm('Are you sure you want to delete this container?')) return;
     try {
       await RemoveContainer(containerId, false, true);
+      if (onToast) onToast('Container deleted', 'success');
       if (onRefreshList) onRefreshList();
       onBack();
     } catch (err) {
-      alert(`Delete failed: ${err}`);
+      notifyError(err, 'Failed to Delete Container');
     }
   };
 
