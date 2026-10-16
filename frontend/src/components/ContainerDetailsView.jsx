@@ -25,9 +25,12 @@ import {
   ArrowDown,
   ArrowUp,
   Search,
-  X
+  X,
+  ChevronUp,
+  ChevronDown,
+  Filter
 } from 'lucide-react';
-import { highlightLogText } from './LogsModal';
+import { highlightLogMatches, highlightLogText } from './LogsModal';
 import { 
   InspectContainer, 
   GetContainerLogs, 
@@ -135,6 +138,8 @@ export default function ContainerDetailsView({ containerId, onBack, onRefreshLis
 
   // Enhanced Logs state
   const [logFilter, setLogFilter] = useState('');
+  const [activeLogMatchIndex, setActiveLogMatchIndex] = useState(0);
+  const [logFilterMode, setLogFilterMode] = useState(false); // false = highlight & navigate all lines; true = filter lines
   const [autoTail, setAutoTail] = useState(true);
   const logsScrollRef = React.useRef(null);
 
@@ -151,19 +156,38 @@ export default function ContainerDetailsView({ containerId, onBack, onRefreshLis
     setTimeout(scroll, 60);
   };
 
-  // Scroll to bottom when opening/switching to logs tab
+  const scrollToLogMatch = (index) => {
+    requestAnimationFrame(() => {
+      const el = document.getElementById(`details-logs-match-${index}`);
+      const container = logsScrollRef.current;
+      if (el && container) {
+        const containerRect = container.getBoundingClientRect();
+        const elRect = el.getBoundingClientRect();
+        const relativeTop = elRect.top - containerRect.top + container.scrollTop;
+        const targetScroll = relativeTop - container.clientHeight / 2 + elRect.height / 2;
+        container.scrollTo({
+          top: Math.max(0, targetScroll),
+          behavior: 'smooth'
+        });
+      } else if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    });
+  };
+
+  // Scroll to bottom when opening/switching to logs tab (only if not searching)
   useEffect(() => {
-    if (activeSubTab === 'logs') {
+    if (activeSubTab === 'logs' && !logFilter.trim()) {
       scrollToLogsBottom();
     }
   }, [activeSubTab]);
 
-  // Scroll to bottom when logs update or finish loading
+  // Scroll to bottom when logs update or finish loading (only if not searching)
   useEffect(() => {
-    if (activeSubTab === 'logs' && autoTail && !logsLoading && logs) {
+    if (activeSubTab === 'logs' && autoTail && !logsLoading && logs && !logFilter.trim()) {
       scrollToLogsBottom();
     }
-  }, [logs, logsLoading, autoTail, activeSubTab, logFilter]);
+  }, [logs, logsLoading, autoTail, activeSubTab]);
 
   const fetchDetails = async () => {
     try {
@@ -809,7 +833,51 @@ export default function ContainerDetailsView({ containerId, onBack, onRefreshLis
         {/* Tab 2: Live Logs */}
         {activeSubTab === 'logs' && (() => {
           const rawLines = (logs || '').split('\n');
-          const filteredLines = rawLines.filter(line => !logFilter || line.toLowerCase().includes(logFilter.toLowerCase()));
+          const filteredLines = rawLines.filter(line => !logFilterMode || !logFilter || line.toLowerCase().includes(logFilter.toLowerCase()));
+
+          const totalLogMatches = (() => {
+            if (!logFilter.trim()) return 0;
+            const escaped = logFilter.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const regex = new RegExp(escaped, 'gi');
+            let count = 0;
+            for (const line of filteredLines) {
+              const m = line.match(regex);
+              if (m) count += m.length;
+            }
+            return count;
+          })();
+
+          const handleNextLogMatch = () => {
+            if (totalLogMatches === 0) return;
+            setActiveLogMatchIndex((prev) => {
+              const next = (prev + 1) % totalLogMatches;
+              scrollToLogMatch(next);
+              return next;
+            });
+          };
+
+          const handlePrevLogMatch = () => {
+            if (totalLogMatches === 0) return;
+            setActiveLogMatchIndex((prev) => {
+              const next = (prev - 1 + totalLogMatches) % totalLogMatches;
+              scrollToLogMatch(next);
+              return next;
+            });
+          };
+
+          const handleLogSearchKeyDown = (e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              if (e.shiftKey) {
+                handlePrevLogMatch();
+              } else {
+                handleNextLogMatch();
+              }
+            } else if (e.key === 'Escape') {
+              setLogFilter('');
+            }
+          };
+
           return (
             <div className="flex flex-col h-[540px] rounded-xl border border-slate-800 bg-slate-950 overflow-hidden shadow-inner">
               <div className="px-4 py-2.5 bg-slate-900 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
@@ -840,27 +908,69 @@ export default function ContainerDetailsView({ containerId, onBack, onRefreshLis
                   </button>
                 </div>
 
-                {/* Log Search Filter */}
+                {/* Log Search Filter with Navigation */}
                 <div className="flex items-center gap-2">
-                  <div className="relative">
-                    <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <div className="relative flex items-center">
+                    <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                     <input
                       type="text"
-                      placeholder="Search / filter logs..."
+                      placeholder="Find in logs (Enter / Shift+Enter)..."
                       value={logFilter}
-                      onChange={(e) => setLogFilter(e.target.value)}
-                      className="bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-7 py-1 text-xs text-slate-200 font-mono placeholder-slate-500 focus:outline-none focus:border-cyan-500 w-52"
+                      onChange={(e) => {
+                        setLogFilter(e.target.value);
+                        setActiveLogMatchIndex(0);
+                        if (e.target.value.trim()) {
+                          scrollToLogMatch(0);
+                        }
+                      }}
+                      onKeyDown={handleLogSearchKeyDown}
+                      className="bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-28 py-1 text-xs text-slate-200 font-mono placeholder-slate-500 focus:outline-none focus:border-cyan-500 w-64"
                     />
                     {logFilter && (
-                      <button
-                        onClick={() => setLogFilter('')}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 cursor-pointer"
-                        title="Clear filter"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
+                      <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
+                        <span className="text-[10px] font-mono text-slate-400 select-none px-1">
+                          {totalLogMatches > 0 ? `${activeLogMatchIndex + 1}/${totalLogMatches}` : '0/0'}
+                        </span>
+                        <button
+                          onClick={handlePrevLogMatch}
+                          disabled={totalLogMatches === 0}
+                          className="p-1 text-slate-400 hover:text-cyan-300 hover:bg-slate-800 disabled:opacity-25 disabled:hover:text-slate-400 disabled:hover:bg-transparent rounded transition cursor-pointer"
+                          title="Previous match (Shift+Enter / ▲)"
+                        >
+                          <ChevronUp className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={handleNextLogMatch}
+                          disabled={totalLogMatches === 0}
+                          className="p-1 text-slate-400 hover:text-cyan-300 hover:bg-slate-800 disabled:opacity-25 disabled:hover:text-slate-400 disabled:hover:bg-transparent rounded transition cursor-pointer"
+                          title="Next match (Enter / ▼)"
+                        >
+                          <ChevronDown className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => setLogFilter('')}
+                          className="p-1 text-slate-500 hover:text-slate-200 hover:bg-slate-800 rounded cursor-pointer"
+                          title="Clear search (Esc)"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     )}
                   </div>
+
+                  {/* Filter Mode Toggle */}
+                  <button
+                    onClick={() => setLogFilterMode(!logFilterMode)}
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-lg border text-[11px] font-mono transition cursor-pointer shrink-0 ${
+                      logFilterMode && logFilter
+                        ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300 font-semibold'
+                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'
+                    }`}
+                    title={logFilterMode ? 'Showing only matching lines' : 'Showing all lines (click to isolate matching lines only)'}
+                  >
+                    <Filter className="w-3 h-3 text-cyan-400" />
+                    <span>{logFilterMode && logFilter ? 'Filtered' : 'All Lines'}</span>
+                  </button>
 
                   <button
                     onClick={() => copyText(logs, 'logs')}
@@ -901,8 +1011,9 @@ export default function ContainerDetailsView({ containerId, onBack, onRefreshLis
                       </button>
                     )}
                   </div>
-                ) : (
-                  filteredLines.map((line, idx) => {
+                ) : (() => {
+                  let matchCounter = 0;
+                  return filteredLines.map((line, idx) => {
                     const lower = line.toLowerCase();
                     const isErr = lower.includes('error') || lower.includes('fatal') || lower.includes('panic');
                     const isWarn = lower.includes('warn');
@@ -917,11 +1028,11 @@ export default function ContainerDetailsView({ containerId, onBack, onRefreshLis
                               : 'text-slate-300'
                         }`}
                       >
-                        {highlightLogText(line, logFilter)}
+                        {highlightLogMatches(line, logFilter, () => matchCounter++, activeLogMatchIndex, 'details-logs')}
                       </div>
                     );
-                  })
-                )}
+                  });
+                })()}
               </div>
 
               {/* Log Footer Bar */}
@@ -932,7 +1043,7 @@ export default function ContainerDetailsView({ containerId, onBack, onRefreshLis
                   </span>
                   {logFilter && (
                     <span className="text-amber-400 font-semibold">
-                      • Filter active: "{logFilter}"
+                      • Matches: {totalLogMatches > 0 ? `${activeLogMatchIndex + 1} of ${totalLogMatches}` : '0 found'}
                     </span>
                   )}
                 </div>

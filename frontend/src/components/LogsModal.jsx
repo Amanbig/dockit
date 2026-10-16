@@ -9,27 +9,41 @@ import {
   Clock, 
   ArrowDown, 
   Filter, 
-  SlidersHorizontal 
+  SlidersHorizontal,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react';
 
-export function highlightLogText(text, query) {
+export function highlightLogMatches(text, query, getMatchIndex, activeMatchIndex, prefix = 'log') {
   if (!query || !query.trim() || !text) return text;
   const escaped = query.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const parts = text.split(new RegExp(`(${escaped})`, 'gi'));
   if (parts.length <= 1) return text;
 
-  return parts.map((part, i) =>
-    part.toLowerCase() === query.trim().toLowerCase() ? (
-      <mark
-        key={i}
-        className="bg-amber-400 text-slate-950 font-semibold px-0.5 rounded-xs"
-      >
-        {part}
-      </mark>
-    ) : (
-      part
-    )
-  );
+  return parts.map((part, i) => {
+    if (part.toLowerCase() === query.trim().toLowerCase()) {
+      const matchIdx = getMatchIndex ? getMatchIndex() : -1;
+      const isActive = matchIdx >= 0 && matchIdx === activeMatchIndex;
+      return (
+        <mark
+          key={i}
+          id={matchIdx >= 0 ? `${prefix}-match-${matchIdx}` : undefined}
+          className={
+            isActive
+              ? 'bg-amber-400 text-slate-950 font-black ring-2 ring-cyan-400 ring-offset-1 ring-offset-slate-950 rounded-xs shadow-md scale-105 inline-block transition-transform'
+              : 'bg-amber-400/80 text-slate-950 font-semibold px-0.5 rounded-xs'
+          }
+        >
+          {part}
+        </mark>
+      );
+    }
+    return part;
+  });
+}
+
+export function highlightLogText(text, query) {
+  return highlightLogMatches(text, query, null, -1);
 }
 
 export default function LogsModal({ isOpen, containerId, containerName, onClose, onFetchLogs }) {
@@ -39,6 +53,8 @@ export default function LogsModal({ isOpen, containerId, containerName, onClose,
 
   // Enhancements
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeMatchIndex, setActiveMatchIndex] = useState(0);
+  const [filterMode, setFilterMode] = useState(false); // false = show all lines with match highlights & nav; true = filter lines
   const [logLevel, setLogLevel] = useState('all'); // 'all', 'error', 'warn', 'info'
   const [showTimestamps, setShowTimestamps] = useState(true);
   const [autoScroll, setAutoScroll] = useState(true);
@@ -78,12 +94,12 @@ export default function LogsModal({ isOpen, containerId, containerName, onClose,
     }
   }, [isOpen, containerId]);
 
-  // Auto-scroll when logs update or finish loading
+  // Auto-scroll when logs update or finish loading (only if not searching)
   useEffect(() => {
-    if (isOpen && autoScroll && !loading) {
+    if (isOpen && autoScroll && !loading && !searchQuery.trim()) {
       scrollToBottom();
     }
-  }, [isOpen, logs, loading, autoScroll, searchQuery, logLevel]);
+  }, [isOpen, logs, loading, autoScroll, logLevel]);
 
   if (!isOpen) return null;
 
@@ -118,13 +134,84 @@ export default function LogsModal({ isOpen, containerId, containerName, onClose,
       }
     }
 
-    // Search query filter
-    if (searchQuery && !lower.includes(searchQuery.toLowerCase())) {
+    // Search query filter (only when filterMode is enabled)
+    if (filterMode && searchQuery && !lower.includes(searchQuery.toLowerCase())) {
       return false;
     }
 
     return true;
   });
+
+  const totalMatches = React.useMemo(() => {
+    if (!searchQuery.trim()) return 0;
+    const escaped = searchQuery.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(escaped, 'gi');
+    let count = 0;
+    for (const line of filteredLines) {
+      const m = line.match(regex);
+      if (m) count += m.length;
+    }
+    return count;
+  }, [filteredLines, searchQuery]);
+
+  const scrollToMatch = (index) => {
+    requestAnimationFrame(() => {
+      const el = document.getElementById(`logs-modal-match-${index}`);
+      const container = logsContainerRef.current;
+      if (el && container) {
+        const containerRect = container.getBoundingClientRect();
+        const elRect = el.getBoundingClientRect();
+        const relativeTop = elRect.top - containerRect.top + container.scrollTop;
+        const targetScroll = relativeTop - container.clientHeight / 2 + elRect.height / 2;
+        container.scrollTo({
+          top: Math.max(0, targetScroll),
+          behavior: 'smooth'
+        });
+      } else if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    });
+  };
+
+  const handleNextMatch = () => {
+    if (totalMatches === 0) return;
+    setActiveMatchIndex((prev) => {
+      const next = (prev + 1) % totalMatches;
+      scrollToMatch(next);
+      return next;
+    });
+  };
+
+  const handlePrevMatch = () => {
+    if (totalMatches === 0) return;
+    setActiveMatchIndex((prev) => {
+      const next = (prev - 1 + totalMatches) % totalMatches;
+      scrollToMatch(next);
+      return next;
+    });
+  };
+
+  const handleSearchKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (e.shiftKey) {
+        handlePrevMatch();
+      } else {
+        handleNextMatch();
+      }
+    } else if (e.key === 'Escape') {
+      setSearchQuery('');
+    }
+  };
+
+  useEffect(() => {
+    if (searchQuery.trim() && totalMatches > 0) {
+      setActiveMatchIndex(0);
+      scrollToMatch(0);
+    } else {
+      setActiveMatchIndex(0);
+    }
+  }, [searchQuery, filterMode]);
 
   return (
     <div 
@@ -173,24 +260,63 @@ export default function LogsModal({ isOpen, containerId, containerName, onClose,
 
         {/* Toolbar: Search & Filters */}
         <div className="px-5 py-2.5 bg-slate-950/40 border-b border-slate-800/80 flex flex-wrap items-center justify-between gap-3 text-xs">
-          {/* Search Input */}
-          <div className="relative flex-1 min-w-[200px] max-w-sm">
-            <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search / filter logs (Ctrl+F)..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-3 py-1 text-xs text-slate-200 font-mono placeholder-slate-500 focus:outline-none focus:border-cyan-500"
-            />
-            {searchQuery && (
-              <button 
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
-              >
-                ✕
-              </button>
-            )}
+          {/* Search Input with Match Navigation */}
+          <div className="flex items-center gap-2 flex-1 min-w-[280px] max-w-md">
+            <div className="relative flex-1 flex items-center">
+              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Find in logs (Enter / Shift+Enter)..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={handleSearchKeyDown}
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-28 py-1 text-xs text-slate-200 font-mono placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+              />
+              {searchQuery && (
+                <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
+                  <span className="text-[10px] font-mono text-slate-400 select-none px-1">
+                    {totalMatches > 0 ? `${activeMatchIndex + 1}/${totalMatches}` : '0/0'}
+                  </span>
+                  <button
+                    onClick={handlePrevMatch}
+                    disabled={totalMatches === 0}
+                    className="p-1 text-slate-400 hover:text-cyan-300 hover:bg-slate-800 disabled:opacity-25 disabled:hover:text-slate-400 disabled:hover:bg-transparent rounded transition cursor-pointer"
+                    title="Previous match (Shift+Enter / ▲)"
+                  >
+                    <ChevronUp className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={handleNextMatch}
+                    disabled={totalMatches === 0}
+                    className="p-1 text-slate-400 hover:text-cyan-300 hover:bg-slate-800 disabled:opacity-25 disabled:hover:text-slate-400 disabled:hover:bg-transparent rounded transition cursor-pointer"
+                    title="Next match (Enter / ▼)"
+                  >
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </button>
+                  <button 
+                    onClick={() => setSearchQuery('')}
+                    className="p-1 text-slate-500 hover:text-slate-200 hover:bg-slate-800 rounded transition cursor-pointer"
+                    title="Clear search (Esc)"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Filter Toggle Button */}
+            <button
+              onClick={() => setFilterMode(!filterMode)}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg border text-[11px] font-mono transition cursor-pointer shrink-0 ${
+                filterMode && searchQuery
+                  ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300 font-semibold'
+                  : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'
+              }`}
+              title={filterMode ? 'Showing only matching lines' : 'Showing all lines (click to isolate matching lines only)'}
+            >
+              <Filter className="w-3 h-3 text-cyan-400" />
+              <span>{filterMode && searchQuery ? 'Filtered' : 'All Lines'}</span>
+            </button>
           </div>
 
           {/* Level Filter Pills & Options */}
@@ -270,8 +396,9 @@ export default function LogsModal({ isOpen, containerId, containerName, onClose,
                 </button>
               )}
             </div>
-          ) : (
-            filteredLines.map((line, idx) => {
+          ) : (() => {
+            let matchCounter = 0;
+            return filteredLines.map((line, idx) => {
               const lower = line.toLowerCase();
               const isErr = lower.includes('error') || lower.includes('fatal') || lower.includes('panic');
               const isWarn = lower.includes('warn');
@@ -298,14 +425,16 @@ export default function LogsModal({ isOpen, containerId, containerName, onClose,
                 >
                   {showTimestamps && timestamp && (
                     <span className="text-[10px] text-slate-500 select-none shrink-0 font-mono pt-0.5">
-                      {highlightLogText(timestamp, searchQuery)}
+                      {highlightLogMatches(timestamp, searchQuery, () => matchCounter++, activeMatchIndex, 'logs-modal')}
                     </span>
                   )}
-                  <span className="break-all flex-1">{highlightLogText(content, searchQuery)}</span>
+                  <span className="break-all flex-1">
+                    {highlightLogMatches(content, searchQuery, () => matchCounter++, activeMatchIndex, 'logs-modal')}
+                  </span>
                 </div>
               );
-            })
-          )}
+            });
+          })()}
         </div>
 
         {/* Footer */}
@@ -314,6 +443,12 @@ export default function LogsModal({ isOpen, containerId, containerName, onClose,
             <span>Container ID: <code className="text-slate-300 font-mono">{containerId}</code></span>
             <span>•</span>
             <span>Showing <strong className="text-slate-200">{filteredLines.length}</strong> of <strong className="text-slate-200">{lines.length}</strong> lines</span>
+            {searchQuery && (
+              <>
+                <span>•</span>
+                <span>Matches: <strong className="text-amber-400">{totalMatches > 0 ? `${activeMatchIndex + 1} of ${totalMatches}` : '0 found'}</strong></span>
+              </>
+            )}
           </div>
           <button
             onClick={onClose}
