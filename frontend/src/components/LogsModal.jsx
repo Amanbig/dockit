@@ -218,11 +218,11 @@ export default function LogsModal({ isOpen, containerId, containerName, onClose,
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-in fade-in duration-150"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 animate-in fade-in duration-150"
       onClick={onClose}
     >
       <div 
-        className={`bg-slate-900 border border-slate-750 rounded-xl shadow-2xl flex flex-col overflow-hidden text-slate-100 transition-all duration-150 ${
+        className={`bg-slate-900 border border-slate-750 rounded-xl shadow-2xl flex flex-col overflow-hidden text-slate-100 ${
           isFullScreen 
             ? 'w-[98vw] h-[95vh] max-w-none max-h-none' 
             : 'w-full max-w-4xl max-h-[88vh]'
