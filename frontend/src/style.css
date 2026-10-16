@@ -506,6 +506,26 @@ html.light .pointer-events-auto[class*="bg-slate-900/95"] p.text-slate-200 {
     color: #1e293b !important;
 }
 
+/* Confirm Modal in Light Mode */
+html.light .fixed.inset-0 div[class*="bg-slate-900"][class*="rounded-xl"] {
+    background-color: #ffffff !important;
+    border-color: #e2e8f0 !important;
+    color: #0f172a !important;
+}
+
+html.light .fixed.inset-0 div[class*="bg-slate-900"][class*="rounded-xl"] h3 {
+    color: #0f172a !important;
+}
+
+html.light .fixed.inset-0 div[class*="bg-slate-900"][class*="rounded-xl"] p {
+    color: #475569 !important;
+}
+
+html.light .fixed.inset-0 div[class*="border-t"][class*="bg-slate-950/40"] {
+    background-color: #f8fafc !important;
+    border-color: #e2e8f0 !important;
+}
+
 html.light span[class*="bg-cyan-950 text-cyan-300"] {
     background-color: #ecfeff !important;
     color: #0891b2 !important;

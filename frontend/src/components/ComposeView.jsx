@@ -47,7 +47,8 @@ export default function ComposeView({
   onRestoreSnapshot,
   onReadEnv,
   onSaveEnv,
-  onToast
+  onToast,
+  onConfirm
 }) {
   const notify = (msg, type = 'info', title = null) => {
     if (onToast) {
@@ -82,6 +83,20 @@ export default function ComposeView({
     removeOrphans: true,
     removeImages: false
   });
+
+  // Global Esc key dismiss for Compose local dialogs
+  useEffect(() => {
+    if (!showUrlDialog && !showSnapshotModal && !showDownModal) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (showUrlDialog) setShowUrlDialog(false);
+        if (showSnapshotModal) setShowSnapshotModal(false);
+        if (showDownModal) setShowDownModal(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showUrlDialog, showSnapshotModal, showDownModal]);
 
   // Load saved projects list from localStorage on mount
   useEffect(() => {
@@ -246,7 +261,18 @@ export default function ComposeView({
 
   const handleApply = async () => {
     if (!project || !projectKey) return;
-    if (!window.confirm('Write staged YAML permanently to docker-compose.yml on disk?')) return;
+    let ok = false;
+    if (onConfirm) {
+      ok = await onConfirm({
+        title: 'Apply Compose Changes',
+        message: 'Write staged YAML permanently to docker-compose.yml on disk? Your previous file on disk will be updated.',
+        confirmText: 'Apply to Disk',
+        isDanger: false
+      });
+    } else {
+      ok = window.confirm('Write staged YAML permanently to docker-compose.yml on disk?');
+    }
+    if (!ok) return;
     try {
       await onApplyChanges(projectKey);
       const refreshed = await onRefreshProject(projectKey);
@@ -327,7 +353,18 @@ SECRET_KEY=dockit_super_secret_key
 
   const handleRestoreSnapshot = async (hash) => {
     if (!project || !projectKey || !onRestoreSnapshot) return;
-    if (!window.confirm(`Restore YAML revision ${hash.slice(0, 8)} into testing sandbox?`)) return;
+    let ok = false;
+    if (onConfirm) {
+      ok = await onConfirm({
+        title: 'Restore Revision Snapshot',
+        message: `Restore YAML revision ${hash.slice(0, 8)} into testing sandbox?`,
+        confirmText: 'Restore Revision',
+        isDanger: false
+      });
+    } else {
+      ok = window.confirm(`Restore YAML revision ${hash.slice(0, 8)} into testing sandbox?`);
+    }
+    if (!ok) return;
     try {
       const restored = await onRestoreSnapshot(projectKey, hash);
       setProject(restored);

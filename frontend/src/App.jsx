@@ -15,6 +15,8 @@ import LogsModal from './components/LogsModal';
 import InspectModal from './components/InspectModal';
 import InstallerModal from './components/InstallerModal';
 import CommandPalette from './components/CommandPalette';
+import ConfirmModal from './components/ConfirmModal';
+import ErrorBoundary from './components/ErrorBoundary';
 import { ToastContainer, formatEngineError } from './components/Toast';
 import { Sparkles, ArrowRight, X, AlertCircle } from 'lucide-react';
 import packageJson from '../package.json';
@@ -146,6 +148,36 @@ export default function App() {
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [toasts, setToasts] = useState([]);
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    confirmText: 'Confirm',
+    cancelText: 'Cancel',
+    isDanger: true,
+    resolve: null
+  });
+
+  const requestConfirmation = useCallback(({ title, message, confirmText = 'Confirm', cancelText = 'Cancel', isDanger = true }) => {
+    return new Promise((resolve) => {
+      setConfirmModal({
+        isOpen: true,
+        title,
+        message,
+        confirmText,
+        cancelText,
+        isDanger,
+        resolve
+      });
+    });
+  }, []);
+
+  const handleConfirmModalAction = useCallback((confirmed) => {
+    if (confirmModal.resolve) {
+      confirmModal.resolve(confirmed);
+    }
+    setConfirmModal(prev => ({ ...prev, isOpen: false, resolve: null }));
+  }, [confirmModal]);
 
   const addToast = useCallback((message, type = 'info', title = null, duration = 4500) => {
     const id = Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
@@ -164,7 +196,9 @@ export default function App() {
         e.preventDefault();
         setCommandPaletteOpen(prev => !prev);
       } else if (e.key === 'Escape') {
-        if (commandPaletteOpen) {
+        if (confirmModal.isOpen) {
+          handleConfirmModalAction(false);
+        } else if (commandPaletteOpen) {
           setCommandPaletteOpen(false);
         } else if (inspectModal.open) {
           setInspectModal({ open: false, title: '', data: null });
@@ -179,7 +213,7 @@ export default function App() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [commandPaletteOpen, inspectModal.open, logsModal.open, updateModalOpen, showInstaller]);
+  }, [commandPaletteOpen, inspectModal.open, logsModal.open, updateModalOpen, showInstaller, confirmModal.isOpen, handleConfirmModalAction]);
 
   // Apply theme to document root
   const applyThemeToDOM = async (t) => {
@@ -304,7 +338,17 @@ export default function App() {
         if (m) setHostMetrics(m);
       }).catch(() => {});
     }, 4000);
-    return () => clearInterval(interval);
+
+    // Auto-sync state whenever user switches back to Dockit
+    const handleFocus = () => {
+      refreshAll();
+    };
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, [refreshAll]);
 
   // Check for app updates
@@ -413,7 +457,13 @@ export default function App() {
   };
 
   const handleRemoveContainer = async (id, force = false) => {
-    if (!window.confirm('Delete this container?')) return;
+    const ok = await requestConfirmation({
+      title: 'Delete Container',
+      message: 'Are you sure you want to permanently delete this container? All unsaved data in the container rootfs will be removed.',
+      confirmText: 'Delete Container',
+      isDanger: true
+    });
+    if (!ok) return;
     try {
       await RemoveContainer(id, force, true);
       addToast('Container deleted', 'success');
@@ -460,7 +510,13 @@ export default function App() {
   };
 
   const handleRemoveImage = async (id, force = false) => {
-    if (!window.confirm('Delete this image?')) return;
+    const ok = await requestConfirmation({
+      title: 'Delete Image',
+      message: 'Are you sure you want to delete this image from your local storage?',
+      confirmText: 'Delete Image',
+      isDanger: true
+    });
+    if (!ok) return;
     try {
       await RemoveImage(id, force);
       addToast('Image deleted successfully', 'success');
@@ -505,7 +561,13 @@ export default function App() {
   };
 
   const handleRemoveVolume = async (name, force = false) => {
-    if (!window.confirm(`Delete volume "${name}"?`)) return;
+    const ok = await requestConfirmation({
+      title: 'Delete Volume',
+      message: `Are you sure you want to delete volume "${name}"? Data stored on this volume will be permanently erased.`,
+      confirmText: 'Delete Volume',
+      isDanger: true
+    });
+    if (!ok) return;
     try {
       await RemoveVolume(name, force);
       addToast(`Volume "${name}" deleted`, 'success');
@@ -516,6 +578,13 @@ export default function App() {
   };
 
   const handlePruneVolumes = async () => {
+    const ok = await requestConfirmation({
+      title: 'Prune Unused Volumes',
+      message: 'Are you sure you want to prune all volumes not currently attached to any container? This cannot be undone.',
+      confirmText: 'Prune Volumes',
+      isDanger: true
+    });
+    if (!ok) return;
     try {
       await PruneVolumes();
       addToast('Unused volumes pruned', 'success');
@@ -550,7 +619,13 @@ export default function App() {
   };
 
   const handleRemoveNetwork = async (id) => {
-    if (!window.confirm('Delete this network?')) return;
+    const ok = await requestConfirmation({
+      title: 'Delete Network',
+      message: 'Are you sure you want to delete this network?',
+      confirmText: 'Delete Network',
+      isDanger: true
+    });
+    if (!ok) return;
     try {
       await RemoveNetwork(id);
       addToast('Network deleted successfully', 'success');
@@ -670,129 +745,134 @@ export default function App() {
             </div>
           )}
 
-        {/* View Switcher */}
-        <main className="flex-1 flex overflow-hidden">
-          {activeTab === 'containers' && (
-            selectedContainerId ? (
-              <ContainerDetailsView
-                containerId={selectedContainerId}
-                onBack={() => setSelectedContainerId(null)}
-                onRefreshList={refreshAll}
-                onToast={addToast}
+        {/* View Switcher wrapped in ErrorBoundary */}
+        <ErrorBoundary onReset={refreshAll}>
+          <main className="flex-1 flex overflow-hidden">
+            {activeTab === 'containers' && (
+              selectedContainerId ? (
+                <ContainerDetailsView
+                  containerId={selectedContainerId}
+                  onBack={() => setSelectedContainerId(null)}
+                  onRefreshList={refreshAll}
+                  onToast={addToast}
+                  onConfirm={requestConfirmation}
+                />
+              ) : (
+                <ContainersView
+                  containers={containers}
+                  networks={networks}
+                  volumes={volumes}
+                  loading={isRefreshing}
+                  onRefresh={refreshAll}
+                  onStart={handleStartContainer}
+                  onStop={handleStopContainer}
+                  onRestart={handleRestartContainer}
+                  onPause={handlePauseContainer}
+                  onUnpause={handleUnpauseContainer}
+                  onRemove={handleRemoveContainer}
+                  onCreate={handleCreateContainer}
+                  onOpenLogs={(id, name) => setLogsModal({ open: true, id, name })}
+                  onInspect={handleInspectContainer}
+                  onSelectContainer={(id) => setSelectedContainerId(id)}
+                />
+              )
+            )}
+
+            {activeTab === 'images' && (
+              <ImagesView
+                images={images}
+                loading={isRefreshing}
+                onRefresh={refreshAll}
+                onPull={handlePullImage}
+                onRemove={handleRemoveImage}
+                onTag={handleTagImage}
+                onInspect={handleInspectImage}
               />
-            ) : (
-              <ContainersView
-                containers={containers}
-                networks={networks}
+            )}
+
+            {activeTab === 'volumes' && (
+              <VolumesView
                 volumes={volumes}
                 loading={isRefreshing}
                 onRefresh={refreshAll}
-                onStart={handleStartContainer}
-                onStop={handleStopContainer}
-                onRestart={handleRestartContainer}
-                onPause={handlePauseContainer}
-                onUnpause={handleUnpauseContainer}
-                onRemove={handleRemoveContainer}
-                onCreate={handleCreateContainer}
-                onOpenLogs={(id, name) => setLogsModal({ open: true, id, name })}
-                onInspect={handleInspectContainer}
-                onSelectContainer={(id) => setSelectedContainerId(id)}
+                onCreate={handleCreateVolume}
+                onRemove={handleRemoveVolume}
+                onPrune={handlePruneVolumes}
+                onInspect={handleInspectVolume}
+                onConfirm={requestConfirmation}
               />
-            )
-          )}
+            )}
 
-          {activeTab === 'images' && (
-            <ImagesView
-              images={images}
-              loading={isRefreshing}
-              onRefresh={refreshAll}
-              onPull={handlePullImage}
-              onRemove={handleRemoveImage}
-              onTag={handleTagImage}
-              onInspect={handleInspectImage}
-            />
-          )}
+            {activeTab === 'networks' && (
+              <NetworksView
+                networks={networks}
+                loading={isRefreshing}
+                onRefresh={refreshAll}
+                onCreate={handleCreateNetwork}
+                onRemove={handleRemoveNetwork}
+                onInspect={handleInspectNetwork}
+              />
+            )}
 
-          {activeTab === 'volumes' && (
-            <VolumesView
-              volumes={volumes}
-              loading={isRefreshing}
-              onRefresh={refreshAll}
-              onCreate={handleCreateVolume}
-              onRemove={handleRemoveVolume}
-              onPrune={handlePruneVolumes}
-              onInspect={handleInspectVolume}
-            />
-          )}
+            {activeTab === 'cleanup' && (
+              <CleanupView
+                activeRuntime={activeRuntime}
+              />
+            )}
 
-          {activeTab === 'networks' && (
-            <NetworksView
-              networks={networks}
-              loading={isRefreshing}
-              onRefresh={refreshAll}
-              onCreate={handleCreateNetwork}
-              onRemove={handleRemoveNetwork}
-              onInspect={handleInspectNetwork}
-            />
-          )}
+            {activeTab === 'compose' && (
+              <ComposeView
+                onOpenLocal={OpenComposeProject}
+                onOpenURL={OpenComposeProjectFromURL}
+                onSelectDirectory={SelectDirectoryDialog}
+                onUp={ComposeUp}
+                onDown={ComposeDown}
+                onStart={ComposeStart}
+                onStop={ComposeStop}
+                onRestart={ComposeRestart}
+                onStageChanges={ComposeStageChanges}
+                onApplyChanges={ComposeApplyChanges}
+                onDiscardChanges={ComposeDiscardChanges}
+                onRefreshProject={ComposeRefresh}
+                onSaveSnapshot={ComposeSaveSnapshot}
+                onRestoreSnapshot={ComposeRestoreSnapshot}
+                onReadEnv={ComposeReadEnv}
+                onSaveEnv={ComposeSaveEnv}
+                onToast={addToast}
+                onConfirm={requestConfirmation}
+              />
+            )}
 
-          {activeTab === 'cleanup' && (
-            <CleanupView
-              activeRuntime={activeRuntime}
-            />
-          )}
+            {activeTab === 'registry' && (
+              <RegistryView
+                onSearch={SearchRegistry}
+                onSearchAll={SearchAllRegistries}
+                onGetTags={GetRegistryTags}
+                onGetMetadata={GetRegistryMetadata}
+                onPull={handlePullImage}
+                onAddFavorite={handleAddFavorite}
+                onRemoveFavorite={handleRemoveFavorite}
+                favorites={favorites}
+                onToast={addToast}
+              />
+            )}
 
-          {activeTab === 'compose' && (
-            <ComposeView
-              onOpenLocal={OpenComposeProject}
-              onOpenURL={OpenComposeProjectFromURL}
-              onSelectDirectory={SelectDirectoryDialog}
-              onUp={ComposeUp}
-              onDown={ComposeDown}
-              onStart={ComposeStart}
-              onStop={ComposeStop}
-              onRestart={ComposeRestart}
-              onStageChanges={ComposeStageChanges}
-              onApplyChanges={ComposeApplyChanges}
-              onDiscardChanges={ComposeDiscardChanges}
-              onRefreshProject={ComposeRefresh}
-              onSaveSnapshot={ComposeSaveSnapshot}
-              onRestoreSnapshot={ComposeRestoreSnapshot}
-              onReadEnv={ComposeReadEnv}
-              onSaveEnv={ComposeSaveEnv}
-              onToast={addToast}
-            />
-          )}
-
-          {activeTab === 'registry' && (
-            <RegistryView
-              onSearch={SearchRegistry}
-              onSearchAll={SearchAllRegistries}
-              onGetTags={GetRegistryTags}
-              onGetMetadata={GetRegistryMetadata}
-              onPull={handlePullImage}
-              onAddFavorite={handleAddFavorite}
-              onRemoveFavorite={handleRemoveFavorite}
-              favorites={favorites}
-              onToast={addToast}
-            />
-          )}
-
-          {activeTab === 'settings' && (
-            <SettingsView
-              config={appConfig}
-              activeRuntime={activeRuntime}
-              onSwitchRuntime={handleSwitchRuntime}
-              onOpenInstaller={() => setShowInstaller(true)}
-              theme={theme}
-              onSetTheme={handleSetTheme}
-              appVersion={appVersion}
-              onCheckForUpdates={() => handleCheckForUpdates(true)}
-              isCheckingUpdates={isCheckingUpdate}
-              onToast={addToast}
-            />
-          )}
-        </main>
+            {activeTab === 'settings' && (
+              <SettingsView
+                config={appConfig}
+                activeRuntime={activeRuntime}
+                onSwitchRuntime={handleSwitchRuntime}
+                onOpenInstaller={() => setShowInstaller(true)}
+                theme={theme}
+                onSetTheme={handleSetTheme}
+                appVersion={appVersion}
+                onCheckForUpdates={() => handleCheckForUpdates(true)}
+                isCheckingUpdates={isCheckingUpdate}
+                onToast={addToast}
+              />
+            )}
+          </main>
+        </ErrorBoundary>
       </div>
 
       {/* Floating Modal Portals */}
@@ -908,6 +988,18 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Confirmation Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        cancelText={confirmModal.cancelText}
+        isDanger={confirmModal.isDanger}
+        onConfirm={() => handleConfirmModalAction(true)}
+        onCancel={() => handleConfirmModalAction(false)}
+      />
 
       {/* Global Toast Notification System */}
       <ToastContainer toasts={toasts} onDismiss={removeToast} />

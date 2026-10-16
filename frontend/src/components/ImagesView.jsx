@@ -1,14 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   DownloadCloud, 
   Trash2, 
   Tag, 
   Info, 
   Layers, 
-  Search,
-  HardDrive,
-  Copy,
-  Check
+  Search, 
+  HardDrive, 
+  Copy, 
+  Check,
+  RefreshCw
 } from 'lucide-react';
 
 export default function ImagesView({
@@ -26,6 +27,19 @@ export default function ImagesView({
   const [pulling, setPulling] = useState(false);
   const [tagModal, setTagModal] = useState({ open: false, imageId: '', newTag: '' });
   const [copiedId, setCopiedId] = useState(null);
+  const [deletingImages, setDeletingImages] = useState({});
+
+  useEffect(() => {
+    if (!showPullModal && !tagModal.open) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (showPullModal) setShowPullModal(false);
+        if (tagModal.open) setTagModal({ open: false, imageId: '', newTag: '' });
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showPullModal, tagModal.open]);
 
   const filtered = images.filter(img => {
     const tagsStr = (img.repoTags || []).join(' ');
@@ -56,11 +70,29 @@ export default function ImagesView({
     }
   };
 
+  const handleDeleteImage = async (id) => {
+    if (deletingImages[id]) return;
+    setDeletingImages(prev => ({ ...prev, [id]: true }));
+    try {
+      await onRemove(id, false);
+    } finally {
+      setDeletingImages(prev => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    }
+  };
+
   const handleTagSubmit = async (e) => {
     e.preventDefault();
     if (!tagModal.newTag.trim()) return;
-    await onTag(tagModal.imageId, tagModal.newTag.trim());
-    setTagModal({ open: false, imageId: '', newTag: '' });
+    try {
+      await onTag(tagModal.imageId, tagModal.newTag.trim());
+      setTagModal({ open: false, imageId: '', newTag: '' });
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleCopy = (text, id) => {
@@ -183,11 +215,16 @@ export default function ImagesView({
                             <Info className="w-3.5 h-3.5" />
                           </button>
                           <button
-                            onClick={() => onRemove(img.id, false)}
+                            onClick={() => handleDeleteImage(img.id)}
+                            disabled={Boolean(deletingImages[img.id])}
                             title="Delete Image"
-                            className="p-1.5 text-rose-400 hover:bg-rose-400/10 rounded-md transition-colors"
+                            className="p-1.5 text-rose-400 hover:bg-rose-400/10 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            {deletingImages[img.id] ? (
+                              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Trash2 className="w-3.5 h-3.5" />
+                            )}
                           </button>
                         </div>
                       </td>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   HardDrive, 
   Trash2, 
@@ -7,7 +7,8 @@ import {
   Search, 
   Layers, 
   Sparkles,
-  CheckCircle2
+  CheckCircle2,
+  RefreshCw
 } from 'lucide-react';
 
 export default function VolumesView({
@@ -17,13 +18,24 @@ export default function VolumesView({
   onCreate,
   onRemove,
   onPrune,
-  onInspect
+  onInspect,
+  onConfirm
 }) {
   const [search, setSearch] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newVolumeName, setNewVolumeName] = useState('');
   const [newVolumeDriver, setNewVolumeDriver] = useState('local');
   const [pruning, setPruning] = useState(false);
+  const [deletingVolumes, setDeletingVolumes] = useState({});
+
+  useEffect(() => {
+    if (!showCreateModal) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setShowCreateModal(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showCreateModal]);
 
   const filtered = volumes.filter(v => 
     (v.name || '').toLowerCase().includes(search.toLowerCase()) ||
@@ -41,10 +53,33 @@ export default function VolumesView({
     setShowCreateModal(false);
   };
 
-  const handlePruneClick = async () => {
-    if (!window.confirm('Are you sure you want to prune all unused volumes? This cannot be undone.')) {
-      return;
+  const handleDeleteVolume = async (name) => {
+    if (deletingVolumes[name]) return;
+    setDeletingVolumes(prev => ({ ...prev, [name]: true }));
+    try {
+      await onRemove(name, false);
+    } finally {
+      setDeletingVolumes(prev => {
+        const next = { ...prev };
+        delete next[name];
+        return next;
+      });
     }
+  };
+
+  const handlePruneClick = async () => {
+    let ok = false;
+    if (onConfirm) {
+      ok = await onConfirm({
+        title: 'Prune Unused Volumes',
+        message: 'Are you sure you want to prune all unused volumes? This cannot be undone.',
+        confirmText: 'Prune Volumes',
+        isDanger: true
+      });
+    } else {
+      ok = window.confirm('Are you sure you want to prune all unused volumes? This cannot be undone.');
+    }
+    if (!ok) return;
     try {
       setPruning(true);
       await onPrune();
@@ -151,11 +186,16 @@ export default function VolumesView({
                           <Info className="w-3.5 h-3.5" />
                         </button>
                         <button
-                          onClick={() => onRemove(v.name, false)}
+                          onClick={() => handleDeleteVolume(v.name)}
+                          disabled={Boolean(deletingVolumes[v.name])}
                           title="Delete Volume"
-                          className="p-1.5 text-rose-400 hover:bg-rose-400/10 rounded-md transition-colors"
+                          className="p-1.5 text-rose-400 hover:bg-rose-400/10 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          {deletingVolumes[v.name] ? (
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Trash2 className="w-3.5 h-3.5" />
+                          )}
                         </button>
                       </div>
                     </td>

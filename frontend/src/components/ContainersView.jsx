@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Play, 
   Square, 
@@ -32,6 +32,15 @@ export default function ContainersView({
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
+
+  useEffect(() => {
+    if (!showCreateModal) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setShowCreateModal(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showCreateModal]);
   const [createForm, setCreateForm] = useState({
     name: '',
     image: '',

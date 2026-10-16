@@ -39,7 +39,7 @@ import {
 } from '../../wailsjs/go/main/App';
 import { formatEngineError } from './Toast';
 
-export default function ContainerDetailsView({ containerId, onBack, onRefreshList, onToast }) {
+export default function ContainerDetailsView({ containerId, onBack, onRefreshList, onToast, onConfirm }) {
   const [details, setDetails] = useState(null);
   const [logs, setLogs] = useState('');
   const [loading, setLoading] = useState(true);
@@ -289,7 +289,18 @@ export default function ContainerDetailsView({ containerId, onBack, onRefreshLis
   };
 
   const handleRemove = async () => {
-    if (!window.confirm('Are you sure you want to delete this container?')) return;
+    let ok = false;
+    if (onConfirm) {
+      ok = await onConfirm({
+        title: 'Delete Container',
+        message: 'Are you sure you want to permanently delete this container? All unsaved data in the container rootfs will be lost.',
+        confirmText: 'Delete Container',
+        isDanger: true
+      });
+    } else {
+      ok = window.confirm('Are you sure you want to delete this container?');
+    }
+    if (!ok) return;
     try {
       await RemoveContainer(containerId, false, true);
       if (onToast) onToast('Container deleted', 'success');

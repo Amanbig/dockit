@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Network as NetworkIcon, 
   Trash2, 
@@ -6,7 +6,8 @@ import {
   Info, 
   Search, 
   Link2, 
-  Unlink
+  Unlink,
+  RefreshCw
 } from 'lucide-react';
 
 export default function NetworksView({
@@ -25,6 +26,16 @@ export default function NetworksView({
     internal: false,
     attachable: true
   });
+  const [deletingNetworks, setDeletingNetworks] = useState({});
+
+  useEffect(() => {
+    if (!showCreateModal) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setShowCreateModal(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showCreateModal]);
 
   const filtered = networks.filter(n => 
     (n.name || '').toLowerCase().includes(search.toLowerCase()) ||
@@ -43,6 +54,20 @@ export default function NetworksView({
     });
     setForm({ name: '', driver: 'bridge', internal: false, attachable: true });
     setShowCreateModal(false);
+  };
+
+  const handleDeleteNetwork = async (id) => {
+    if (deletingNetworks[id]) return;
+    setDeletingNetworks(prev => ({ ...prev, [id]: true }));
+    try {
+      await onRemove(id);
+    } finally {
+      setDeletingNetworks(prev => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    }
   };
 
   return (
@@ -144,11 +169,16 @@ export default function NetworksView({
                           </button>
                           {!isDefault && (
                             <button
-                              onClick={() => onRemove(n.id)}
+                              onClick={() => handleDeleteNetwork(n.id)}
+                              disabled={Boolean(deletingNetworks[n.id])}
                               title="Delete Network"
-                              className="p-1.5 text-rose-400 hover:bg-rose-400/10 rounded-md transition-colors"
+                              className="p-1.5 text-rose-400 hover:bg-rose-400/10 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              {deletingNetworks[n.id] ? (
+                                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <Trash2 className="w-3.5 h-3.5" />
+                              )}
                             </button>
                           )}
                         </div>
