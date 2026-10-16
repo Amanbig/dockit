@@ -8,9 +8,10 @@ Dockit **v0.6.2** delivers a major upgrade to **Container Logs** with auto-scrol
 
 #### 📜 Container Logs Experience Overhaul
 - **Auto-Scroll to Bottom on Open**: Opening the container details **Live Logs** tab or the standalone **Logs Modal** now automatically scrolls directly to the newest log entries at the bottom instead of staying anchored at line 1.
-- **Search Query Keyword Highlighting**: Filtering logs by search term now highlights matching substrings with high-contrast, theme-aware `<mark>` styling so you can spot errors, warnings, or keywords instantly.
+- **Find in Logs & Arrow Navigation (`▲` / `▼`)**: Dedicated Previous Match (`▲` / <kbd>Shift+Enter</kbd>) and Next Match (`▼` / <kbd>Enter</kbd>) navigation buttons jump directly from match to match and smoothly center the log viewport on the selected occurrence.
+- **Dynamic Active Match Highlighting & Live Counter**: Selected match receives an active cyan ring and scale glow while other matches remain highlighted in yellow, accompanied by a live match counter (e.g. `1/14`).
+- **Flexible Filter vs Full Log Mode**: Toggle between **All Lines** (keeping full surrounding log context with active navigation) and **Filtered** mode (isolating only lines containing matches).
 - **Dedicated "Scroll to Bottom" Actions**: Added 1-click scroll-to-bottom buttons with auto-tail synchronization across both the details view and the logs modal.
-- **Search Match Feedback**: Added clear (✕) buttons to search inputs and live matching line count indicators (`Showing X of Y lines`).
 
 #### 🔔 Modern Toast System & Friendly Engine Error Parsing
 - **Non-Blocking Toasts**: Replaced all native browser `alert()` popups with sleek, animated toast notifications for success, warnings, info, and errors.

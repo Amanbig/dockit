@@ -22,7 +22,7 @@ Built with **Go (Wails v2)** + **React 19** + **Tailwind CSS v4** + **Base UI / 
 - Real-time container status badges, port bindings, and created timestamps.
 - **Real-Time Resource Metrics**: Live CPU usage %, memory consumption (MB/GB) with limits, incoming/outgoing network I/O traffic, and block disk I/O / PIDs streamed directly on the overview tab.
 - **In-Container Terminal Shell (Exec)**: Launch an interactive shell terminal (`/bin/sh`, `/bin/bash`) directly into running containers to run commands and inspect runtime state.
-- **Log Streaming, Highlighting & Auto-Scroll**: Live container logs with auto-scroll to latest entries on open/stream, search keyword highlighting, auto-tail toggle, and clipboard copy.
+- **Log Streaming, Search Navigation & Highlighting**: Live container logs with auto-scroll to latest entries on open/stream, interactive Next/Previous match navigation arrows (<kbd>▲</kbd> / <kbd>▼</kbd> and <kbd>Enter</kbd> / <kbd>Shift+Enter</kbd>), dynamic active match highlighting with live match counters (`1/14`), toggleable full-context vs filtered line modes, and clipboard copy.
 - **Inspect Inspector**: Deep JSON inspection of low-level container configurations and network settings.
 - **Create Container Wizard**: Interactive dialog to spin up containers with port mappings, environment variables, restart policies, and network attachments.
 
