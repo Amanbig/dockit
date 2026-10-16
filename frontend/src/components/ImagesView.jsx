@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   DownloadCloud, 
   Trash2, 
@@ -18,6 +18,7 @@ export default function ImagesView({
   onRefresh,
   onPull,
   onRemove,
+  onBatchRemove,
   onTag,
   onInspect
 }) {
@@ -28,6 +29,9 @@ export default function ImagesView({
   const [tagModal, setTagModal] = useState({ open: false, imageId: '', newTag: '' });
   const [copiedId, setCopiedId] = useState(null);
   const [deletingImages, setDeletingImages] = useState({});
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [batchExecuting, setBatchExecuting] = useState(false);
+  const headerCheckboxRef = useRef(null);
 
   useEffect(() => {
     if (!showPullModal && !tagModal.open) return;
@@ -46,6 +50,44 @@ export default function ImagesView({
     const idStr = img.id || '';
     return tagsStr.toLowerCase().includes(search.toLowerCase()) || idStr.toLowerCase().includes(search.toLowerCase());
   });
+
+  useEffect(() => {
+    if (headerCheckboxRef.current) {
+      const allSelected = filtered.length > 0 && filtered.every(img => selectedIds.includes(img.id));
+      const someSelected = selectedIds.length > 0 && !allSelected;
+      headerCheckboxRef.current.checked = allSelected;
+      headerCheckboxRef.current.indeterminate = someSelected;
+    }
+  }, [selectedIds, filtered]);
+
+  const handleToggleSelectAll = () => {
+    const allSelected = filtered.length > 0 && filtered.every(img => selectedIds.includes(img.id));
+    if (allSelected) {
+      const filteredIds = new Set(filtered.map(img => img.id));
+      setSelectedIds(prev => prev.filter(id => !filteredIds.has(id)));
+    } else {
+      const combined = new Set([...selectedIds, ...filtered.map(img => img.id)]);
+      setSelectedIds(Array.from(combined));
+    }
+  };
+
+  const handleToggleSelectOne = (e, id) => {
+    e.stopPropagation();
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleBatchRemove = async () => {
+    if (!onBatchRemove || selectedIds.length === 0 || batchExecuting) return;
+    setBatchExecuting(true);
+    try {
+      const ok = await onBatchRemove(selectedIds);
+      if (ok) setSelectedIds([]);
+    } finally {
+      setBatchExecuting(false);
+    }
+  };
 
   const formatBytes = (bytes) => {
     if (!bytes || bytes === 0) return '0 B';
@@ -145,24 +187,78 @@ export default function ImagesView({
             <p className="text-xs mt-1">Pull an image from Docker Hub or your registry to get started.</p>
           </div>
         ) : (
-          <div className="border border-slate-800 rounded-xl overflow-hidden bg-slate-950/60 shadow-lg">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="border-b border-slate-800 bg-slate-900/80 text-slate-400 uppercase font-semibold text-[11px] tracking-wider">
-                  <th className="py-3 px-4">Repository / Tag</th>
-                  <th className="py-3 px-4">Image ID</th>
-                  <th className="py-3 px-4">Size</th>
-                  <th className="py-3 px-4">Created</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/60 text-slate-300">
-                {filtered.map((img) => {
-                  const tagList = img.repoTags && img.repoTags.length > 0 ? img.repoTags : ['<untagged>'];
-                  const shortId = (img.id || '').replace(/^sha256:/, '').substring(0, 12);
-                  return (
-                    <tr key={img.id} className="hover:bg-slate-900/50 transition-colors group">
-                      <td className="py-3 px-4">
+          <>
+            {/* Batch Action Toolbar */}
+            {selectedIds.length > 0 && (
+              <div className="mb-3 px-4 py-2.5 rounded-xl border border-cyan-500/30 bg-slate-950/90 shadow-lg flex flex-wrap items-center justify-between gap-3 text-xs animate-in fade-in duration-150">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+                  <span className="font-semibold text-slate-100 font-mono">
+                    {selectedIds.length} image{selectedIds.length > 1 ? 's' : ''} selected
+                  </span>
+                  <button
+                    onClick={() => setSelectedIds([])}
+                    className="text-[11px] text-cyan-400 hover:text-cyan-300 underline ml-1 cursor-pointer"
+                  >
+                    Clear selection
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleBatchRemove}
+                    disabled={batchExecuting}
+                    className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 font-medium transition cursor-pointer disabled:opacity-50"
+                    title="Delete selected images"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Delete</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="border border-slate-800 rounded-xl overflow-hidden bg-slate-950/60 shadow-lg">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-slate-800 bg-slate-900/80 text-slate-400 uppercase font-semibold text-[11px] tracking-wider">
+                    <th className="py-3 px-3 w-10 text-center">
+                      <input
+                        type="checkbox"
+                        ref={headerCheckboxRef}
+                        checked={filtered.length > 0 && filtered.every(img => selectedIds.includes(img.id))}
+                        onChange={handleToggleSelectAll}
+                        className="w-4 h-4 rounded border-slate-700 bg-slate-900 text-cyan-500 focus:ring-cyan-500/30 cursor-pointer accent-cyan-500"
+                        title={filtered.length > 0 && filtered.every(img => selectedIds.includes(img.id)) ? "Deselect all" : "Select all"}
+                      />
+                    </th>
+                    <th className="py-3 px-4">Repository / Tag</th>
+                    <th className="py-3 px-4">Image ID</th>
+                    <th className="py-3 px-4">Size</th>
+                    <th className="py-3 px-4">Created</th>
+                    <th className="py-3 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                  {filtered.map((img) => {
+                    const tagList = img.repoTags && img.repoTags.length > 0 ? img.repoTags : ['<untagged>'];
+                    const shortId = (img.id || '').replace(/^sha256:/, '').substring(0, 12);
+                    const isSelected = selectedIds.includes(img.id);
+                    return (
+                      <tr 
+                        key={img.id} 
+                        className={`hover:bg-slate-900/50 transition-colors group ${
+                          isSelected ? 'bg-cyan-950/30 border-l-2 border-l-cyan-400' : ''
+                        }`}
+                      >
+                        <td className="py-3 px-3 w-10 text-center" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => handleToggleSelectOne(e, img.id)}
+                            className="w-4 h-4 rounded border-slate-700 bg-slate-900 text-cyan-500 focus:ring-cyan-500/30 cursor-pointer accent-cyan-500"
+                          />
+                        </td>
+                        <td className="py-3 px-4">
                         <div className="flex flex-col gap-1">
                           {tagList.map((t, idx) => (
                             <span 
@@ -234,7 +330,8 @@ export default function ImagesView({
               </tbody>
             </table>
           </div>
-        )}
+        </>
+      )}
       </div>
 
       {/* Pull Image Modal */}

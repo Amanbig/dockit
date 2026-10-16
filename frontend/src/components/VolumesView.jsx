@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   HardDrive, 
   Trash2, 
@@ -17,6 +17,7 @@ export default function VolumesView({
   onRefresh,
   onCreate,
   onRemove,
+  onBatchRemove,
   onPrune,
   onInspect,
   onConfirm
@@ -27,6 +28,9 @@ export default function VolumesView({
   const [newVolumeDriver, setNewVolumeDriver] = useState('local');
   const [pruning, setPruning] = useState(false);
   const [deletingVolumes, setDeletingVolumes] = useState({});
+  const [selectedNames, setSelectedNames] = useState([]);
+  const [batchExecuting, setBatchExecuting] = useState(false);
+  const headerCheckboxRef = useRef(null);
 
   useEffect(() => {
     if (!showCreateModal) return;
@@ -41,6 +45,44 @@ export default function VolumesView({
     (v.name || '').toLowerCase().includes(search.toLowerCase()) ||
     (v.driver || '').toLowerCase().includes(search.toLowerCase())
   );
+
+  useEffect(() => {
+    if (headerCheckboxRef.current) {
+      const allSelected = filtered.length > 0 && filtered.every(v => selectedNames.includes(v.name));
+      const someSelected = selectedNames.length > 0 && !allSelected;
+      headerCheckboxRef.current.checked = allSelected;
+      headerCheckboxRef.current.indeterminate = someSelected;
+    }
+  }, [selectedNames, filtered]);
+
+  const handleToggleSelectAll = () => {
+    const allSelected = filtered.length > 0 && filtered.every(v => selectedNames.includes(v.name));
+    if (allSelected) {
+      const filteredNames = new Set(filtered.map(v => v.name));
+      setSelectedNames(prev => prev.filter(name => !filteredNames.has(name)));
+    } else {
+      const combined = new Set([...selectedNames, ...filtered.map(v => v.name)]);
+      setSelectedNames(Array.from(combined));
+    }
+  };
+
+  const handleToggleSelectOne = (e, name) => {
+    e.stopPropagation();
+    setSelectedNames(prev =>
+      prev.includes(name) ? prev.filter(x => x !== name) : [...prev, name]
+    );
+  };
+
+  const handleBatchRemove = async () => {
+    if (!onBatchRemove || selectedNames.length === 0 || batchExecuting) return;
+    setBatchExecuting(true);
+    try {
+      const ok = await onBatchRemove(selectedNames);
+      if (ok) setSelectedNames([]);
+    } finally {
+      setBatchExecuting(false);
+    }
+  };
 
   const handleCreateSubmit = async (e) => {
     e.preventDefault();
@@ -143,67 +185,124 @@ export default function VolumesView({
             <p className="text-xs mt-1">Create a new persistent volume for databases or uploads.</p>
           </div>
         ) : (
-          <div className="border border-slate-800 rounded-xl overflow-x-auto bg-slate-950/60 shadow-lg">
-            <table className="w-full text-left border-collapse text-xs min-w-[640px]">
-              <thead>
-                <tr className="border-b border-slate-800 bg-slate-900/80 text-slate-400 uppercase font-semibold text-[11px] tracking-wider">
-                  <th className="py-3 px-4">Volume Name</th>
-                  <th className="py-3 px-4">Driver</th>
-                  <th className="py-3 px-4">Mountpoint</th>
-                  <th className="py-3 px-4">Scope</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/60 text-slate-300">
-                {filtered.map((v) => (
-                  <tr key={v.name} className="hover:bg-slate-900/50 transition-colors group">
-                    <td className="py-3 px-4 max-w-[240px] sm:max-w-[320px] md:max-w-[400px]">
-                      <div 
-                        className="font-semibold text-slate-100 group-hover:text-cyan-400 transition-colors truncate font-mono text-xs"
-                        title={v.name}
-                      >
-                        {v.name}
-                      </div>
-                    </td>
-                    <td className="py-3 px-4 whitespace-nowrap">
-                      <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400">
-                        {v.driver || 'local'}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 font-mono text-[11px] text-slate-400 max-w-[220px] truncate" title={v.mountpoint}>
-                      {v.mountpoint || '-'}
-                    </td>
-                    <td className="py-3 px-4 text-slate-400 text-[11px] whitespace-nowrap">
-                      {v.scope || 'local'}
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          onClick={() => onInspect(v.name)}
-                          title="Inspect Volume"
-                          className="p-1.5 text-blue-400 hover:bg-blue-400/10 rounded-md transition-colors"
-                        >
-                          <Info className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteVolume(v.name)}
-                          disabled={Boolean(deletingVolumes[v.name])}
-                          title="Delete Volume"
-                          className="p-1.5 text-rose-400 hover:bg-rose-400/10 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                        >
-                          {deletingVolumes[v.name] ? (
-                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                          ) : (
-                            <Trash2 className="w-3.5 h-3.5" />
-                          )}
-                        </button>
-                      </div>
-                    </td>
+          <>
+            {/* Batch Action Toolbar */}
+            {selectedNames.length > 0 && (
+              <div className="mb-3 px-4 py-2.5 rounded-xl border border-cyan-500/30 bg-slate-950/90 shadow-lg flex flex-wrap items-center justify-between gap-3 text-xs animate-in fade-in duration-150">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+                  <span className="font-semibold text-slate-100 font-mono">
+                    {selectedNames.length} volume{selectedNames.length > 1 ? 's' : ''} selected
+                  </span>
+                  <button
+                    onClick={() => setSelectedNames([])}
+                    className="text-[11px] text-cyan-400 hover:text-cyan-300 underline ml-1 cursor-pointer"
+                  >
+                    Clear selection
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleBatchRemove}
+                    disabled={batchExecuting}
+                    className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 font-medium transition cursor-pointer disabled:opacity-50"
+                    title="Delete selected volumes"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Delete</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="border border-slate-800 rounded-xl overflow-x-auto bg-slate-950/60 shadow-lg">
+              <table className="w-full text-left border-collapse text-xs min-w-[680px]">
+                <thead>
+                  <tr className="border-b border-slate-800 bg-slate-900/80 text-slate-400 uppercase font-semibold text-[11px] tracking-wider">
+                    <th className="py-3 px-3 w-10 text-center">
+                      <input
+                        type="checkbox"
+                        ref={headerCheckboxRef}
+                        checked={filtered.length > 0 && filtered.every(v => selectedNames.includes(v.name))}
+                        onChange={handleToggleSelectAll}
+                        className="w-4 h-4 rounded border-slate-700 bg-slate-900 text-cyan-500 focus:ring-cyan-500/30 cursor-pointer accent-cyan-500"
+                        title={filtered.length > 0 && filtered.every(v => selectedNames.includes(v.name)) ? "Deselect all" : "Select all"}
+                      />
+                    </th>
+                    <th className="py-3 px-4">Volume Name</th>
+                    <th className="py-3 px-4">Driver</th>
+                    <th className="py-3 px-4">Mountpoint</th>
+                    <th className="py-3 px-4">Scope</th>
+                    <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                  {filtered.map((v) => {
+                    const isSelected = selectedNames.includes(v.name);
+                    return (
+                      <tr 
+                        key={v.name} 
+                        className={`hover:bg-slate-900/50 transition-colors group ${
+                          isSelected ? 'bg-cyan-950/30 border-l-2 border-l-cyan-400' : ''
+                        }`}
+                      >
+                        <td className="py-3 px-3 w-10 text-center" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => handleToggleSelectOne(e, v.name)}
+                            className="w-4 h-4 rounded border-slate-700 bg-slate-900 text-cyan-500 focus:ring-cyan-500/30 cursor-pointer accent-cyan-500"
+                          />
+                        </td>
+                        <td className="py-3 px-4 max-w-[240px] sm:max-w-[320px] md:max-w-[400px]">
+                          <div 
+                            className="font-semibold text-slate-100 group-hover:text-cyan-400 transition-colors truncate font-mono text-xs"
+                            title={v.name}
+                          >
+                            {v.name}
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 whitespace-nowrap">
+                          <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400">
+                            {v.driver || 'local'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 font-mono text-[11px] text-slate-400 max-w-[220px] truncate" title={v.mountpoint}>
+                          {v.mountpoint || '-'}
+                        </td>
+                        <td className="py-3 px-4 text-slate-400 text-[11px] whitespace-nowrap">
+                          {v.scope || 'local'}
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              onClick={() => onInspect(v.name)}
+                              title="Inspect Volume"
+                              className="p-1.5 text-blue-400 hover:bg-blue-400/10 rounded-md transition-colors"
+                            >
+                              <Info className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteVolume(v.name)}
+                              disabled={Boolean(deletingVolumes[v.name])}
+                              title="Delete Volume"
+                              className="p-1.5 text-rose-400 hover:bg-rose-400/10 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                            >
+                              {deletingVolumes[v.name] ? (
+                                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <Trash2 className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 

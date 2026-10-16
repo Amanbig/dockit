@@ -19,6 +19,7 @@ Built with **Go (Wails v2)** + **React 19** + **Tailwind CSS v4** + **Base UI / 
 
 ### 📦 Containers Management & Interactive Terminal
 - View, start, stop, restart, pause, unpause, and delete containers.
+- **Multi-Select & Batch Actions**: Select multiple containers with row/master checkboxes to start, stop, restart, or delete multiple containers in 1 click with a consolidated confirmation prompt.
 - Real-time container status badges, port bindings, and created timestamps.
 - **Real-Time Resource Metrics**: Live CPU usage %, memory consumption (MB/GB) with limits, incoming/outgoing network I/O traffic, and block disk I/O / PIDs streamed directly on the overview tab.
 - **In-Container Terminal Shell (Exec)**: Launch an interactive shell terminal (`/bin/sh`, `/bin/bash`) directly into running containers to run commands and inspect runtime state.
@@ -28,12 +29,13 @@ Built with **Go (Wails v2)** + **React 19** + **Tailwind CSS v4** + **Base UI / 
 
 ### 🖼️ Images & Local Cache
 - List local images with repository tags, IDs, and human-readable sizes.
+- **Batch Removal**: Select multiple images via checkboxes to delete them in a single batch with safety confirmations.
 - Pull images from any public or private registry directly from the UI.
 - Tag and inspect local image layers.
 - Delete and prune unused images safely.
 
 ### 💾 Persistent Volumes & 🌐 Virtual Networks
-- **Volumes**: Manage persistent storage volumes, inspect mount points, create new local volumes, and prune dangling volumes.
+- **Volumes**: Manage persistent storage volumes, inspect mount points, create new local volumes, batch-delete selected volumes via checkboxes, and prune dangling volumes.
 - **Networks**: Inspect virtual bridges, host networks, overlays, and custom internal networks with IPAM subnet information.
 
 ### 🧹 Visual Disk Space & Prune Dashboard ("Reclaim Storage")

@@ -15,6 +15,15 @@ Dockit **v0.6.3** brings a major upgrade to **Container Logs** with interactive 
 - **Full-Screen Modal Dialog Mode**: The standalone Logs Modal now includes a Full Screen toggle button (<kbd>Maximize2</kbd> / <kbd>Minimize2</kbd>) that expands the modal to 98vw/95vh for intensive log inspection.
 - **Dedicated "Scroll to Bottom" Actions**: Added 1-click scroll-to-bottom buttons with auto-tail synchronization across both the details view and the logs modal.
 
+#### ☑️ Multi-Select Checkboxes & Batch Operations
+- **Row & Header Checkboxes**: Added selection checkboxes across **Containers**, **Images**, and **Storage Volumes** tables with master Select All/Deselect All and indeterminate (`-`) state handling.
+- **Batch Action Toolbar**: When one or more items are selected, a sleek floating batch actions bar appears with selected count and 1-click batch controls:
+  - **Containers**: Batch Start, Batch Stop, Batch Restart, and Batch Delete.
+  - **Images**: Batch Delete with safe confirmation prompt.
+  - **Volumes**: Batch Delete with safe confirmation prompt.
+- **Safe Single-Prompt Batch Confirmations**: Destructive batch actions trigger a single consolidated confirmation modal detailing the exact number of resources about to be deleted.
+- **Visual Selected Highlighting**: Selected rows receive an active cyan accent highlight (`bg-cyan-950/30 border-l-2 border-l-cyan-400`) and stop-propagation click handling.
+
 #### 🔔 Modern Toast Notification System & Engine Error Parsing
 - **Non-Blocking Toasts**: Replaced all native browser `alert()` popups with sleek, animated toast notifications for success, warnings, info, and errors with auto-dismiss.
 - **Human-Readable Engine Errors**: Raw Docker/Podman socket errors (e.g. `context deadline exceeded`, `No such container`, `permission denied`, `port is already allocated`) are parsed into clean, helpful guidance with one-click error copying.

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Play, 
   Square, 
@@ -9,7 +9,8 @@ import {
   Info, 
   Plus, 
   Search,
-  RefreshCw
+  RefreshCw,
+  X
 } from 'lucide-react';
 
 export default function ContainersView({
@@ -27,11 +28,18 @@ export default function ContainersView({
   onOpenLogs,
   onInspect,
   onSelectContainer,
-  onCreate
+  onCreate,
+  onBatchStart,
+  onBatchStop,
+  onBatchRestart,
+  onBatchRemove
 }) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [batchExecuting, setBatchExecuting] = useState(false);
+  const headerCheckboxRef = useRef(null);
 
   useEffect(() => {
     if (!showCreateModal) return;
@@ -90,6 +98,77 @@ export default function ContainersView({
     if (statusFilter === 'paused') return matchesSearch && state === 'paused';
     return matchesSearch;
   });
+
+  useEffect(() => {
+    if (headerCheckboxRef.current) {
+      const allSelected = filtered.length > 0 && filtered.every(c => selectedIds.includes(c.id));
+      const someSelected = selectedIds.length > 0 && !allSelected;
+      headerCheckboxRef.current.checked = allSelected;
+      headerCheckboxRef.current.indeterminate = someSelected;
+    }
+  }, [selectedIds, filtered]);
+
+  const handleToggleSelectAll = () => {
+    const allSelected = filtered.length > 0 && filtered.every(c => selectedIds.includes(c.id));
+    if (allSelected) {
+      const filteredIds = new Set(filtered.map(c => c.id));
+      setSelectedIds(prev => prev.filter(id => !filteredIds.has(id)));
+    } else {
+      const combined = new Set([...selectedIds, ...filtered.map(c => c.id)]);
+      setSelectedIds(Array.from(combined));
+    }
+  };
+
+  const handleToggleSelectOne = (e, id) => {
+    e.stopPropagation();
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleBatchStart = async () => {
+    if (!onBatchStart || selectedIds.length === 0 || batchExecuting) return;
+    setBatchExecuting(true);
+    try {
+      await onBatchStart(selectedIds);
+      setSelectedIds([]);
+    } finally {
+      setBatchExecuting(false);
+    }
+  };
+
+  const handleBatchStop = async () => {
+    if (!onBatchStop || selectedIds.length === 0 || batchExecuting) return;
+    setBatchExecuting(true);
+    try {
+      await onBatchStop(selectedIds);
+      setSelectedIds([]);
+    } finally {
+      setBatchExecuting(false);
+    }
+  };
+
+  const handleBatchRestart = async () => {
+    if (!onBatchRestart || selectedIds.length === 0 || batchExecuting) return;
+    setBatchExecuting(true);
+    try {
+      await onBatchRestart(selectedIds);
+      setSelectedIds([]);
+    } finally {
+      setBatchExecuting(false);
+    }
+  };
+
+  const handleBatchRemove = async () => {
+    if (!onBatchRemove || selectedIds.length === 0 || batchExecuting) return;
+    setBatchExecuting(true);
+    try {
+      const ok = await onBatchRemove(selectedIds);
+      if (ok) setSelectedIds([]);
+    } finally {
+      setBatchExecuting(false);
+    }
+  };
 
   const renderStatusBadge = (c) => {
     const state = getContainerState(c);
@@ -240,32 +319,110 @@ export default function ContainersView({
             <p className="text-xs mt-1">Start a new container or adjust your search filter.</p>
           </div>
         ) : (
-          <div className="border border-slate-800 rounded-xl bg-slate-950/60 shadow-lg overflow-x-auto">
-            <table className="w-full min-w-[700px] text-left border-collapse text-xs">
-              <thead>
-                <tr className="border-b border-slate-800 bg-slate-900/80 text-slate-400 uppercase font-semibold text-[11px] tracking-wider">
-                  <th className="py-3 px-4 min-w-[140px]">Container</th>
-                  <th className="py-3 px-4 min-w-[150px]">Status</th>
-                  <th className="py-3 px-4 min-w-[140px]">Image</th>
-                  <th className="py-3 px-4 min-w-[100px]">Ports</th>
-                  <th className="py-3 px-4 min-w-[120px]">Created</th>
-                  <th className="py-3 px-4 text-right min-w-[150px]">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/60 text-slate-300">
-                {filtered.map((c) => {
-                  const state = getContainerState(c);
-                  const isRunning = state === 'running';
-                  const isPaused = state === 'paused';
-                  const shortId = c.shortId || (c.id ? c.id.substring(0, 12) : '');
+          <>
+            {/* Batch Action Toolbar */}
+            {selectedIds.length > 0 && (
+              <div className="mb-3 px-4 py-2.5 rounded-xl border border-cyan-500/30 bg-slate-950/90 shadow-lg flex flex-wrap items-center justify-between gap-3 text-xs animate-in fade-in duration-150">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+                  <span className="font-semibold text-slate-100 font-mono">
+                    {selectedIds.length} container{selectedIds.length > 1 ? 's' : ''} selected
+                  </span>
+                  <button
+                    onClick={() => setSelectedIds([])}
+                    className="text-[11px] text-cyan-400 hover:text-cyan-300 underline ml-1 cursor-pointer"
+                  >
+                    Clear selection
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleBatchStart}
+                    disabled={batchExecuting}
+                    className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-medium transition cursor-pointer disabled:opacity-50"
+                    title="Start selected containers"
+                  >
+                    <Play className="w-3.5 h-3.5" />
+                    <span>Start</span>
+                  </button>
+                  <button
+                    onClick={handleBatchStop}
+                    disabled={batchExecuting}
+                    className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 font-medium transition cursor-pointer disabled:opacity-50"
+                    title="Stop selected containers"
+                  >
+                    <Square className="w-3.5 h-3.5" />
+                    <span>Stop</span>
+                  </button>
+                  <button
+                    onClick={handleBatchRestart}
+                    disabled={batchExecuting}
+                    className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-medium transition cursor-pointer disabled:opacity-50"
+                    title="Restart selected containers"
+                  >
+                    <RotateCw className={`w-3.5 h-3.5 ${batchExecuting ? 'animate-spin' : ''}`} />
+                    <span>Restart</span>
+                  </button>
+                  <button
+                    onClick={handleBatchRemove}
+                    disabled={batchExecuting}
+                    className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 font-medium transition cursor-pointer disabled:opacity-50"
+                    title="Delete selected containers"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Delete</span>
+                  </button>
+                </div>
+              </div>
+            )}
 
-                  return (
-                    <tr 
-                      key={c.id} 
-                      onClick={() => onSelectContainer && onSelectContainer(c.id)}
-                      className="hover:bg-slate-900/50 transition-colors group cursor-pointer"
-                    >
-                      <td className="py-3 px-4">
+            <div className="border border-slate-800 rounded-xl bg-slate-950/60 shadow-lg overflow-x-auto">
+              <table className="w-full min-w-[740px] text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-slate-800 bg-slate-900/80 text-slate-400 uppercase font-semibold text-[11px] tracking-wider">
+                    <th className="py-3 px-3 w-10 text-center">
+                      <input
+                        type="checkbox"
+                        ref={headerCheckboxRef}
+                        checked={filtered.length > 0 && filtered.every(c => selectedIds.includes(c.id))}
+                        onChange={handleToggleSelectAll}
+                        className="w-4 h-4 rounded border-slate-700 bg-slate-900 text-cyan-500 focus:ring-cyan-500/30 cursor-pointer accent-cyan-500"
+                        title={filtered.length > 0 && filtered.every(c => selectedIds.includes(c.id)) ? "Deselect all" : "Select all"}
+                      />
+                    </th>
+                    <th className="py-3 px-4 min-w-[140px]">Container</th>
+                    <th className="py-3 px-4 min-w-[150px]">Status</th>
+                    <th className="py-3 px-4 min-w-[140px]">Image</th>
+                    <th className="py-3 px-4 min-w-[100px]">Ports</th>
+                    <th className="py-3 px-4 min-w-[120px]">Created</th>
+                    <th className="py-3 px-4 text-right min-w-[150px]">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                  {filtered.map((c) => {
+                    const state = getContainerState(c);
+                    const isRunning = state === 'running';
+                    const isPaused = state === 'paused';
+                    const shortId = c.shortId || (c.id ? c.id.substring(0, 12) : '');
+                    const isSelected = selectedIds.includes(c.id);
+
+                    return (
+                      <tr 
+                        key={c.id} 
+                        onClick={() => onSelectContainer && onSelectContainer(c.id)}
+                        className={`hover:bg-slate-900/50 transition-colors group cursor-pointer ${
+                          isSelected ? 'bg-cyan-950/30 border-l-2 border-l-cyan-400' : ''
+                        }`}
+                      >
+                        <td className="py-3 px-3 w-10 text-center" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => handleToggleSelectOne(e, c.id)}
+                            className="w-4 h-4 rounded border-slate-700 bg-slate-900 text-cyan-500 focus:ring-cyan-500/30 cursor-pointer accent-cyan-500"
+                          />
+                        </td>
+                        <td className="py-3 px-4">
                         <div className="font-semibold text-slate-100 group-hover:text-cyan-400 transition-colors truncate max-w-[180px]">
                           {c.name || shortId}
                         </div>
@@ -402,7 +559,8 @@ export default function ContainersView({
               </tbody>
             </table>
           </div>
-        )}
+        </>
+      )}
       </div>
 
       {/* Modal: Create Container */}

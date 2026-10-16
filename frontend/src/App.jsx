@@ -496,6 +496,78 @@ export default function App() {
     }
   };
 
+  const handleBatchStartContainers = async (ids) => {
+    let success = 0;
+    let fail = 0;
+    for (const id of ids) {
+      try {
+        await StartContainer(id);
+        success++;
+      } catch {
+        fail++;
+      }
+    }
+    if (success > 0) addToast(`Started ${success} container${success > 1 ? 's' : ''}`, 'success');
+    if (fail > 0) addToast(`Failed to start ${fail} container${fail > 1 ? 's' : ''}`, 'error');
+    refreshAll();
+  };
+
+  const handleBatchStopContainers = async (ids) => {
+    let success = 0;
+    let fail = 0;
+    for (const id of ids) {
+      try {
+        await StopContainer(id);
+        success++;
+      } catch {
+        fail++;
+      }
+    }
+    if (success > 0) addToast(`Stopped ${success} container${success > 1 ? 's' : ''}`, 'success');
+    if (fail > 0) addToast(`Failed to stop ${fail} container${fail > 1 ? 's' : ''}`, 'error');
+    refreshAll();
+  };
+
+  const handleBatchRestartContainers = async (ids) => {
+    let success = 0;
+    let fail = 0;
+    for (const id of ids) {
+      try {
+        await RestartContainer(id);
+        success++;
+      } catch {
+        fail++;
+      }
+    }
+    if (success > 0) addToast(`Restarted ${success} container${success > 1 ? 's' : ''}`, 'success');
+    if (fail > 0) addToast(`Failed to restart ${fail} container${fail > 1 ? 's' : ''}`, 'error');
+    refreshAll();
+  };
+
+  const handleBatchRemoveContainers = async (ids) => {
+    const ok = await requestConfirmation({
+      title: `Delete ${ids.length} Container${ids.length > 1 ? 's' : ''}`,
+      message: `Are you sure you want to permanently delete ${ids.length} selected container${ids.length > 1 ? 's' : ''}? Unsaved data in rootfs will be removed.`,
+      confirmText: `Delete ${ids.length} Container${ids.length > 1 ? 's' : ''}`,
+      isDanger: true
+    });
+    if (!ok) return false;
+    let success = 0;
+    let fail = 0;
+    for (const id of ids) {
+      try {
+        await RemoveContainer(id, true, true);
+        success++;
+      } catch {
+        fail++;
+      }
+    }
+    if (success > 0) addToast(`Deleted ${success} container${success > 1 ? 's' : ''}`, 'success');
+    if (fail > 0) addToast(`Failed to delete ${fail} container${fail > 1 ? 's' : ''}`, 'error');
+    refreshAll();
+    return true;
+  };
+
   // Image handlers
   const handlePullImage = async (ref) => {
     try {
@@ -549,6 +621,30 @@ export default function App() {
     }
   };
 
+  const handleBatchRemoveImages = async (ids) => {
+    const ok = await requestConfirmation({
+      title: `Delete ${ids.length} Image${ids.length > 1 ? 's' : ''}`,
+      message: `Are you sure you want to delete ${ids.length} selected image${ids.length > 1 ? 's' : ''} from local storage?`,
+      confirmText: `Delete ${ids.length} Image${ids.length > 1 ? 's' : ''}`,
+      isDanger: true
+    });
+    if (!ok) return false;
+    let success = 0;
+    let fail = 0;
+    for (const id of ids) {
+      try {
+        await RemoveImage(id, false);
+        success++;
+      } catch {
+        fail++;
+      }
+    }
+    if (success > 0) addToast(`Deleted ${success} image${success > 1 ? 's' : ''}`, 'success');
+    if (fail > 0) addToast(`Failed to delete ${fail} image${fail > 1 ? 's' : ''}`, 'error');
+    refreshAll();
+    return true;
+  };
+
   // Volume handlers
   const handleCreateVolume = async (opts) => {
     try {
@@ -567,7 +663,7 @@ export default function App() {
       confirmText: 'Delete Volume',
       isDanger: true
     });
-    if (!ok) return;
+    if (!ok) return false;
     try {
       await RemoveVolume(name, force);
       addToast(`Volume "${name}" deleted`, 'success');
@@ -575,6 +671,30 @@ export default function App() {
     } catch (err) {
       addToast(formatEngineError(err), 'error', 'Failed to Delete Volume');
     }
+  };
+
+  const handleBatchRemoveVolumes = async (names) => {
+    const ok = await requestConfirmation({
+      title: `Delete ${names.length} Volume${names.length > 1 ? 's' : ''}`,
+      message: `Are you sure you want to delete ${names.length} selected volume${names.length > 1 ? 's' : ''}? Data stored on these volumes will be permanently erased.`,
+      confirmText: `Delete ${names.length} Volume${names.length > 1 ? 's' : ''}`,
+      isDanger: true
+    });
+    if (!ok) return false;
+    let success = 0;
+    let fail = 0;
+    for (const name of names) {
+      try {
+        await RemoveVolume(name, false);
+        success++;
+      } catch {
+        fail++;
+      }
+    }
+    if (success > 0) addToast(`Deleted ${success} volume${success > 1 ? 's' : ''}`, 'success');
+    if (fail > 0) addToast(`Failed to delete ${fail} volume${fail > 1 ? 's' : ''}`, 'error');
+    refreshAll();
+    return true;
   };
 
   const handlePruneVolumes = async () => {
@@ -775,6 +895,10 @@ export default function App() {
                   onOpenLogs={(id, name) => setLogsModal({ open: true, id, name })}
                   onInspect={handleInspectContainer}
                   onSelectContainer={(id) => setSelectedContainerId(id)}
+                  onBatchStart={handleBatchStartContainers}
+                  onBatchStop={handleBatchStopContainers}
+                  onBatchRestart={handleBatchRestartContainers}
+                  onBatchRemove={handleBatchRemoveContainers}
                 />
               )
             )}
@@ -786,6 +910,7 @@ export default function App() {
                 onRefresh={refreshAll}
                 onPull={handlePullImage}
                 onRemove={handleRemoveImage}
+                onBatchRemove={handleBatchRemoveImages}
                 onTag={handleTagImage}
                 onInspect={handleInspectImage}
               />
@@ -798,6 +923,7 @@ export default function App() {
                 onRefresh={refreshAll}
                 onCreate={handleCreateVolume}
                 onRemove={handleRemoveVolume}
+                onBatchRemove={handleBatchRemoveVolumes}
                 onPrune={handlePruneVolumes}
                 onInspect={handleInspectVolume}
                 onConfirm={requestConfirmation}
