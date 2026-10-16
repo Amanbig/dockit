@@ -104,49 +104,45 @@ export default function LogsModal({ isOpen, containerId, containerName, onClose,
     }
   }, [isOpen, logs, loading, autoScroll, logLevel]);
 
-  if (!isOpen) return null;
-
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(logs);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   // Filter & Format lines
   const lines = (logs || '').split('\n');
 
   // RFC3339 regex timestamp pattern: 2026-10-13T12:00:00.123456789Z or similar
   const timestampRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})\s*/;
 
-  const filteredLines = lines.filter((line) => {
-    if (!line) return false;
-    const lower = line.toLowerCase();
+  const filteredLines = React.useMemo(() => {
+    if (!isOpen || !logs) return [];
+    const allLines = logs.split('\n');
+    return allLines.filter((line) => {
+      if (!line) return false;
+      const lower = line.toLowerCase();
 
-    // Log level filter
-    if (logLevel === 'error') {
-      if (!lower.includes('error') && !lower.includes('fatal') && !lower.includes('panic') && !lower.includes('err')) {
+      // Log level filter
+      if (logLevel === 'error') {
+        if (!lower.includes('error') && !lower.includes('fatal') && !lower.includes('panic') && !lower.includes('err')) {
+          return false;
+        }
+      } else if (logLevel === 'warn') {
+        if (!lower.includes('warn') && !lower.includes('warning')) {
+          return false;
+        }
+      } else if (logLevel === 'info') {
+        if (lower.includes('error') || lower.includes('fatal') || lower.includes('panic') || lower.includes('warn')) {
+          return false;
+        }
+      }
+
+      // Search query filter (only when filterMode is enabled)
+      if (filterMode && searchQuery && !lower.includes(searchQuery.toLowerCase())) {
         return false;
       }
-    } else if (logLevel === 'warn') {
-      if (!lower.includes('warn') && !lower.includes('warning')) {
-        return false;
-      }
-    } else if (logLevel === 'info') {
-      if (lower.includes('error') || lower.includes('fatal') || lower.includes('panic') || lower.includes('warn')) {
-        return false;
-      }
-    }
 
-    // Search query filter (only when filterMode is enabled)
-    if (filterMode && searchQuery && !lower.includes(searchQuery.toLowerCase())) {
-      return false;
-    }
-
-    return true;
-  });
+      return true;
+    });
+  }, [isOpen, logs, logLevel, filterMode, searchQuery]);
 
   const totalMatches = React.useMemo(() => {
-    if (!searchQuery.trim()) return 0;
+    if (!isOpen || !searchQuery.trim()) return 0;
     const escaped = searchQuery.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const regex = new RegExp(escaped, 'gi');
     let count = 0;
@@ -155,7 +151,7 @@ export default function LogsModal({ isOpen, containerId, containerName, onClose,
       if (m) count += m.length;
     }
     return count;
-  }, [filteredLines, searchQuery]);
+  }, [isOpen, filteredLines, searchQuery]);
 
   const scrollToMatch = (index) => {
     requestAnimationFrame(() => {
@@ -208,17 +204,25 @@ export default function LogsModal({ isOpen, containerId, containerName, onClose,
   };
 
   useEffect(() => {
-    if (searchQuery.trim() && totalMatches > 0) {
+    if (isOpen && searchQuery.trim() && totalMatches > 0) {
       setActiveMatchIndex(0);
       scrollToMatch(0);
     } else {
       setActiveMatchIndex(0);
     }
-  }, [searchQuery, filterMode]);
+  }, [isOpen, searchQuery, filterMode, totalMatches]);
+
+  if (!isOpen) return null;
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(logs);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 animate-in fade-in duration-150"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-in fade-in duration-150"
       onClick={onClose}
     >
       <div 
