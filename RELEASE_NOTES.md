@@ -1,6 +1,6 @@
-# Dockit v0.6.1 🚀
+# Dockit v0.6.2 🚀
 
-Dockit **v0.6.1** brings refined **Light Mode contrast and aesthetics** across the Disk & Cleanup dashboard, transparent **Apache 2.0 open-source licensing and repository attribution** in the Settings view, auto-detected packaging in the in-app updater, and reliability improvements.
+Dockit **v0.6.2** brings refined **Light Mode contrast and aesthetics** across the Disk & Cleanup dashboard, transparent **Apache 2.0 open-source licensing and repository attribution** in the Settings view, auto-detected native packaging in the in-app updater, and reliability improvements.
 
 ---
 

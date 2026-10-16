@@ -882,6 +882,7 @@ export namespace runtime {
 	    volumesDeleted: string[];
 	    networksDeleted: string[];
 	    buildCacheDeleted: string[];
+	    errors?: string[];
 	
 	    static createFrom(source: any = {}) {
 	        return new PruneResult(source);
@@ -895,6 +896,7 @@ export namespace runtime {
 	        this.volumesDeleted = source["volumesDeleted"];
 	        this.networksDeleted = source["networksDeleted"];
 	        this.buildCacheDeleted = source["buildCacheDeleted"];
+	        this.errors = source["errors"];
 	    }
 	}
 	export class SystemInfo {
