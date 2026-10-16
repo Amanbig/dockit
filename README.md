@@ -22,7 +22,7 @@ Built with **Go (Wails v2)** + **React 19** + **Tailwind CSS v4** + **Base UI / 
 - Real-time container status badges, port bindings, and created timestamps.
 - **Real-Time Resource Metrics**: Live CPU usage %, memory consumption (MB/GB) with limits, incoming/outgoing network I/O traffic, and block disk I/O / PIDs streamed directly on the overview tab.
 - **In-Container Terminal Shell (Exec)**: Launch an interactive shell terminal (`/bin/sh`, `/bin/bash`) directly into running containers to run commands and inspect runtime state.
-- **Log Streaming & Inspection**: Live container logs with auto-scroll and quick clipboard copy.
+- **Log Streaming, Highlighting & Auto-Scroll**: Live container logs with auto-scroll to latest entries on open/stream, search keyword highlighting, auto-tail toggle, and clipboard copy.
 - **Inspect Inspector**: Deep JSON inspection of low-level container configurations and network settings.
 - **Create Container Wizard**: Interactive dialog to spin up containers with port mappings, environment variables, restart policies, and network attachments.
 
@@ -35,6 +35,20 @@ Built with **Go (Wails v2)** + **React 19** + **Tailwind CSS v4** + **Base UI / 
 ### 💾 Persistent Volumes & 🌐 Virtual Networks
 - **Volumes**: Manage persistent storage volumes, inspect mount points, create new local volumes, and prune dangling volumes.
 - **Networks**: Inspect virtual bridges, host networks, overlays, and custom internal networks with IPAM subnet information.
+
+### 🧹 Visual Disk Space & Prune Dashboard ("Reclaim Storage")
+- **Storage Breakdown**: Visual breakdown of disk space consumed by Images, Containers, Volumes, and Build Cache with reclaimable percentage metrics.
+- **1-Click Quick Clean**: Safely purges stopped container layers, dangling images, and build cache in a single tap without impacting running workloads.
+- **Selective Prune**: Dedicated controls to prune specific categories (stopped containers, dangling images, unattached volumes, build cache, unused networks).
+- **Accessible Dual-Theme Design**: Polished high-contrast views across both Dark Mode and Light Mode.
+
+### 🛡️ Reliability & Notification Architecture
+- **Floating Toast Notifications**: Non-blocking toast alerts (success, error, warning, info) with one-click error copying, replacing native browser alerts.
+- **Human-Readable Engine Errors**: Context-aware formatting for common Docker and Podman daemon error codes.
+- **Keyboard-Accessible Confirmation Dialogs**: Polished in-app modal confirmations (<kbd>Enter</kbd> / <kbd>Esc</kbd>) for all destructive operations.
+- **React Error Boundaries**: Component-level isolation preventing white-screen crashes with instant 1-click view reloading.
+- **Window Focus Auto-Sync**: Automatically refreshes container states and host metrics whenever the window regains focus.
+- **Defensive Backend Timeouts**: 15-second bounded execution across Go RPC methods to prevent IPC hangs.
 
 ### 🧪 Docker Compose Studio & Workspace
 - **Multi-Project Library**: Open folders containing `docker-compose.yml`, clone from Git URLs, or browse recent projects with persistent history.
@@ -58,7 +72,8 @@ Built with **Go (Wails v2)** + **React 19** + **Tailwind CSS v4** + **Base UI / 
 
 ### 🔄 In-Place Self-Updates & Release Management
 - **Background Release Detection**: Automatic GitHub Releases checking with non-intrusive floating toast notifications and configurable startup toggles.
-- **In-Memory Extraction & Atomic Replacement**: Downloads platform-matched binaries (`.tar.gz` / `.zip`), unpacks in memory, and swaps the running executable in-place.
+- **Native Package Detection & Root Elevation**: Automatically selects the native package format matching the installation (`.deb`, `.rpm`, `.exe`, `.tar.gz`) with PolicyKit (`pkexec`) authorization for system installs.
+- **In-Memory Extraction & Atomic Replacement**: Downloads platform-matched binaries, unpacks in memory, and swaps the running executable in-place.
 - **Instant Restart**: One-click **Restart Now** action respawns the updated binary seamlessly (VS Code-style UX).
 
 ### 🛠️ Runtime Detection & Engine Installer
