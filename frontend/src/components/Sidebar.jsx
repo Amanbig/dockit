@@ -73,26 +73,20 @@ export default function Sidebar({
           alt="Dockit Logo"
           className="w-8 h-8 rounded-xl shadow-lg shadow-cyan-500/15 object-contain pointer-events-none"
         />
-        <div className="flex flex-col">
-          <div className="flex items-center gap-1.5">
-            <span className="font-bold text-base text-slate-100 tracking-tight">Dockit</span>
-            <button
-              onClick={onOpenUpdateModal}
-              title={updateAvailable ? "New version available! Click to update" : "Dockit version info"}
-              className={`wails-no-drag text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded font-mono transition-all flex items-center gap-1 ${
-                updateAvailable
-                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 animate-pulse'
-                  : 'bg-cyan-950 text-cyan-400 border border-cyan-800/60 hover:bg-cyan-900/50'
-              }`}
-            >
-              v{appVersion.replace(/^v/, '')}
-              {updateAvailable && <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>}
-            </button>
-          </div>
-          <span className="text-xs text-slate-500 font-mono flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            Unified Desktop
-          </span>
+        <div className="flex items-center gap-2">
+          <span className="font-bold text-base text-slate-100 tracking-tight">Dockit</span>
+          <button
+            onClick={onOpenUpdateModal}
+            title={updateAvailable ? "New version available! Click to update" : "Dockit version info"}
+            className={`wails-no-drag text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded font-mono transition-all flex items-center gap-1 cursor-pointer ${
+              updateAvailable
+                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 animate-pulse'
+                : 'bg-cyan-950 text-cyan-400 border border-cyan-800/60 hover:bg-cyan-900/50'
+            }`}
+          >
+            v{appVersion.replace(/^v/, '')}
+            {updateAvailable && <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>}
+          </button>
         </div>
       </div>
 
