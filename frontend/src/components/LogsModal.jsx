@@ -12,6 +12,26 @@ import {
   SlidersHorizontal 
 } from 'lucide-react';
 
+export function highlightLogText(text, query) {
+  if (!query || !query.trim() || !text) return text;
+  const escaped = query.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const parts = text.split(new RegExp(`(${escaped})`, 'gi'));
+  if (parts.length <= 1) return text;
+
+  return parts.map((part, i) =>
+    part.toLowerCase() === query.trim().toLowerCase() ? (
+      <mark
+        key={i}
+        className="bg-amber-400 text-slate-950 font-semibold px-0.5 rounded-xs"
+      >
+        {part}
+      </mark>
+    ) : (
+      part
+    )
+  );
+}
+
 export default function LogsModal({ isOpen, containerId, containerName, onClose, onFetchLogs }) {
   const [logs, setLogs] = useState('');
   const [loading, setLoading] = useState(false);
@@ -39,18 +59,31 @@ export default function LogsModal({ isOpen, containerId, containerName, onClose,
     }
   };
 
+  const scrollToBottom = (smooth = false) => {
+    const scroll = () => {
+      if (logsContainerRef.current) {
+        logsContainerRef.current.scrollTo({
+          top: logsContainerRef.current.scrollHeight,
+          behavior: smooth ? 'smooth' : 'auto'
+        });
+      }
+    };
+    requestAnimationFrame(scroll);
+    setTimeout(scroll, 50);
+  };
+
   useEffect(() => {
     if (isOpen && containerId) {
       fetchLogs();
     }
   }, [isOpen, containerId]);
 
-  // Auto-scroll when logs update
+  // Auto-scroll when logs update or finish loading
   useEffect(() => {
-    if (autoScroll && logsContainerRef.current) {
-      logsContainerRef.current.scrollTop = logsContainerRef.current.scrollHeight;
+    if (isOpen && autoScroll && !loading) {
+      scrollToBottom();
     }
-  }, [logs, autoScroll, searchQuery, logLevel]);
+  }, [isOpen, logs, loading, autoScroll, searchQuery, logLevel]);
 
   if (!isOpen) return null;
 
@@ -198,7 +231,10 @@ export default function LogsModal({ isOpen, containerId, containerName, onClose,
 
             {/* Auto-scroll toggle */}
             <button
-              onClick={() => setAutoScroll(!autoScroll)}
+              onClick={() => {
+                setAutoScroll(true);
+                scrollToBottom(true);
+              }}
               className={`flex items-center gap-1 px-2.5 py-1 rounded-lg border text-[11px] transition cursor-pointer ${
                 autoScroll 
                   ? 'bg-slate-800 border-slate-700 text-cyan-400' 
@@ -262,10 +298,10 @@ export default function LogsModal({ isOpen, containerId, containerName, onClose,
                 >
                   {showTimestamps && timestamp && (
                     <span className="text-[10px] text-slate-500 select-none shrink-0 font-mono pt-0.5">
-                      {timestamp}
+                      {highlightLogText(timestamp, searchQuery)}
                     </span>
                   )}
-                  <span className="break-all flex-1">{content}</span>
+                  <span className="break-all flex-1">{highlightLogText(content, searchQuery)}</span>
                 </div>
               );
             })

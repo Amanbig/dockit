@@ -23,8 +23,11 @@ import {
   AlertCircle,
   Activity,
   ArrowDown,
-  ArrowUp
+  ArrowUp,
+  Search,
+  X
 } from 'lucide-react';
+import { highlightLogText } from './LogsModal';
 import { 
   InspectContainer, 
   GetContainerLogs, 
@@ -133,6 +136,34 @@ export default function ContainerDetailsView({ containerId, onBack, onRefreshLis
   // Enhanced Logs state
   const [logFilter, setLogFilter] = useState('');
   const [autoTail, setAutoTail] = useState(true);
+  const logsScrollRef = React.useRef(null);
+
+  const scrollToLogsBottom = (smooth = false) => {
+    const scroll = () => {
+      if (logsScrollRef.current) {
+        logsScrollRef.current.scrollTo({
+          top: logsScrollRef.current.scrollHeight,
+          behavior: smooth ? 'smooth' : 'auto'
+        });
+      }
+    };
+    requestAnimationFrame(scroll);
+    setTimeout(scroll, 60);
+  };
+
+  // Scroll to bottom when opening/switching to logs tab
+  useEffect(() => {
+    if (activeSubTab === 'logs') {
+      scrollToLogsBottom();
+    }
+  }, [activeSubTab]);
+
+  // Scroll to bottom when logs update or finish loading
+  useEffect(() => {
+    if (activeSubTab === 'logs' && autoTail && !logsLoading && logs) {
+      scrollToLogsBottom();
+    }
+  }, [logs, logsLoading, autoTail, activeSubTab, logFilter]);
 
   const fetchDetails = async () => {
     try {
@@ -776,76 +807,142 @@ export default function ContainerDetailsView({ containerId, onBack, onRefreshLis
         )}
 
         {/* Tab 2: Live Logs */}
-        {activeSubTab === 'logs' && (
-          <div className="flex flex-col h-[540px] rounded-xl border border-slate-800 bg-slate-950 overflow-hidden shadow-inner">
-            <div className="px-4 py-2.5 bg-slate-900 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-slate-300 font-semibold">Container Logs</span>
-                <button
-                  onClick={() => setAutoTail(!autoTail)}
-                  className={`text-[11px] px-2 py-0.5 rounded-full border transition flex items-center gap-1 cursor-pointer ${
-                    autoTail 
-                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' 
-                      : 'bg-slate-800 text-slate-400 border-slate-700'
-                  }`}
-                  title="Toggle automatic log streaming"
-                >
-                  <span className={`w-1.5 h-1.5 rounded-full ${autoTail ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`}></span>
-                  <span>{autoTail ? 'Live Auto-Tail (3s)' : 'Manual Refresh'}</span>
-                </button>
-              </div>
-
-              {/* Log Search Filter */}
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  placeholder="Filter logs (e.g. error, warn)..."
-                  value={logFilter}
-                  onChange={(e) => setLogFilter(e.target.value)}
-                  className="bg-slate-950 border border-slate-800 rounded px-2.5 py-1 text-xs text-slate-200 font-mono placeholder-slate-500 focus:outline-none focus:border-cyan-500 w-44"
-                />
-
-                <button
-                  onClick={() => copyText(logs, 'logs')}
-                  className="p-1.5 text-slate-400 hover:text-slate-200 transition cursor-pointer"
-                  title="Copy logs"
-                >
-                  {copiedKey === 'logs' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                </button>
-                <button
-                  onClick={fetchLogs}
-                  disabled={logsLoading}
-                  className="p-1.5 text-slate-400 hover:text-slate-200 transition cursor-pointer"
-                  title="Refresh logs"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${logsLoading ? 'animate-spin text-cyan-400' : ''}`} />
-                </button>
-              </div>
-            </div>
-
-            <div className="flex-1 p-4 overflow-y-auto font-mono text-xs space-y-0.5 select-text leading-relaxed">
-              {(logs || '').split('\n').filter(line => !logFilter || line.toLowerCase().includes(logFilter.toLowerCase())).map((line, idx) => {
-                const lower = line.toLowerCase();
-                const isErr = lower.includes('error') || lower.includes('fatal') || lower.includes('panic');
-                const isWarn = lower.includes('warn');
-                return (
-                  <div 
-                    key={idx} 
-                    className={`whitespace-pre-wrap break-all ${
-                      isErr 
-                        ? 'text-rose-400 bg-rose-500/5 px-1 py-0.5 rounded' 
-                        : isWarn 
-                          ? 'text-amber-400 bg-amber-500/5 px-1 py-0.5 rounded' 
-                          : 'text-slate-300'
+        {activeSubTab === 'logs' && (() => {
+          const rawLines = (logs || '').split('\n');
+          const filteredLines = rawLines.filter(line => !logFilter || line.toLowerCase().includes(logFilter.toLowerCase()));
+          return (
+            <div className="flex flex-col h-[540px] rounded-xl border border-slate-800 bg-slate-950 overflow-hidden shadow-inner">
+              <div className="px-4 py-2.5 bg-slate-900 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-slate-300 font-semibold">Container Logs</span>
+                  <button
+                    onClick={() => setAutoTail(!autoTail)}
+                    className={`text-[11px] px-2 py-0.5 rounded-full border transition flex items-center gap-1 cursor-pointer ${
+                      autoTail 
+                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' 
+                        : 'bg-slate-800 text-slate-400 border-slate-700'
                     }`}
+                    title="Toggle automatic log streaming"
                   >
-                    {line}
+                    <span className={`w-1.5 h-1.5 rounded-full ${autoTail ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`}></span>
+                    <span>{autoTail ? 'Live Auto-Tail (3s)' : 'Manual Refresh'}</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setAutoTail(true);
+                      scrollToLogsBottom(true);
+                    }}
+                    className="text-[11px] px-2.5 py-0.5 rounded-full border border-slate-700 bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-cyan-400 transition flex items-center gap-1 cursor-pointer"
+                    title="Scroll to latest logs (bottom)"
+                  >
+                    <ArrowDown className="w-3 h-3 text-cyan-400" />
+                    <span>Scroll to Bottom</span>
+                  </button>
+                </div>
+
+                {/* Log Search Filter */}
+                <div className="flex items-center gap-2">
+                  <div className="relative">
+                    <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Search / filter logs..."
+                      value={logFilter}
+                      onChange={(e) => setLogFilter(e.target.value)}
+                      className="bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-7 py-1 text-xs text-slate-200 font-mono placeholder-slate-500 focus:outline-none focus:border-cyan-500 w-52"
+                    />
+                    {logFilter && (
+                      <button
+                        onClick={() => setLogFilter('')}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 cursor-pointer"
+                        title="Clear filter"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
                   </div>
-                );
-              })}
+
+                  <button
+                    onClick={() => copyText(logs, 'logs')}
+                    className="p-1.5 text-slate-400 hover:text-slate-200 transition cursor-pointer"
+                    title="Copy logs"
+                  >
+                    {copiedKey === 'logs' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  </button>
+                  <button
+                    onClick={fetchLogs}
+                    disabled={logsLoading}
+                    className="p-1.5 text-slate-400 hover:text-slate-200 transition cursor-pointer"
+                    title="Refresh logs"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${logsLoading ? 'animate-spin text-cyan-400' : ''}`} />
+                  </button>
+                </div>
+              </div>
+
+              <div 
+                ref={logsScrollRef}
+                className="flex-1 p-4 overflow-y-auto font-mono text-xs space-y-0.5 select-text leading-relaxed"
+              >
+                {logsLoading && !logs ? (
+                  <div className="flex items-center justify-center py-16 text-slate-500 gap-2">
+                    <RefreshCw className="w-4 h-4 animate-spin text-cyan-400" />
+                    <span>Loading container logs...</span>
+                  </div>
+                ) : filteredLines.length === 0 || (filteredLines.length === 1 && !filteredLines[0]) ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-slate-500 gap-1 text-center">
+                    <span>{logFilter ? 'No log messages match your filter.' : 'No logs recorded.'}</span>
+                    {logFilter && (
+                      <button 
+                        onClick={() => setLogFilter('')} 
+                        className="text-cyan-400 underline text-xs mt-1 cursor-pointer"
+                      >
+                        Clear search filter
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  filteredLines.map((line, idx) => {
+                    const lower = line.toLowerCase();
+                    const isErr = lower.includes('error') || lower.includes('fatal') || lower.includes('panic');
+                    const isWarn = lower.includes('warn');
+                    return (
+                      <div 
+                        key={idx} 
+                        className={`whitespace-pre-wrap break-all px-1 py-0.5 rounded hover:bg-slate-900/60 transition-colors ${
+                          isErr 
+                            ? 'text-rose-400 bg-rose-500/5' 
+                            : isWarn 
+                              ? 'text-amber-400 bg-amber-500/5' 
+                              : 'text-slate-300'
+                        }`}
+                      >
+                        {highlightLogText(line, logFilter)}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Log Footer Bar */}
+              <div className="px-4 py-2 border-t border-slate-800 bg-slate-950/60 flex justify-between items-center text-[11px] text-slate-400 font-mono">
+                <div className="flex items-center gap-2">
+                  <span>
+                    Showing <strong className="text-slate-200">{filteredLines.length}</strong> of <strong className="text-slate-200">{rawLines.length}</strong> lines
+                  </span>
+                  {logFilter && (
+                    <span className="text-amber-400 font-semibold">
+                      • Filter active: "{logFilter}"
+                    </span>
+                  )}
+                </div>
+                <span className="text-slate-500">
+                  {autoTail ? 'Live Auto-Tail (3s) Active' : 'Auto-Tail Paused'}
+                </span>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Tab 3: Environment Variables */}
         {activeSubTab === 'env' && (
