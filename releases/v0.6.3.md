@@ -11,6 +11,8 @@ Dockit **v0.6.3** brings a major upgrade to **Container Logs** with interactive 
 - **Dynamic Active Match Highlighting & Live Counter**: Selected match receives an active cyan focus ring, extra bold typography, and subtle pop (`ring-2 ring-cyan-400 font-black scale-105`) while other occurrences remain highlighted in soft yellow. Features a real-time match counter (e.g. `1/14` or `0/0`).
 - **Flexible Filter vs All Lines Toggle**: Easily switch between **All Lines** (keeping full surrounding log context with active navigation) and **Filtered** mode (isolating only lines containing matches).
 - **Auto-Scroll to Bottom on Open**: Opening the container details **Live Logs** tab or the standalone **Logs Modal** now automatically scrolls directly to the newest log entries at the bottom instead of staying anchored at line 1.
+- **Streamlined Tab Height (380px) & Maximize Dialog**: Compacted the Live Logs container height to `380px` to prevent page overflow on smaller/scaled displays, and added a Maximize button (<kbd>Maximize2</kbd>) to instantly pop the logs into a spacious dialog.
+- **Full-Screen Modal Dialog Mode**: The standalone Logs Modal now includes a Full Screen toggle button (<kbd>Maximize2</kbd> / <kbd>Minimize2</kbd>) that expands the modal to 98vw/95vh for intensive log inspection.
 - **Dedicated "Scroll to Bottom" Actions**: Added 1-click scroll-to-bottom buttons with auto-tail synchronization across both the details view and the logs modal.
 
 #### 🔔 Modern Toast Notification System & Engine Error Parsing
