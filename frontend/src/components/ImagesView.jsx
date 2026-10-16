@@ -190,7 +190,7 @@ export default function ImagesView({
           <>
             {/* Batch Action Toolbar */}
             {selectedIds.length > 0 && (
-              <div className="mb-3 px-4 py-2.5 rounded-xl border border-cyan-500/30 bg-slate-950/90 shadow-lg flex flex-wrap items-center justify-between gap-3 text-xs animate-in fade-in duration-150">
+              <div className="batch-action-bar mb-3 px-4 py-2.5 rounded-xl border border-cyan-500/30 bg-slate-950/90 shadow-lg flex flex-wrap items-center justify-between gap-3 text-xs animate-in fade-in duration-150">
                 <div className="flex items-center gap-2.5">
                   <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
                   <span className="font-semibold text-slate-100 font-mono">
@@ -247,7 +247,7 @@ export default function ImagesView({
                       <tr 
                         key={img.id} 
                         className={`hover:bg-slate-900/50 transition-colors group ${
-                          isSelected ? 'bg-cyan-950/30 border-l-2 border-l-cyan-400' : ''
+                          isSelected ? 'row-selected bg-cyan-50/80 border-l-2 border-l-cyan-500 dark:bg-cyan-950/30 dark:border-l-cyan-400' : ''
                         }`}
                       >
                         <td className="py-3 px-3 w-10 text-center" onClick={(e) => e.stopPropagation()}>

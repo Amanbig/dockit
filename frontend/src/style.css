@@ -351,6 +351,55 @@ html.light div[class*="bg-cyan-950/30"] span.text-cyan-300 {
     color: #0891b2 !important;
 }
 
+/* Selected Table Rows in Light Mode */
+html.light tr.row-selected,
+html.light tr[class*="row-selected"],
+html.light tr[class*="bg-cyan-950/30"],
+html.light tr[class*="bg-cyan-50"] {
+    background-color: #ecfeff !important; /* Luminous soft cyan tint */
+    border-left: 3px solid #0891b2 !important;
+}
+
+html.light tr.row-selected:hover,
+html.light tr[class*="row-selected"]:hover,
+html.light tr[class*="bg-cyan-950/30"]:hover,
+html.light tr[class*="bg-cyan-50"]:hover {
+    background-color: #e0f7fa !important;
+}
+
+/* Batch Action Bar in Light Mode */
+html.light .batch-action-bar,
+html.light div[class*="batch-action-bar"],
+html.light div[class*="border-cyan-500/30"][class*="bg-slate-950"] {
+    background-color: #f0fdfa !important; /* Fresh light cyan/teal background */
+    border-color: #a5f3fc !important;
+    box-shadow: 0 4px 14px rgba(6, 182, 212, 0.08) !important;
+}
+
+html.light .batch-action-bar span.font-semibold,
+html.light div[class*="batch-action-bar"] span.font-semibold,
+html.light div[class*="border-cyan-500/30"][class*="bg-slate-950"] span.font-semibold {
+    color: #0e7490 !important; /* Deep readable cyan text */
+}
+
+html.light .batch-action-bar button[class*="text-cyan-400"],
+html.light div[class*="batch-action-bar"] button[class*="text-cyan-400"],
+html.light div[class*="border-cyan-500/30"][class*="bg-slate-950"] button[class*="text-cyan-400"] {
+    color: #0891b2 !important;
+}
+
+html.light .batch-action-bar button[class*="text-cyan-400"]:hover,
+html.light div[class*="batch-action-bar"] button[class*="text-cyan-400"]:hover {
+    color: #0e7490 !important;
+}
+
+/* Checkbox inputs in Light Mode */
+html.light input[type="checkbox"] {
+    border-color: #cbd5e1 !important;
+    background-color: #ffffff !important;
+    accent-color: #0891b2 !important;
+}
+
 html.light div[class*="bg-emerald-950/20"],
 html.light div[class*="bg-emerald-950/30"],
 html.light div[class*="bg-emerald-950"] {
