@@ -28,9 +28,10 @@ import {
   X,
   ChevronUp,
   ChevronDown,
-  Filter
+  Filter,
+  Maximize2
 } from 'lucide-react';
-import { highlightLogMatches, highlightLogText } from './LogsModal';
+import LogsModal, { highlightLogMatches, highlightLogText } from './LogsModal';
 import { 
   InspectContainer, 
   GetContainerLogs, 
@@ -45,9 +46,10 @@ import {
 } from '../../wailsjs/go/main/App';
 import { formatEngineError } from './Toast';
 
-export default function ContainerDetailsView({ containerId, onBack, onRefreshList, onToast, onConfirm }) {
+export default function ContainerDetailsView({ containerId, onBack, onRefreshList, onToast, onConfirm, onOpenLogs }) {
   const [details, setDetails] = useState(null);
   const [logs, setLogs] = useState('');
+  const [localLogsModalOpen, setLocalLogsModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [logsLoading, setLogsLoading] = useState(false);
   const [activeSubTab, setActiveSubTab] = useState('overview'); // 'overview' | 'terminal' | 'logs' | 'env' | 'mounts' | 'raw'
@@ -878,8 +880,16 @@ export default function ContainerDetailsView({ containerId, onBack, onRefreshLis
             }
           };
 
+          const handleOpenLogsDialog = () => {
+            if (onOpenLogs) {
+              onOpenLogs(containerId, containerName);
+            } else {
+              setLocalLogsModalOpen(true);
+            }
+          };
+
           return (
-            <div className="flex flex-col h-[540px] rounded-xl border border-slate-800 bg-slate-950 overflow-hidden shadow-inner">
+            <div className="flex flex-col h-[380px] rounded-xl border border-slate-800 bg-slate-950 overflow-hidden shadow-inner">
               <div className="px-4 py-2.5 bg-slate-900 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-slate-300 font-semibold">Container Logs</span>
@@ -986,6 +996,13 @@ export default function ContainerDetailsView({ containerId, onBack, onRefreshLis
                     title="Refresh logs"
                   >
                     <RefreshCw className={`w-3.5 h-3.5 ${logsLoading ? 'animate-spin text-cyan-400' : ''}`} />
+                  </button>
+                  <button
+                    onClick={handleOpenLogsDialog}
+                    className="p-1.5 text-slate-400 hover:text-cyan-400 hover:bg-slate-800 rounded transition cursor-pointer"
+                    title="Open in Large Screen Dialog (Maximize)"
+                  >
+                    <Maximize2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
@@ -1125,6 +1142,16 @@ export default function ContainerDetailsView({ containerId, onBack, onRefreshLis
           </div>
         )}
       </div>
+
+      {localLogsModalOpen && (
+        <LogsModal
+          isOpen={localLogsModalOpen}
+          containerId={containerId}
+          containerName={containerName}
+          onClose={() => setLocalLogsModalOpen(false)}
+          onFetchLogs={GetContainerLogs}
+        />
+      )}
     </div>
   );
 }

@@ -11,7 +11,9 @@ import {
   Filter, 
   SlidersHorizontal,
   ChevronUp,
-  ChevronDown
+  ChevronDown,
+  Maximize2,
+  Minimize2
 } from 'lucide-react';
 
 export function highlightLogMatches(text, query, getMatchIndex, activeMatchIndex, prefix = 'log') {
@@ -58,6 +60,7 @@ export default function LogsModal({ isOpen, containerId, containerName, onClose,
   const [logLevel, setLogLevel] = useState('all'); // 'all', 'error', 'warn', 'info'
   const [showTimestamps, setShowTimestamps] = useState(true);
   const [autoScroll, setAutoScroll] = useState(true);
+  const [isFullScreen, setIsFullScreen] = useState(false);
   const logsContainerRef = useRef(null);
 
   const fetchLogs = async () => {
@@ -219,7 +222,11 @@ export default function LogsModal({ isOpen, containerId, containerName, onClose,
       onClick={onClose}
     >
       <div 
-        className="bg-slate-900 border border-slate-750 rounded-xl shadow-2xl w-full max-w-4xl max-h-[88vh] flex flex-col overflow-hidden text-slate-100"
+        className={`bg-slate-900 border border-slate-750 rounded-xl shadow-2xl flex flex-col overflow-hidden text-slate-100 transition-all duration-150 ${
+          isFullScreen 
+            ? 'w-[98vw] h-[95vh] max-w-none max-h-none' 
+            : 'w-full max-w-4xl max-h-[88vh]'
+        }`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -248,6 +255,13 @@ export default function LogsModal({ isOpen, containerId, containerName, onClose,
               title="Refresh Logs"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-cyan-400' : ''}`} />
+            </button>
+            <button
+              onClick={() => setIsFullScreen(!isFullScreen)}
+              className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-lg transition cursor-pointer"
+              title={isFullScreen ? "Restore Normal Size" : "Full Screen Dialog"}
+            >
+              {isFullScreen ? <Minimize2 className="w-4 h-4 text-cyan-400" /> : <Maximize2 className="w-4 h-4" />}
             </button>
             <button
               onClick={onClose}

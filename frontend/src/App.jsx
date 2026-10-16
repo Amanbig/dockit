@@ -756,6 +756,7 @@ export default function App() {
                   onRefreshList={refreshAll}
                   onToast={addToast}
                   onConfirm={requestConfirmation}
+                  onOpenLogs={(id, name) => setLogsModal({ open: true, id, name })}
                 />
               ) : (
                 <ContainersView
