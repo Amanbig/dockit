@@ -293,4 +293,5 @@ type PruneResult struct {
 	VolumesDeleted    []string `json:"volumesDeleted"`
 	NetworksDeleted   []string `json:"networksDeleted"`
 	BuildCacheDeleted []string `json:"buildCacheDeleted"`
+	Errors            []string `json:"errors,omitempty"`
 }

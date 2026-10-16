@@ -320,83 +320,36 @@ export default function UpdateModal({
               )}
             </div>
 
-            {/* Target Package Banner or Asset Selector */}
-            {updateInfo?.availableAssets && updateInfo.availableAssets.length > 1 ? (
-              <div className="space-y-2 p-3 rounded-lg bg-cyan-950/30 border border-cyan-800/40 text-xs">
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-400 text-[11px] font-medium">Select package to install:</span>
-                  {updateInfo.needsElevation && (
-                    <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
-                      <ShieldCheck className="w-3 h-3" />
-                      Polkit / Root
-                    </span>
-                  )}
-                </div>
-                <div className="grid grid-cols-1 gap-1.5 max-h-32 overflow-y-auto pr-1">
-                  {updateInfo.availableAssets.map((asset) => {
-                    const isSelected = (selectedAsset?.name === asset.name) || (!selectedAsset && asset.isDefault);
-                    return (
-                      <button
-                        key={asset.name}
-                        onClick={() => setSelectedAsset({ name: asset.name, downloadUrl: asset.downloadUrl, type: asset.type })}
-                        className={`flex items-center justify-between p-2 rounded-lg border text-left transition-all ${
-                          isSelected
-                            ? 'bg-cyan-500/20 border-cyan-500/60 text-cyan-200'
-                            : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2 truncate">
-                          <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${
-                            asset.type === 'deb' || asset.type === 'rpm'
-                              ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
-                              : 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
-                          }`}>
-                            {asset.type}
-                          </span>
-                          <span className="font-mono text-xs truncate">{asset.name}</span>
-                          {asset.isDefault && (
-                            <span className="text-[10px] text-cyan-400/80 italic shrink-0">(detected)</span>
-                          )}
-                        </div>
-                        {asset.size > 0 && (
-                          <span className="text-[11px] text-slate-500 font-mono ml-2 shrink-0">
-                            {formatSize(asset.size)}
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : updateInfo?.assetFileName ? (
+            {/* Auto-detected Target Package for this system */}
+            {(selectedAsset?.name || updateInfo?.assetFileName) && (
               <div className="p-3 rounded-lg bg-cyan-950/30 border border-cyan-800/40 flex items-center justify-between gap-3 text-xs">
                 <div className="truncate">
                   <span className="text-slate-400 block text-[11px]">
                     {updateInfo.installType === 'deb'
-                      ? 'Detected Native Package (.deb):'
+                      ? 'Target Package (.deb detected):'
                       : updateInfo.installType === 'rpm'
-                      ? 'Detected Native Package (.rpm):'
+                      ? 'Target Package (.rpm detected):'
                       : updateInfo.installType === 'nsis'
                       ? 'Setup Wizard Installer (.exe):'
-                      : 'In-place binary package:'}
+                      : 'Automatic Update Package:'}
                   </span>
-                  <span className="font-mono text-cyan-300 font-medium truncate block">
-                    {updateInfo.assetFileName}
+                  <span className="font-mono text-cyan-300 font-medium truncate block mt-0.5">
+                    {selectedAsset?.name || updateInfo.assetFileName}
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
                   {updateInfo.needsElevation && (
-                    <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                    <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1" title="Requires desktop authorization prompt">
                       <ShieldCheck className="w-3 h-3" />
                       Polkit / Root
                     </span>
                   )}
-                  <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-                    {updateInfo.platform}
+                  <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-mono">
+                    {selectedAsset?.type ? `.${selectedAsset.type}` : updateInfo.platform}
                   </span>
                 </div>
               </div>
-            ) : null}
+            )}
           </div>
         )}
 

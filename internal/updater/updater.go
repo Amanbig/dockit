@@ -404,19 +404,31 @@ func DownloadAndInstallUpdate(ctx context.Context, downloadURL, assetFileName st
 }
 
 func installDebPackage(debPath string) error {
-	// 1. Try pkexec with apt-get or dpkg
+	var lastOutput string
+
+	// 1. Try pkexec with dpkg first (direct local package installer)
 	if _, err := exec.LookPath("pkexec"); err == nil {
-		var cmd *exec.Cmd
-		if _, aErr := exec.LookPath("apt-get"); aErr == nil {
-			cmd = exec.Command("pkexec", "apt-get", "install", "-y", "--reinstall", debPath)
-		} else {
-			cmd = exec.Command("pkexec", "dpkg", "-i", debPath)
-		}
-		out, err := cmd.CombinedOutput()
+		cmdDpkg := exec.Command("pkexec", "dpkg", "-i", debPath)
+		out, err := cmdDpkg.CombinedOutput()
 		if err == nil {
 			return nil
 		}
-		_ = out
+		lastOutput = strings.TrimSpace(string(out))
+
+		// Check if user cancelled authorization prompt
+		if strings.Contains(lastOutput, "Not authorized") || strings.Contains(lastOutput, "dismissed") {
+			return fmt.Errorf("system authorization was cancelled by user")
+		}
+
+		// If dpkg had dependency issue, try apt-get install with fallback
+		if _, aErr := exec.LookPath("apt-get"); aErr == nil {
+			cmdApt := exec.Command("pkexec", "apt-get", "install", "-f", "-y", debPath)
+			outApt, errApt := cmdApt.CombinedOutput()
+			if errApt == nil {
+				return nil
+			}
+			lastOutput = strings.TrimSpace(string(outApt))
+		}
 	}
 
 	// 2. Fallback to desktop GUI package manager (e.g. GDebi or Software Manager)
@@ -427,22 +439,37 @@ func installDebPackage(debPath string) error {
 		}
 	}
 
+	if lastOutput != "" {
+		return fmt.Errorf("package installation failed: %s (Run manually: sudo dpkg -i %s)", lastOutput, debPath)
+	}
 	return fmt.Errorf("system authorization required to install .deb. Run: sudo dpkg -i %s", debPath)
 }
 
 func installRpmPackage(rpmPath string) error {
+	var lastOutput string
+
 	if _, err := exec.LookPath("pkexec"); err == nil {
-		var cmd *exec.Cmd
-		if _, dErr := exec.LookPath("dnf"); dErr == nil {
-			cmd = exec.Command("pkexec", "dnf", "install", "-y", rpmPath)
-		} else {
-			cmd = exec.Command("pkexec", "rpm", "-Uvh", "--replacepkgs", rpmPath)
-		}
-		out, err := cmd.CombinedOutput()
+		// Try rpm first
+		cmdRpm := exec.Command("pkexec", "rpm", "-Uvh", "--replacepkgs", rpmPath)
+		out, err := cmdRpm.CombinedOutput()
 		if err == nil {
 			return nil
 		}
-		_ = out
+		lastOutput = strings.TrimSpace(string(out))
+
+		if strings.Contains(lastOutput, "Not authorized") || strings.Contains(lastOutput, "dismissed") {
+			return fmt.Errorf("system authorization was cancelled by user")
+		}
+
+		// Try dnf as fallback
+		if _, dErr := exec.LookPath("dnf"); dErr == nil {
+			cmdDnf := exec.Command("pkexec", "dnf", "install", "-y", rpmPath)
+			outDnf, errDnf := cmdDnf.CombinedOutput()
+			if errDnf == nil {
+				return nil
+			}
+			lastOutput = strings.TrimSpace(string(outDnf))
+		}
 	}
 
 	if _, err := exec.LookPath("xdg-open"); err == nil {
@@ -452,6 +479,9 @@ func installRpmPackage(rpmPath string) error {
 		}
 	}
 
+	if lastOutput != "" {
+		return fmt.Errorf("package installation failed: %s (Run manually: sudo rpm -Uvh %s)", lastOutput, rpmPath)
+	}
 	return fmt.Errorf("system authorization required to install .rpm. Run: sudo rpm -Uvh %s", rpmPath)
 }
 

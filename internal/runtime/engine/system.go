@@ -51,57 +51,89 @@ func (e *Engine) GetDiskUsage(ctx context.Context) (*runtime.DiskUsage, error) {
 // PruneSystem cleans up stopped containers, unused images, volumes, build cache, and networks based on options.
 func (e *Engine) PruneSystem(ctx context.Context, opts runtime.PruneOptions) (*runtime.PruneResult, error) {
 	res := &runtime.PruneResult{}
+	var stepErrors []string
+	requestedCount := 0
+	successCount := 0
 
 	// 1. Prune Containers
 	if opts.Containers {
+		requestedCount++
 		cRes, err := e.api.ContainerPrune(ctx, client.ContainerPruneOptions{})
 		if err == nil {
 			res.ContainersDeleted = cRes.Report.ContainersDeleted
 			res.SpaceReclaimed += int64(cRes.Report.SpaceReclaimed)
+			successCount++
+		} else {
+			stepErrors = append(stepErrors, fmt.Sprintf("Containers prune: %v", err))
 		}
 	}
 
 	// 2. Prune Images
-	filters := client.Filters{}
-	if opts.AllImages {
-		filters.Add("dangling", "false")
-	}
-	iRes, err := e.api.ImagePrune(ctx, client.ImagePruneOptions{Filters: filters})
-	if err == nil {
-		for _, item := range iRes.Report.ImagesDeleted {
-			if item.Deleted != "" {
-				res.ImagesDeleted = append(res.ImagesDeleted, item.Deleted)
-			} else if item.Untagged != "" {
-				res.ImagesDeleted = append(res.ImagesDeleted, item.Untagged)
-			}
+	if opts.AllImages || !opts.Containers && !opts.Volumes && !opts.BuildCache && !opts.Networks {
+		requestedCount++
+		filters := client.Filters{}
+		if !opts.AllImages {
+			filters.Add("dangling", "true")
 		}
-		res.SpaceReclaimed += int64(iRes.Report.SpaceReclaimed)
+		iRes, err := e.api.ImagePrune(ctx, client.ImagePruneOptions{Filters: filters})
+		if err == nil {
+			for _, item := range iRes.Report.ImagesDeleted {
+				if item.Deleted != "" {
+					res.ImagesDeleted = append(res.ImagesDeleted, item.Deleted)
+				} else if item.Untagged != "" {
+					res.ImagesDeleted = append(res.ImagesDeleted, item.Untagged)
+				}
+			}
+			res.SpaceReclaimed += int64(iRes.Report.SpaceReclaimed)
+			successCount++
+		} else {
+			stepErrors = append(stepErrors, fmt.Sprintf("Images prune: %v", err))
+		}
 	}
 
 	// 3. Prune Volumes
 	if opts.Volumes {
+		requestedCount++
 		vRes, err := e.api.VolumePrune(ctx, client.VolumePruneOptions{})
 		if err == nil {
 			res.VolumesDeleted = vRes.Report.VolumesDeleted
 			res.SpaceReclaimed += int64(vRes.Report.SpaceReclaimed)
+			successCount++
+		} else {
+			stepErrors = append(stepErrors, fmt.Sprintf("Volumes prune: %v", err))
 		}
 	}
 
 	// 4. Prune Build Cache
 	if opts.BuildCache {
+		requestedCount++
 		bRes, err := e.api.BuildCachePrune(ctx, client.BuildCachePruneOptions{All: true})
 		if err == nil {
 			res.BuildCacheDeleted = bRes.Report.CachesDeleted
 			res.SpaceReclaimed += int64(bRes.Report.SpaceReclaimed)
+			successCount++
+		} else {
+			stepErrors = append(stepErrors, fmt.Sprintf("Build cache prune: %v", err))
 		}
 	}
 
 	// 5. Prune Networks
 	if opts.Networks {
+		requestedCount++
 		nRes, err := e.api.NetworkPrune(ctx, client.NetworkPruneOptions{})
 		if err == nil {
 			res.NetworksDeleted = nRes.Report.NetworksDeleted
+			successCount++
+		} else {
+			stepErrors = append(stepErrors, fmt.Sprintf("Networks prune: %v", err))
 		}
+	}
+
+	res.Errors = stepErrors
+
+	// If all requested operations failed, return an overall error
+	if requestedCount > 0 && successCount == 0 && len(stepErrors) > 0 {
+		return res, fmt.Errorf("cleanup failed: %s", stepErrors[0])
 	}
 
 	return res, nil
