@@ -18,11 +18,6 @@ func init() {
 	if os.Getenv("WEBKIT_DISABLE_DMABUF_RENDERER") == "" {
 		_ = os.Setenv("WEBKIT_DISABLE_DMABUF_RENDERER", "1")
 	}
-	// On Linux systems with NVIDIA drivers lacking DRI2/GBM screen support (e.g. GeForce GT 730),
-	// Mesa libEGL prints driver (null) warnings when compositing modes are attempted.
-	if os.Getenv("WEBKIT_DISABLE_COMPOSITING_MODE") == "" {
-		_ = os.Setenv("WEBKIT_DISABLE_COMPOSITING_MODE", "1")
-	}
 }
 
 //go:embed all:frontend/dist
@@ -56,7 +51,7 @@ func main() {
 			Icon:                appIcon,
 			ProgramName:         "dockit",
 			WindowIsTranslucent: true,
-			WebviewGpuPolicy:    linux.WebviewGpuPolicyNever,
+			WebviewGpuPolicy:    linux.WebviewGpuPolicyOnDemand,
 		},
 		Windows: &windows.Options{
 			DisableFramelessWindowDecorations: false,
