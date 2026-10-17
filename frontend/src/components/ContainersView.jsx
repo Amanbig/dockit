@@ -9,11 +9,15 @@ import {
   Info, 
   Plus, 
   Search, 
-  RefreshCw,
-  X,
-  SlidersHorizontal
+  RefreshCw, 
+  X, 
+  SlidersHorizontal,
+  Network,
+  Terminal
 } from 'lucide-react';
 import EnvEditorModal, { parseEnvString } from './EnvEditorModal';
+import PortBindingsModal, { parsePortSpecs } from './PortBindingsModal';
+import CommandOverrideModal, { parseCommandArgs } from './CommandOverrideModal';
 
 export default function ContainersView({
   containers = [],
@@ -40,6 +44,8 @@ export default function ContainersView({
   const [statusFilter, setStatusFilter] = useState('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEnvModal, setShowEnvModal] = useState(false);
+  const [showPortModal, setShowPortModal] = useState(false);
+  const [showCmdModal, setShowCmdModal] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
   const [batchExecuting, setBatchExecuting] = useState(false);
   const headerCheckboxRef = useRef(null);
@@ -66,6 +72,14 @@ export default function ContainersView({
   const parsedEnvList = typeof createForm.env === 'string'
     ? parseEnvString(createForm.env).map(r => `${r.key}=${r.value}`)
     : (Array.isArray(createForm.env) ? createForm.env : []);
+
+  const parsedPortList = typeof createForm.ports === 'string'
+    ? parsePortSpecs(createForm.ports)
+    : [];
+
+  const parsedCmdArgs = typeof createForm.cmd === 'string'
+    ? parseCommandArgs(createForm.cmd)
+    : [];
   const [loadingActions, setLoadingActions] = useState({});
 
   const executeAction = async (e, containerId, actionName, actionFn) => {
@@ -243,8 +257,8 @@ export default function ContainersView({
 
     const portList = [];
     if (createForm.ports.trim()) {
-      createForm.ports.split(',').forEach(p => {
-        if (p.trim()) portList.push(p.trim());
+      createForm.ports.split(/\r?\n|,/).forEach(p => {
+        if (p.trim() && !p.trim().startsWith('#')) portList.push(p.trim());
       });
     }
 
@@ -260,10 +274,12 @@ export default function ContainersView({
       networkList.push(createForm.network.trim());
     }
 
+    const cmdArgs = createForm.cmd.trim() ? parseCommandArgs(createForm.cmd.trim()) : undefined;
+
     const payload = {
       name: createForm.name.trim() || undefined,
       image: createForm.image.trim(),
-      command: createForm.cmd.trim() ? createForm.cmd.trim().split(' ') : undefined,
+      command: cmdArgs && cmdArgs.length > 0 ? cmdArgs : undefined,
       portMappings: portList.length > 0 ? portList : undefined,
       env: envList.length > 0 ? envList : undefined,
       volumes: volumeList.length > 0 ? volumeList : undefined,
@@ -623,14 +639,72 @@ export default function ContainersView({
               </div>
 
               <div>
-                <label className="block text-slate-300 font-medium mb-1">Port Bindings (host:container)</label>
-                <input
-                  type="text"
-                  placeholder="e.g. 8080:80, 443:443"
-                  value={createForm.ports}
-                  onChange={(e) => setCreateForm({ ...createForm, ports: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500"
-                />
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-slate-300 font-medium">Port Bindings (host:container)</label>
+                  {parsedPortList.length > 0 && (
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                      {parsedPortList.length} mapped
+                    </span>
+                  )}
+                </div>
+
+                <div 
+                  onClick={() => setShowPortModal(true)}
+                  className="w-full bg-slate-950 border border-slate-800 hover:border-cyan-500/50 rounded-lg p-2.5 cursor-pointer transition group"
+                  title="Click to manage port bindings"
+                >
+                  {parsedPortList.length === 0 ? (
+                    <div className="flex items-center justify-between py-0.5">
+                      <div className="flex items-center gap-2 text-slate-400 group-hover:text-slate-300 transition-colors">
+                        <Network className="w-3.5 h-3.5 text-cyan-400" />
+                        <span className="text-xs">Configure Port Bindings...</span>
+                      </div>
+                      <span className="text-[11px] text-cyan-400 group-hover:underline flex items-center gap-1 font-medium">
+                        + Add / Map
+                      </span>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div className="flex items-center gap-1.5 text-[11px] text-slate-300 font-medium">
+                          <Network className="w-3 h-3 text-cyan-400" />
+                          <span>Configured Ports ({parsedPortList.length})</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCreateForm(prev => ({ ...prev, ports: '' }));
+                            }}
+                            className="text-[11px] text-rose-400 hover:text-rose-300 hover:underline cursor-pointer"
+                          >
+                            Clear
+                          </button>
+                          <span className="text-[11px] text-cyan-400 group-hover:underline font-medium">
+                            Edit Table
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-1 max-h-16 overflow-y-auto">
+                        {parsedPortList.slice(0, 5).map((p, idx) => (
+                          <span
+                            key={idx}
+                            className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-[10px] font-mono text-cyan-300 max-w-[180px] truncate"
+                            title={`${p.hostPort || p.containerPort}:${p.containerPort}/${p.protocol || 'tcp'}`}
+                          >
+                            {p.hostPort || p.containerPort}:{p.containerPort}{p.protocol === 'udp' ? '/udp' : ''}
+                          </span>
+                        ))}
+                        {parsedPortList.length > 5 && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-900/80 border border-slate-800 text-[10px] text-slate-400">
+                            +{parsedPortList.length - 5} more
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div>
@@ -703,14 +777,59 @@ export default function ContainersView({
               </div>
 
               <div>
-                <label className="block text-slate-300 font-medium mb-1">Command Override</label>
-                <input
-                  type="text"
-                  placeholder="e.g. echo hello"
-                  value={createForm.cmd}
-                  onChange={(e) => setCreateForm({ ...createForm, cmd: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500 font-mono"
-                />
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-slate-300 font-medium">Command Override</label>
+                  {parsedCmdArgs.length > 0 && (
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                      {parsedCmdArgs.length} arg{parsedCmdArgs.length !== 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
+
+                <div 
+                  onClick={() => setShowCmdModal(true)}
+                  className="w-full bg-slate-950 border border-slate-800 hover:border-cyan-500/50 rounded-lg p-2.5 cursor-pointer transition group"
+                  title="Click to edit command override"
+                >
+                  {!createForm.cmd.trim() ? (
+                    <div className="flex items-center justify-between py-0.5">
+                      <div className="flex items-center gap-2 text-slate-400 group-hover:text-slate-300 transition-colors">
+                        <Terminal className="w-3.5 h-3.5 text-cyan-400" />
+                        <span className="text-xs">Override Container Command (CMD)...</span>
+                      </div>
+                      <span className="text-[11px] text-cyan-400 group-hover:underline flex items-center gap-1 font-medium">
+                        + Edit Command
+                      </span>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div className="flex items-center gap-1.5 text-[11px] text-slate-300 font-medium">
+                          <Terminal className="w-3 h-3 text-cyan-400" />
+                          <span>Custom Command ({parsedCmdArgs.length} args)</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCreateForm(prev => ({ ...prev, cmd: '' }));
+                            }}
+                            className="text-[11px] text-rose-400 hover:text-rose-300 hover:underline cursor-pointer"
+                          >
+                            Clear
+                          </button>
+                          <span className="text-[11px] text-cyan-400 group-hover:underline font-medium">
+                            Edit Editor
+                          </span>
+                        </div>
+                      </div>
+                      <div className="font-mono text-[11px] text-cyan-300 bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 max-h-16 overflow-y-auto break-all select-text">
+                        {createForm.cmd}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Advanced Network Attachment */}
@@ -801,6 +920,22 @@ export default function ContainersView({
         initialEnv={createForm.env}
         onSave={(newEnv) => setCreateForm(prev => ({ ...prev, env: newEnv }))}
         onClose={() => setShowEnvModal(false)}
+      />
+
+      {/* Modal: Port Bindings Editor */}
+      <PortBindingsModal
+        isOpen={showPortModal}
+        initialPorts={createForm.ports}
+        onSave={(newPorts) => setCreateForm(prev => ({ ...prev, ports: newPorts }))}
+        onClose={() => setShowPortModal(false)}
+      />
+
+      {/* Modal: Command Override Editor */}
+      <CommandOverrideModal
+        isOpen={showCmdModal}
+        initialCmd={createForm.cmd}
+        onSave={(newCmd) => setCreateForm(prev => ({ ...prev, cmd: newCmd }))}
+        onClose={() => setShowCmdModal(false)}
       />
     </div>
   );

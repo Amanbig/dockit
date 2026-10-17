@@ -1,10 +1,16 @@
 # Dockit v0.6.5 🚀
 
-Dockit **v0.6.5** brings multi-select checkboxes and 1-click batch actions across Containers, Images, and Volumes, an **Interactive Environment Variables Manager** (with visual Key-Value table, Raw `.env` mode, and 1-click file upload), a major upgrade to **Container Logs** with interactive search match navigation arrows (`▲` / `▼`), active highlight focusing, and auto-scrolling to latest logs. It also introduces a robust **Reliability & Error Handling Architecture** (replacing native alerts with floating toast notifications and in-app confirm dialogs), automatic native package selection in the **In-App Updater**, and refined **Disk Space & Prune Dashboard** visuals.
+Dockit **v0.6.5** brings multi-select checkboxes and 1-click batch actions across Containers, Images, and Volumes, a dedicated **Create Container Wizard Overhaul** (featuring interactive dialogs for Port Bindings with presets, Environment Variables with `.env` file upload, and Command Override with quote-aware argument tokenization), a major upgrade to **Container Logs** with interactive search match navigation arrows (`▲` / `▼`), active highlight focusing, and auto-scrolling to latest logs. It also introduces a robust **Reliability & Error Handling Architecture** (replacing native alerts with floating toast notifications and in-app confirm dialogs), automatic native package selection in the **In-App Updater**, and refined **Disk Space & Prune Dashboard** visuals.
 
 ---
 
 ### ✨ What's New & Highlights
+
+#### 🌐 Interactive Port Bindings Dialog with 1-Click Presets
+- **Visual Port Mapping Table**: Manage host-to-container port forwards (`host_port:container_port`) with protocol selection (`TCP` / `UDP`) and keyboard navigation (<kbd>Enter</kbd> on container port adds a new row).
+- **1-Click Popular Presets**: Instant one-click port presets for standard development services (HTTP `80:80`, HTTPS `443:443`, Node/React `3000:3000`, Web `8080:8080`, Vite `5173:5173`, PostgreSQL `5432:5432`, MySQL `3306:3306`, Redis `6379:6379`).
+- **Quick String Mode**: Paste or edit multi-port strings (e.g. `8080:80, 443:443/udp, 127.0.0.1:3000:3000`) with two-way synchronization.
+- **Form Preview & Quick Clear**: Clean preview chips showing active port mappings with one-click Clear and Edit actions.
 
 #### ⚙️ Interactive Environment Variables Manager & `.env` Importer
 - **Visual Key-Value Table Editor**: Dedicated table interface to add, edit, and delete environment variables with monospace styling and keyboard support (<kbd>Enter</kbd> on the last value input automatically creates and focuses a new row).
@@ -12,6 +18,11 @@ Dockit **v0.6.5** brings multi-select checkboxes and 1-click batch actions acros
 - **1-Click `.env` File Upload**: Dedicated "Import .env" button to load local `.env` and `.txt` files directly into the container configuration with automatic parsing and variable merging.
 - **Form Preview & Overflow Protection**: Replaced the plain single text field in the Create Container modal with an interactive card trigger featuring live variable counts (`X set`), preview chips with truncation tooltips for long keys/values, and a clean `+N more` counter for large variable sets.
 - **Engine Support**: Transparently handles arrays, multiline `.env` strings, and legacy comma-delimited strings on container creation.
+
+#### ⌨️ Command Override (CMD) Dialog & Live Argument Tokenizer
+- **Dedicated Command Editor**: Spacious multi-line script editor for overriding container startup commands or entrypoints.
+- **Live Docker Argument Tokenizer**: Real-time visual breakdown displaying exact parsed arguments `[0]`, `[1]`, `[2]` with shell quote preservation (`"..."` and `'...'`), preventing argument mangling.
+- **Convenient Command Snippets**: Built-in 1-tap snippets for container debugging: Keep-Alive (`sleep infinity`, `tail -f /dev/null`), interactive shells (`/bin/sh`, `/bin/bash`), and inline shell wrappers (`sh -c "..."`).
 
 #### 📜 Container Logs Search Navigation & Auto-Scroll
 - **Interactive Find in Logs (`▲` / `▼`)**: Dedicated Previous Match (`▲` / <kbd>Shift+Enter</kbd>) and Next Match (`▼` / <kbd>Enter</kbd>) navigation buttons jump directly from match to match and smoothly center the log viewport on the selected occurrence.
