@@ -246,55 +246,56 @@ export default function RegistryView({
 
   return (
     <div className="flex-1 flex flex-col h-full bg-slate-900/60 overflow-hidden">
-      {/* Search Header */}
-      <div className="p-6 border-b border-slate-800 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-            <Globe className="w-5 h-5 text-cyan-400" />
-            Registry Hub
-          </h1>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Explore Docker Hub and GitHub Container Registry (GHCR), read official documentation, inspect tags, and pull images.
-          </p>
-        </div>
+      {/* Search Header (Hidden on Image Details Page) */}
+      {!selectedImage && (
+        <div className="p-6 border-b border-slate-800 flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-bold text-slate-100 flex items-center gap-2">
+              <Globe className="w-5 h-5 text-cyan-400" />
+              Registry Hub
+            </h1>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Explore Docker Hub and GitHub Container Registry (GHCR), read official documentation, inspect tags, and pull images.
+            </p>
+          </div>
 
-        {/* Search controls */}
-        <form onSubmit={handleSearch} className="flex items-center gap-2">
-          {/* Registry Dropdown */}
-          <div className="relative">
-            <select
-              value={selectedRegistry}
-              onChange={(e) => setSelectedRegistry(e.target.value)}
-              className="bg-slate-950 border border-slate-800 rounded-lg pl-3 pr-8 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-cyan-500 cursor-pointer"
+          {/* Search controls */}
+          <form onSubmit={handleSearch} className="flex items-center gap-2">
+            {/* Registry Dropdown */}
+            <div className="relative">
+              <select
+                value={selectedRegistry}
+                onChange={(e) => setSelectedRegistry(e.target.value)}
+                className="bg-slate-950 border border-slate-800 rounded-lg pl-3 pr-8 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-cyan-500 cursor-pointer"
+              >
+                <option value="all">All Registries</option>
+                <option value="dockerhub">Docker Hub</option>
+                <option value="ghcr">GitHub (GHCR)</option>
+              </select>
+            </div>
+
+            <div className="relative">
+              <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+              <input
+                type="text"
+                placeholder="Search images (e.g. redis, postgres, node)..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 w-64 md:w-80 font-mono transition-colors"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={searching}
+              className="px-4 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold shadow-md shadow-cyan-500/20 disabled:opacity-50 transition-all whitespace-nowrap cursor-pointer"
             >
-              <option value="all">All Registries</option>
-              <option value="dockerhub">Docker Hub</option>
-              <option value="ghcr">GitHub (GHCR)</option>
-            </select>
-          </div>
+              {searching ? 'Searching...' : 'Search'}
+            </button>
+          </form>
+        </div>
+      )}
 
-          <div className="relative">
-            <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
-            <input
-              type="text"
-              placeholder="Search images (e.g. redis, postgres, node)..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 w-64 md:w-80 font-mono transition-colors"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={searching}
-            className="px-4 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold shadow-md shadow-cyan-500/20 disabled:opacity-50 transition-all whitespace-nowrap cursor-pointer"
-          >
-            {searching ? 'Searching...' : 'Search'}
-          </button>
-        </form>
-      </div>
-
-      {/* Main Content Area */}
       {/* Main Content Area */}
       {!selectedImage ? (
         /* Full-Page Search Results View */
