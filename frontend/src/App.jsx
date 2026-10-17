@@ -88,6 +88,17 @@ import UpdateModal from './components/UpdateModal';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('containers');
+  const [visitedTabs, setVisitedTabs] = useState(() => new Set(['containers']));
+
+  useEffect(() => {
+    setVisitedTabs(prev => {
+      if (prev.has(activeTab)) return prev;
+      const next = new Set(prev);
+      next.add(activeTab);
+      return next;
+    });
+  }, [activeTab]);
+
   const [selectedContainerId, setSelectedContainerId] = useState(null);
   const [activeRuntime, setActiveRuntime] = useState('docker');
   const [systemInfo, setSystemInfo] = useState(null);
@@ -867,136 +878,176 @@ export default function App() {
 
         {/* View Switcher wrapped in ErrorBoundary */}
         <ErrorBoundary onReset={refreshAll}>
-          <main className="flex-1 flex overflow-hidden">
-            {activeTab === 'containers' && (
-              selectedContainerId ? (
-                <ContainerDetailsView
-                  containerId={selectedContainerId}
-                  onBack={() => setSelectedContainerId(null)}
-                  onRefreshList={refreshAll}
-                  onToast={addToast}
-                  onConfirm={requestConfirmation}
-                  onOpenLogs={(id, name) => setLogsModal({ open: true, id, name })}
+          <main className="flex-1 flex overflow-hidden relative">
+            {visitedTabs.has('containers') && (
+              <div
+                className="flex-1 flex flex-col h-full overflow-hidden"
+                style={{ display: activeTab === 'containers' ? 'flex' : 'none' }}
+              >
+                {selectedContainerId ? (
+                  <ContainerDetailsView
+                    containerId={selectedContainerId}
+                    onBack={() => setSelectedContainerId(null)}
+                    onRefreshList={refreshAll}
+                    onToast={addToast}
+                    onConfirm={requestConfirmation}
+                    onOpenLogs={(id, name) => setLogsModal({ open: true, id, name })}
+                  />
+                ) : (
+                  <ContainersView
+                    containers={containers}
+                    networks={networks}
+                    volumes={volumes}
+                    loading={isRefreshing}
+                    onRefresh={refreshAll}
+                    onStart={handleStartContainer}
+                    onStop={handleStopContainer}
+                    onRestart={handleRestartContainer}
+                    onPause={handlePauseContainer}
+                    onUnpause={handleUnpauseContainer}
+                    onRemove={handleRemoveContainer}
+                    onCreate={handleCreateContainer}
+                    onOpenLogs={(id, name) => setLogsModal({ open: true, id, name })}
+                    onInspect={handleInspectContainer}
+                    onSelectContainer={(id) => setSelectedContainerId(id)}
+                    onBatchStart={handleBatchStartContainers}
+                    onBatchStop={handleBatchStopContainers}
+                    onBatchRestart={handleBatchRestartContainers}
+                    onBatchRemove={handleBatchRemoveContainers}
+                  />
+                )}
+              </div>
+            )}
+
+            {visitedTabs.has('images') && (
+              <div
+                className="flex-1 flex flex-col h-full overflow-hidden"
+                style={{ display: activeTab === 'images' ? 'flex' : 'none' }}
+              >
+                <ImagesView
+                  images={images}
+                  loading={isRefreshing}
+                  onRefresh={refreshAll}
+                  onPull={handlePullImage}
+                  onRemove={handleRemoveImage}
+                  onBatchRemove={handleBatchRemoveImages}
+                  onTag={handleTagImage}
+                  onInspect={handleInspectImage}
                 />
-              ) : (
-                <ContainersView
-                  containers={containers}
-                  networks={networks}
+              </div>
+            )}
+
+            {visitedTabs.has('volumes') && (
+              <div
+                className="flex-1 flex flex-col h-full overflow-hidden"
+                style={{ display: activeTab === 'volumes' ? 'flex' : 'none' }}
+              >
+                <VolumesView
                   volumes={volumes}
                   loading={isRefreshing}
                   onRefresh={refreshAll}
-                  onStart={handleStartContainer}
-                  onStop={handleStopContainer}
-                  onRestart={handleRestartContainer}
-                  onPause={handlePauseContainer}
-                  onUnpause={handleUnpauseContainer}
-                  onRemove={handleRemoveContainer}
-                  onCreate={handleCreateContainer}
-                  onOpenLogs={(id, name) => setLogsModal({ open: true, id, name })}
-                  onInspect={handleInspectContainer}
-                  onSelectContainer={(id) => setSelectedContainerId(id)}
-                  onBatchStart={handleBatchStartContainers}
-                  onBatchStop={handleBatchStopContainers}
-                  onBatchRestart={handleBatchRestartContainers}
-                  onBatchRemove={handleBatchRemoveContainers}
+                  onCreate={handleCreateVolume}
+                  onRemove={handleRemoveVolume}
+                  onBatchRemove={handleBatchRemoveVolumes}
+                  onPrune={handlePruneVolumes}
+                  onInspect={handleInspectVolume}
+                  onConfirm={requestConfirmation}
                 />
-              )
+              </div>
             )}
 
-            {activeTab === 'images' && (
-              <ImagesView
-                images={images}
-                loading={isRefreshing}
-                onRefresh={refreshAll}
-                onPull={handlePullImage}
-                onRemove={handleRemoveImage}
-                onBatchRemove={handleBatchRemoveImages}
-                onTag={handleTagImage}
-                onInspect={handleInspectImage}
-              />
+            {visitedTabs.has('networks') && (
+              <div
+                className="flex-1 flex flex-col h-full overflow-hidden"
+                style={{ display: activeTab === 'networks' ? 'flex' : 'none' }}
+              >
+                <NetworksView
+                  networks={networks}
+                  loading={isRefreshing}
+                  onRefresh={refreshAll}
+                  onCreate={handleCreateNetwork}
+                  onRemove={handleRemoveNetwork}
+                  onInspect={handleInspectNetwork}
+                />
+              </div>
             )}
 
-            {activeTab === 'volumes' && (
-              <VolumesView
-                volumes={volumes}
-                loading={isRefreshing}
-                onRefresh={refreshAll}
-                onCreate={handleCreateVolume}
-                onRemove={handleRemoveVolume}
-                onBatchRemove={handleBatchRemoveVolumes}
-                onPrune={handlePruneVolumes}
-                onInspect={handleInspectVolume}
-                onConfirm={requestConfirmation}
-              />
+            {visitedTabs.has('cleanup') && (
+              <div
+                className="flex-1 flex flex-col h-full overflow-hidden"
+                style={{ display: activeTab === 'cleanup' ? 'flex' : 'none' }}
+              >
+                <CleanupView
+                  activeRuntime={activeRuntime}
+                />
+              </div>
             )}
 
-            {activeTab === 'networks' && (
-              <NetworksView
-                networks={networks}
-                loading={isRefreshing}
-                onRefresh={refreshAll}
-                onCreate={handleCreateNetwork}
-                onRemove={handleRemoveNetwork}
-                onInspect={handleInspectNetwork}
-              />
+            {visitedTabs.has('compose') && (
+              <div
+                className="flex-1 flex flex-col h-full overflow-hidden"
+                style={{ display: activeTab === 'compose' ? 'flex' : 'none' }}
+              >
+                <ComposeView
+                  onOpenLocal={OpenComposeProject}
+                  onOpenURL={OpenComposeProjectFromURL}
+                  onSelectDirectory={SelectDirectoryDialog}
+                  onUp={ComposeUp}
+                  onDown={ComposeDown}
+                  onStart={ComposeStart}
+                  onStop={ComposeStop}
+                  onRestart={ComposeRestart}
+                  onStageChanges={ComposeStageChanges}
+                  onApplyChanges={ComposeApplyChanges}
+                  onDiscardChanges={ComposeDiscardChanges}
+                  onRefreshProject={ComposeRefresh}
+                  onSaveSnapshot={ComposeSaveSnapshot}
+                  onRestoreSnapshot={ComposeRestoreSnapshot}
+                  onReadEnv={ComposeReadEnv}
+                  onSaveEnv={ComposeSaveEnv}
+                  onToast={addToast}
+                  onConfirm={requestConfirmation}
+                />
+              </div>
             )}
 
-            {activeTab === 'cleanup' && (
-              <CleanupView
-                activeRuntime={activeRuntime}
-              />
+            {visitedTabs.has('registry') && (
+              <div
+                className="flex-1 flex flex-col h-full overflow-hidden"
+                style={{ display: activeTab === 'registry' ? 'flex' : 'none' }}
+              >
+                <RegistryView
+                  onSearch={SearchRegistry}
+                  onSearchAll={SearchAllRegistries}
+                  onGetTags={GetRegistryTags}
+                  onGetMetadata={GetRegistryMetadata}
+                  onPull={handlePullImage}
+                  onAddFavorite={handleAddFavorite}
+                  onRemoveFavorite={handleRemoveFavorite}
+                  favorites={favorites}
+                  onToast={addToast}
+                />
+              </div>
             )}
 
-            {activeTab === 'compose' && (
-              <ComposeView
-                onOpenLocal={OpenComposeProject}
-                onOpenURL={OpenComposeProjectFromURL}
-                onSelectDirectory={SelectDirectoryDialog}
-                onUp={ComposeUp}
-                onDown={ComposeDown}
-                onStart={ComposeStart}
-                onStop={ComposeStop}
-                onRestart={ComposeRestart}
-                onStageChanges={ComposeStageChanges}
-                onApplyChanges={ComposeApplyChanges}
-                onDiscardChanges={ComposeDiscardChanges}
-                onRefreshProject={ComposeRefresh}
-                onSaveSnapshot={ComposeSaveSnapshot}
-                onRestoreSnapshot={ComposeRestoreSnapshot}
-                onReadEnv={ComposeReadEnv}
-                onSaveEnv={ComposeSaveEnv}
-                onToast={addToast}
-                onConfirm={requestConfirmation}
-              />
-            )}
-
-            {activeTab === 'registry' && (
-              <RegistryView
-                onSearch={SearchRegistry}
-                onSearchAll={SearchAllRegistries}
-                onGetTags={GetRegistryTags}
-                onGetMetadata={GetRegistryMetadata}
-                onPull={handlePullImage}
-                onAddFavorite={handleAddFavorite}
-                onRemoveFavorite={handleRemoveFavorite}
-                favorites={favorites}
-                onToast={addToast}
-              />
-            )}
-
-            {activeTab === 'settings' && (
-              <SettingsView
-                config={appConfig}
-                activeRuntime={activeRuntime}
-                onSwitchRuntime={handleSwitchRuntime}
-                onOpenInstaller={() => setShowInstaller(true)}
-                theme={theme}
-                onSetTheme={handleSetTheme}
-                appVersion={appVersion}
-                onCheckForUpdates={() => handleCheckForUpdates(true)}
-                isCheckingUpdates={isCheckingUpdate}
-                onToast={addToast}
-              />
+            {visitedTabs.has('settings') && (
+              <div
+                className="flex-1 flex flex-col h-full overflow-hidden"
+                style={{ display: activeTab === 'settings' ? 'flex' : 'none' }}
+              >
+                <SettingsView
+                  config={appConfig}
+                  activeRuntime={activeRuntime}
+                  onSwitchRuntime={handleSwitchRuntime}
+                  onOpenInstaller={() => setShowInstaller(true)}
+                  theme={theme}
+                  onSetTheme={handleSetTheme}
+                  appVersion={appVersion}
+                  onCheckForUpdates={() => handleCheckForUpdates(true)}
+                  isCheckingUpdates={isCheckingUpdate}
+                  onToast={addToast}
+                />
+              </div>
             )}
           </main>
         </ErrorBoundary>

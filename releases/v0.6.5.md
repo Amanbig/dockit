@@ -20,6 +20,14 @@ Dockit **v0.6.5** brings multi-select checkboxes and 1-click batch actions acros
   - Network Configuration (IP, Gateway, MAC address, Ports) and Mounts/Volumes.
   - 1-Click Copy actions for individual fields and full raw JSON container payload.
 
+#### 🗂️ Tab Keep-Alive & Seamless Navigation State Retention
+- **No More Resetting on Tab Switch**: Navigating between sidebar tabs (e.g. from Registry Hub to Compose Projects, Containers, or Settings) no longer destroys component trees or wipes working progress.
+- **Persistent State Across Views**:
+  - **Registry Hub**: Preserves active search queries, search results, selected image documentation view, scroll positions, and open tag browsers.
+  - **Compose Studio**: Keeps opened compose projects, unstaged/staged YAML edits, `.env` configurations, and terminal execution streams active.
+  - **Containers & Images**: Retains search filters, multi-select batch checkboxes, and active container inspection details.
+- **Lazy Mounting with Instant Switching**: Views are mounted lazily upon first visit for rapid application launch, and then maintained with zero-lag CSS visibility toggles.
+
 #### 🌐 Interactive Port Bindings Dialog with 1-Click Presets
 - **Visual Port Mapping Table**: Manage host-to-container port forwards (`host_port:container_port`) with protocol selection (`TCP` / `UDP`) and keyboard navigation (<kbd>Enter</kbd> on container port adds a new row).
 - **1-Click Popular Presets**: Instant one-click port presets for standard development services (HTTP `80:80`, HTTPS `443:443`, Node/React `3000:3000`, Web `8080:8080`, Vite `5173:5173`, PostgreSQL `5432:5432`, MySQL `3306:3306`, Redis `6379:6379`).

@@ -76,6 +76,7 @@ Built with **Go (Wails v2)** + **React 19** + **Tailwind CSS v4** + **Base UI / 
 
 ### 🎨 Themes & Adaptive UI
 - Fully integrated **Dark Mode** and **Light Mode** with WCAG AA compliant contrast across all cards, modals, and tables.
+- **Keep-Alive View State Retention**: Navigating between tabs (Compose Studio, Registry Hub, Containers, Images, Volumes, Cleanup) preserves working state, active search queries, documentation views, YAML editors, and scroll positions without component unmounting.
 - Responsive overflow protection with ellipsis truncation (`...`) and compact layouts for small displays and laptops.
 
 ### 🔄 In-Place Self-Updates & Release Management
