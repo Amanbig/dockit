@@ -1,16 +1,25 @@
-# Dockit v0.6.5 🚀
+# Dockit v0.7.0 🚀
 
-Dockit **v0.6.5** brings multi-select checkboxes and 1-click batch actions across Containers, Images, and Volumes, a dedicated **Create Container Wizard Overhaul** (featuring interactive dialogs for Port Bindings with presets, Environment Variables with `.env` file upload, and Command Override with quote-aware argument tokenization), an overhaul of the **Registry Hub** to full-page responsive grid navigation with dedicated image documentation and tags view, a comprehensive **Container Execution & Runtime Inspector Dialog** with clean timestamp formatting, a major upgrade to **Container Logs** with interactive search match navigation arrows (`▲` / `▼`), active highlight focusing, and auto-scrolling to latest logs. It also introduces a robust **Reliability & Error Handling Architecture** (replacing native alerts with floating toast notifications and in-app confirm dialogs), automatic native package selection in the **In-App Updater**, and refined **Disk Space & Prune Dashboard** visuals.
+Dockit **v0.7.0** introduces a complete overhaul of the **Registry Hub** (featuring a full-page responsive search grid and dedicated full-screen image documentation viewer), **Tab Keep-Alive & Seamless Navigation State Retention** across all workspace views (Compose, Registry, Containers, Images), a comprehensive **Container Execution & Runtime Inspector Dialog** with clean timestamp formatting, and interactive **Port Bindings** and **Command Override** dialogs with live Docker argument tokenization and 1-click popular development presets.
 
 ---
 
 ### ✨ What's New & Highlights
 
 #### 🔍 Full-Page Registry Hub & Dedicated Image Documentation Viewer
-- **Full-Page Search Grid**: Replaced the cramped 2-column split layout with a spacious, full-width responsive card grid (`grid-cols-1 md:grid-cols-2 lg:grid-cols-3`) displaying repository stars, pull counts, official badges, and descriptions.
+- **Full-Page Search Grid**: Replaced the cramped 2-column split layout with a spacious, full-width responsive card grid (`grid-cols-1 md:grid-cols-2 lg:grid-cols-3`) displaying repository stars, pull counts, official badges, and descriptions across the entire viewport.
 - **Dedicated Image Documentation Workspace**: Clicking any repository smoothly transitions to a full-viewport dedicated view featuring a top navigation bar with a 1-click "← Back to Search Results" button and breadcrumb path (`Registry Hub / <image>`).
 - **Complete Markdown & Tag Viewing**: Documentation READMEs, run commands, and architecture/tag tables now utilize the full application width without horizontal crowding or truncated tables.
+- **Header Cleanliness**: The main search bar and header are cleanly hidden while exploring an image's details, maximizing vertical reading space.
 - **Quick Search Suggestions**: Added 1-click search suggestion chips (Nginx, Node, Python, Redis, Postgres, Ubuntu, Alpine, Golang) on empty search state for rapid exploration.
+
+#### 🗂️ Tab Keep-Alive & Seamless Navigation State Retention
+- **No More Resetting on Tab Switch**: Navigating between sidebar tabs (e.g. from Registry Hub to Compose Projects, Containers, or Settings) no longer destroys component trees or wipes working progress.
+- **Persistent State Across Views**:
+  - **Registry Hub**: Preserves active search queries, search results, selected image documentation view, scroll positions, and open tag browsers.
+  - **Compose Studio**: Keeps opened compose projects, unstaged/staged YAML edits, `.env` configurations, and terminal execution streams active.
+  - **Containers & Images**: Retains search filters, multi-select batch checkboxes, and active container inspection details.
+- **Lazy Mounting with Instant Switching**: Views are mounted lazily upon first visit for rapid application launch, and then maintained with zero-lag CSS visibility toggles (0ms switching with zero flicker).
 
 #### ⏱️ Container Execution Details & Runtime Inspector Dialog
 - **Clean Timestamp Formatting & Overflow Prevention**: Replaced raw, overflowing ISO timestamps (`2026-08-29T14:51:11.244946742Z`) in the Execution Details card with clean `YYYY-MM-DD HH:mm:ss` timestamps, full-width row alignment (`justify-between`), and complete raw timestamps in hover tooltips.
@@ -20,78 +29,16 @@ Dockit **v0.6.5** brings multi-select checkboxes and 1-click batch actions acros
   - Network Configuration (IP, Gateway, MAC address, Ports) and Mounts/Volumes.
   - 1-Click Copy actions for individual fields and full raw JSON container payload.
 
-#### 🗂️ Tab Keep-Alive & Seamless Navigation State Retention
-- **No More Resetting on Tab Switch**: Navigating between sidebar tabs (e.g. from Registry Hub to Compose Projects, Containers, or Settings) no longer destroys component trees or wipes working progress.
-- **Persistent State Across Views**:
-  - **Registry Hub**: Preserves active search queries, search results, selected image documentation view, scroll positions, and open tag browsers.
-  - **Compose Studio**: Keeps opened compose projects, unstaged/staged YAML edits, `.env` configurations, and terminal execution streams active.
-  - **Containers & Images**: Retains search filters, multi-select batch checkboxes, and active container inspection details.
-- **Lazy Mounting with Instant Switching**: Views are mounted lazily upon first visit for rapid application launch, and then maintained with zero-lag CSS visibility toggles.
-
 #### 🌐 Interactive Port Bindings Dialog with 1-Click Presets
 - **Visual Port Mapping Table**: Manage host-to-container port forwards (`host_port:container_port`) with protocol selection (`TCP` / `UDP`) and keyboard navigation (<kbd>Enter</kbd> on container port adds a new row).
 - **1-Click Popular Presets**: Instant one-click port presets for standard development services (HTTP `80:80`, HTTPS `443:443`, Node/React `3000:3000`, Web `8080:8080`, Vite `5173:5173`, PostgreSQL `5432:5432`, MySQL `3306:3306`, Redis `6379:6379`).
 - **Quick String Mode**: Paste or edit multi-port strings (e.g. `8080:80, 443:443/udp, 127.0.0.1:3000:3000`) with two-way synchronization.
 - **Form Preview & Quick Clear**: Clean preview chips showing active port mappings with one-click Clear and Edit actions.
 
-#### ⚙️ Interactive Environment Variables Manager & `.env` Importer
-- **Visual Key-Value Table Editor**: Dedicated table interface to add, edit, and delete environment variables with monospace styling and keyboard support (<kbd>Enter</kbd> on the last value input automatically creates and focuses a new row).
-- **Direct Raw `.env` Syntax Mode**: Full monospace text editor tab supporting standard `.env` syntax (`KEY=VALUE`), ignoring comments (`#`) and blank lines, with seamless two-way synchronization between Table and Raw modes.
-- **1-Click `.env` File Upload**: Dedicated "Import .env" button to load local `.env` and `.txt` files directly into the container configuration with automatic parsing and variable merging.
-- **Form Preview & Overflow Protection**: Replaced the plain single text field in the Create Container modal with an interactive card trigger featuring live variable counts (`X set`), preview chips with truncation tooltips for long keys/values, and a clean `+N more` counter for large variable sets.
-- **Engine Support**: Transparently handles arrays, multiline `.env` strings, and legacy comma-delimited strings on container creation.
-
 #### ⌨️ Command Override (CMD) Dialog & Live Argument Tokenizer
 - **Dedicated Command Editor**: Spacious multi-line script editor for overriding container startup commands or entrypoints.
 - **Live Docker Argument Tokenizer**: Real-time visual breakdown displaying exact parsed arguments `[0]`, `[1]`, `[2]` with shell quote preservation (`"..."` and `'...'`), preventing argument mangling.
 - **Convenient Command Snippets**: Built-in 1-tap snippets for container debugging: Keep-Alive (`sleep infinity`, `tail -f /dev/null`), interactive shells (`/bin/sh`, `/bin/bash`), and inline shell wrappers (`sh -c "..."`).
-
-#### 📜 Container Logs Search Navigation & Auto-Scroll
-- **Interactive Find in Logs (`▲` / `▼`)**: Dedicated Previous Match (`▲` / <kbd>Shift+Enter</kbd>) and Next Match (`▼` / <kbd>Enter</kbd>) navigation buttons jump directly from match to match and smoothly center the log viewport on the selected occurrence.
-- **Dynamic Active Match Highlighting & Live Counter**: Selected match receives an active cyan focus ring, extra bold typography, and subtle pop (`ring-2 ring-cyan-400 font-black scale-105`) while other occurrences remain highlighted in soft yellow. Features a real-time match counter (e.g. `1/14` or `0/0`).
-- **Flexible Filter vs All Lines Toggle**: Easily switch between **All Lines** (keeping full surrounding log context with active navigation) and **Filtered** mode (isolating only lines containing matches).
-- **Auto-Scroll to Bottom on Open**: Opening the container details **Live Logs** tab or the standalone **Logs Modal** now automatically scrolls directly to the newest log entries at the bottom instead of staying anchored at line 1.
-- **Streamlined Tab Height (380px) & Maximize Dialog**: Compacted the Live Logs container height to `380px` to prevent page overflow on smaller/scaled displays, and added a Maximize button (<kbd>Maximize2</kbd>) to instantly pop the logs into a spacious dialog.
-- **Full-Screen Modal Dialog Mode**: The standalone Logs Modal now includes a Full Screen toggle button (<kbd>Maximize2</kbd> / <kbd>Minimize2</kbd>) that expands the modal to 98vw/95vh for intensive log inspection.
-- **Dedicated "Scroll to Bottom" Actions**: Added 1-click scroll-to-bottom buttons with auto-tail synchronization across both the details view and the logs modal.
-
-#### ☑️ Multi-Select Checkboxes & Batch Operations
-- **Row & Header Checkboxes**: Added selection checkboxes across **Containers**, **Images**, and **Storage Volumes** tables with master Select All/Deselect All and indeterminate (`-`) state handling.
-- **Batch Action Toolbar**: When one or more items are selected, a sleek floating batch actions bar appears with selected count and 1-click batch controls:
-  - **Containers**: Batch Start, Batch Stop, Batch Restart, and Batch Delete.
-  - **Images**: Batch Delete with safe confirmation prompt.
-  - **Volumes**: Batch Delete with safe confirmation prompt.
-- **Safe Single-Prompt Batch Confirmations**: Destructive batch actions trigger a single consolidated confirmation modal detailing the exact number of resources about to be deleted.
-- **Visual Selected Highlighting**: Selected rows receive an active cyan accent highlight (`bg-cyan-950/30 border-l-2 border-l-cyan-400`) and stop-propagation click handling.
-
-#### 🔔 Modern Toast Notification System & Engine Error Parsing
-- **Non-Blocking Toasts**: Replaced all native browser `alert()` popups with sleek, animated toast notifications for success, warnings, info, and errors with auto-dismiss.
-- **Human-Readable Engine Errors**: Raw Docker/Podman socket errors (e.g. `context deadline exceeded`, `No such container`, `permission denied`, `port is already allocated`) are parsed into clean, helpful guidance with one-click error copying.
-
-#### 🛡️ In-App Confirmation Dialogs (<kbd>Enter</kbd> / <kbd>Esc</kbd>)
-- **No More Native Prompts**: Replaced all blocking `window.confirm()` calls with a polished in-app confirmation modal.
-- **Keyboard-Accessible**: Press <kbd>Enter</kbd> to confirm or <kbd>Esc</kbd> to cancel actions safely.
-- **Danger Visuals**: Destructive actions (container deletion, volume removal, system pruning) are clearly highlighted with red warning icons and danger button styles.
-
-#### 🛡️ Application Reliability, Error Boundaries & Timeouts
-- **React Error Boundaries**: Added top-level and per-view error boundaries to gracefully catch rendering issues and offer a 1-click view reload instead of crashing to a blank white screen.
-- **Defensive Backend Timeouts**: Bound all Go backend RPC methods with defensive 15-second context timeouts (`getContext(15 * time.Second)`) to prevent UI lockups if an engine socket hangs.
-- **Window Focus Auto-Sync**: Dockit now listens for window `focus` events to automatically re-sync container statuses, image lists, and system resource monitors when switching back to the app.
-- **Action Debounce & Loading Spinners**: Added immediate visual spinners to Start, Stop, Restart, and Delete buttons to prevent accidental double-clicks.
-- **Global <kbd>Esc</kbd> Dismissal**: Pressing <kbd>Esc</kbd> smoothly dismisses all open modals across the entire app.
-
-#### 🔄 Streamlined Auto-Updater
-- **Automatic Package Selection**: The in-app updater automatically uses the native package matching your installation (`.deb`, `.rpm`, `.exe`, or `.tar.gz`) without prompting manual selection.
-- **Clear Elevation Indicator**: Transparently indicates when Polkit root authorization is needed for `.deb` and `.rpm` system upgrades.
-
-#### 🧹 Visual Disk Space & Prune Dashboard Refinements
-- **Refined Reclaimable Space Card**: Replaced dark gradient background with a luminous mint-teal surface (`#ecfdf5`), bold emerald numbers (`#047857`), high-contrast subtitles, and a crisp progress bar track.
-- **Enhanced Button & Badge Contrast**: Styled Quick Clean button, category icons (Images, Volumes, Containers, Build Cache), and alert banners for WCAG-compliant readability in Light Mode.
-- **Improved Modal Overlays & State UX**: Calibrated backdrop dimming, option hover states, and added dedicated error retry & empty-state indicators.
-
-#### 📜 Open-Source License & Attribution
-- **Apache-2.0 Badge in Settings**: Direct link to the Apache 2.0 license and source repository (`Amanbig/dockit`) in the About Dockit section.
-- **Clean Product Description**: Replaced internal build toolchain text with a clean, user-focused overview.
 
 ---
 

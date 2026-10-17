@@ -107,7 +107,7 @@ export default function App() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [appConfig, setAppConfig] = useState(null);
   const [theme, setTheme] = useState('dark');
-  const [appVersion, setAppVersion] = useState(packageJson?.version || '0.6.5');
+  const [appVersion, setAppVersion] = useState(packageJson?.version || '0.7.0');
 
   // Track whether the frameless window is currently maximized
   const [isMaximised, setIsMaximised] = useState(false);
