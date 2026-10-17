@@ -24,6 +24,7 @@ Built with **Go (Wails v2)** + **React 19** + **Tailwind CSS v4** + **Base UI / 
 - **Real-Time Resource Metrics**: Live CPU usage %, memory consumption (MB/GB) with limits, incoming/outgoing network I/O traffic, and block disk I/O / PIDs streamed directly on the overview tab.
 - **In-Container Terminal Shell (Exec)**: Launch an interactive shell terminal (`/bin/sh`, `/bin/bash`) directly into running containers to run commands and inspect runtime state.
 - **Log Streaming, Search Navigation & Highlighting**: Live container logs with auto-scroll to latest entries on open/stream, interactive Next/Previous match navigation arrows (<kbd>▲</kbd> / <kbd>▼</kbd> and <kbd>Enter</kbd> / <kbd>Shift+Enter</kbd>), dynamic active match highlighting with live match counters (`1/14`), toggleable full-context vs filtered line modes, and clipboard copy.
+- **Execution & Runtime Inspector Dialog (<kbd>Maximize2</kbd>)**: Clean, formatted timestamps (`YYYY-MM-DD HH:mm:ss`) preventing card overflow, with an Expand button opening a comprehensive inspection dialog showcasing runtime state, PID, exit codes, OOMKilled status, duration uptime, network details, and full raw JSON copying.
 - **Inspect Inspector**: Deep JSON inspection of low-level container configurations and network settings.
 - **Create Container Wizard Overhaul**: Interactive dialogs to spin up containers with:
   - **Port Bindings Dialog**: Table view with protocol selector (`TCP`/`UDP`), quick string mode, and 1-click presets for popular development services (HTTP, HTTPS, Postgres, MySQL, Redis, Node, Vite).
@@ -66,7 +67,9 @@ Built with **Go (Wails v2)** + **React 19** + **Tailwind CSS v4** + **Base UI / 
 
 ### 🌍 Unified Registry Hub
 - Multi-registry exploration across **Docker Hub** and **GitHub Container Registry (GHCR)**.
-- **Rich Markdown Documentation**: Full repository READMEs rendered in rich GitHub-flavored Markdown with code copy, formatted tables, and external documentation links opened via your default OS browser.
+- **Full-Page Responsive Grid**: Spacious full-width search card grid (`grid-cols-1 md:grid-cols-2 lg:grid-cols-3`) with 1-click popular search keywords (Nginx, Node, Python, Redis, Postgres, Ubuntu, Alpine, Golang).
+- **Dedicated Image Documentation Workspace**: Clicking any image navigates smoothly to a dedicated full-page view with top navigation, breadcrumbs, and "← Back to Search Results".
+- **Rich Markdown Documentation**: Full repository READMEs rendered in rich GitHub-flavored Markdown with code copy, formatted tables, and external documentation links opened via your default OS browser without horizontal squishing.
 - **Tags & Architecture Browser**: Inspect tag layers, image sizes, and release dates with one-click pull commands.
 - **Adaptive Number Formatting**: High-density star and pull counters (e.g. `1.14B+`, `34.8K`) with native hover tooltips showing exact counts.
 - One-click image pulling and favorites bookmarking.

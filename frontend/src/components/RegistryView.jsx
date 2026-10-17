@@ -15,7 +15,8 @@ import {
   Sparkles,
   Terminal,
   ExternalLink,
-  RefreshCw
+  RefreshCw,
+  ArrowLeft
 } from 'lucide-react';
 
 // Configure marked with GitHub Flavored Markdown and line breaks
@@ -153,6 +154,30 @@ export default function RegistryView({
     }
   };
 
+  const handleQuickSearch = (term) => {
+    setQuery(term);
+    setSearching(true);
+    const searchPromise = selectedRegistry === 'all'
+      ? onSearchAll(term, 1, 30)
+      : onSearch(selectedRegistry, term, 1, 30);
+    searchPromise
+      .then(res => {
+        const sorted = (res || []).sort((a, b) => {
+          if (a.isOfficial && !b.isOfficial) return -1;
+          if (!a.isOfficial && b.isOfficial) return 1;
+          const starsA = a.stars ?? a.starCount ?? 0;
+          const starsB = b.stars ?? b.starCount ?? 0;
+          return starsB - starsA;
+        });
+        setResults(sorted);
+        setSelectedImage(null);
+      })
+      .catch(err => {
+        if (onToast) onToast(err.message || String(err), 'error', 'Search Failed');
+      })
+      .finally(() => setSearching(false));
+  };
+
   const handleSelectImage = async (img) => {
     setSelectedImage(img);
     setMetadata(null);
@@ -270,92 +295,137 @@ export default function RegistryView({
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-w-0">
-        {/* Left Side: Results List */}
-        <div className="w-full md:w-5/12 border-b md:border-b-0 md:border-r border-slate-800 overflow-y-auto p-4 md:p-6 space-y-3 min-w-0">
+      {/* Main Content Area */}
+      {!selectedImage ? (
+        /* Full-Page Search Results View */
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 min-w-0">
           {results.length === 0 ? (
-            <div className="h-64 border border-dashed border-slate-800 rounded-xl flex flex-col items-center justify-center text-center p-6 text-slate-500">
-              <Search className="w-8 h-8 text-slate-600 mb-2" />
-              <p className="font-medium text-sm text-slate-400">Search for OCI images</p>
-              <p className="text-xs mt-1">Explore popular containers like postgres, nginx, redis, or python.</p>
+            <div className="h-full min-h-[360px] border border-dashed border-slate-800 rounded-xl flex flex-col items-center justify-center text-center p-8 text-slate-500 max-w-2xl mx-auto my-12">
+              <div className="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 mb-3">
+                <Search className="w-6 h-6" />
+              </div>
+              <h2 className="font-bold text-base text-slate-200">Discover OCI Container Images</h2>
+              <p className="text-xs text-slate-400 max-w-md mt-1 mb-5">
+                Explore Docker Hub and GitHub Container Registry. Select any image to read official README docs, inspect layer tags, and pull directly to your local engine.
+              </p>
+
+              {/* Popular quick searches */}
+              <div className="flex flex-wrap items-center justify-center gap-2 max-w-lg">
+                <span className="text-[11px] text-slate-500 font-semibold uppercase tracking-wider mr-1">Popular:</span>
+                {['redis', 'postgres', 'nginx', 'node', 'python', 'golang', 'alpine', 'ubuntu', 'mongodb'].map(kw => (
+                  <button
+                    key={kw}
+                    type="button"
+                    onClick={() => handleQuickSearch(kw)}
+                    className="text-xs px-2.5 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 text-cyan-300 hover:text-cyan-200 border border-slate-800 transition cursor-pointer font-mono"
+                  >
+                    {kw}
+                  </button>
+                ))}
+              </div>
             </div>
           ) : (
-            results.map((res) => {
-              const isSelected = selectedImage?.name === res.name && selectedImage?.registry === res.registry;
-              const fav = isFavorite(res.name);
-              return (
-                <div
-                  key={`${res.registry}-${res.name}`}
-                  onClick={() => handleSelectImage(res)}
-                  className={`p-4 rounded-xl border cursor-pointer transition-all min-w-0 overflow-hidden ${
-                    isSelected
-                      ? 'bg-slate-900 border-cyan-500/60 shadow-md shadow-cyan-500/10'
-                      : 'bg-slate-950/70 border-slate-800 hover:border-slate-700'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-2 min-w-0">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap min-w-0 mb-1">
-                        <span 
-                          className="font-bold text-slate-100 text-sm truncate block max-w-full"
-                          title={res.name}
-                        >
-                          {res.name}
-                        </span>
-                        {res.isOfficial && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-semibold flex items-center gap-1 shrink-0 whitespace-nowrap">
-                            <ShieldCheck className="w-3 h-3" />
-                            Official
+            <div className="max-w-7xl mx-auto">
+              <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                <p className="text-xs text-slate-400">
+                  Found <strong className="text-slate-200">{results.length}</strong> repositories matching <span className="text-cyan-400 font-mono">"{query}"</span>
+                </p>
+                <span className="text-[11px] text-slate-500">Click any card to view full documentation & tags</span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {results.map((res) => {
+                  const fav = isFavorite(res.name);
+                  return (
+                    <div
+                      key={`${res.registry}-${res.name}`}
+                      onClick={() => handleSelectImage(res)}
+                      className="p-4 rounded-xl border border-slate-800 bg-slate-950/70 hover:bg-slate-900 hover:border-cyan-500/50 hover:shadow-lg hover:shadow-cyan-500/5 transition-all cursor-pointer flex flex-col justify-between group min-w-0"
+                    >
+                      <div>
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div className="min-w-0 flex-1">
+                            <span 
+                              className="font-bold text-slate-100 text-sm font-mono truncate block group-hover:text-cyan-300 transition-colors"
+                              title={res.name}
+                            >
+                              {res.name}
+                            </span>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleFavorite(res.name);
+                            }}
+                            className="p-1 text-slate-500 hover:text-amber-400 transition-colors shrink-0 cursor-pointer"
+                            title={fav ? 'Remove from favorites' : 'Add to favorites'}
+                          >
+                            <Star className={`w-4 h-4 ${fav ? 'text-amber-400 fill-amber-400' : ''}`} />
+                          </button>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 flex-wrap mb-2.5">
+                          {res.isOfficial && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-semibold flex items-center gap-1 shrink-0">
+                              <ShieldCheck className="w-3 h-3" />
+                              Official
+                            </span>
+                          )}
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400 uppercase font-mono shrink-0">
+                            {res.registry}
                           </span>
-                        )}
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400 uppercase font-mono shrink-0 whitespace-nowrap">
-                          {res.registry}
+                        </div>
+
+                        <p className="text-xs text-slate-400 line-clamp-3 leading-relaxed mb-4">
+                          {res.description || 'No description provided.'}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-3 border-t border-slate-900 text-xs text-slate-500">
+                        <div className="flex items-center gap-3">
+                          <span className="flex items-center gap-1 text-amber-400 font-medium">
+                            <Star className="w-3 h-3 fill-current" />
+                            {formatCount(res.stars ?? res.starCount ?? 0)}
+                          </span>
+                          {(res.pullCount ?? 0) > 0 && (
+                            <span>{formatCount(res.pullCount)} pulls</span>
+                          )}
+                        </div>
+                        <span className="text-cyan-400 text-[11px] font-medium group-hover:underline flex items-center gap-1">
+                          View Details &rarr;
                         </span>
                       </div>
-                      <p className="text-xs text-slate-400 mt-1 line-clamp-2 break-words">
-                        {res.description || 'No description provided.'}
-                      </p>
                     </div>
-
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleFavorite(res.name);
-                      }}
-                      className="p-1 text-slate-500 hover:text-amber-400 transition-colors shrink-0 cursor-pointer"
-                      title={fav ? 'Remove from favorites' : 'Add to favorites'}
-                    >
-                      <Star className={`w-4 h-4 ${fav ? 'text-amber-400 fill-amber-400' : ''}`} />
-                    </button>
-                  </div>
-
-                  <div className="flex items-center gap-4 mt-3 pt-2 border-t border-slate-900 text-xs text-slate-500">
-                    <span className="flex items-center gap-1">
-                      <Star className="w-3 h-3 text-amber-500" />
-                      {formatCount(res.stars ?? res.starCount ?? 0)} stars
-                    </span>
-                    {(res.pullCount ?? 0) > 0 && (
-                      <span>{formatCount(res.pullCount)} pulls</span>
-                    )}
-                  </div>
-                </div>
-              );
-            })
+                  );
+                })}
+              </div>
+            </div>
           )}
         </div>
+      ) : (
+        /* Full-Page Image Overview & Tags Workspace */
+        <div className="flex-1 flex flex-col overflow-hidden min-w-0 bg-slate-950/20">
+          {/* Repository Navigation Bar */}
+          <div className="px-6 py-2.5 border-b border-slate-800 bg-slate-950/60 flex items-center justify-between gap-4">
+            <button
+              type="button"
+              onClick={() => setSelectedImage(null)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-semibold border border-slate-700/80 transition cursor-pointer hover:text-white"
+            >
+              <ArrowLeft className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Back to Search Results</span>
+            </button>
 
-        {/* Right Side: Image Overview & Tags Workspace */}
-        <div className="w-full md:w-7/12 flex flex-col overflow-hidden bg-slate-950/40 min-w-0">
-          {!selectedImage ? (
-            <div className="h-full min-h-[300px] flex flex-col items-center justify-center text-center text-slate-500 p-8">
-              <Layers className="w-10 h-10 text-slate-700 mb-3" />
-              <p className="text-sm font-semibold text-slate-300">Select an image repository</p>
-              <p className="text-xs text-slate-500 max-w-sm mt-1">
-                Select any image on the left to read its full documentation overview, run instructions, and inspect available tags.
-              </p>
+            <div className="text-xs text-slate-400 font-mono hidden sm:flex items-center gap-1.5">
+              <span>Registry Hub</span>
+              <span className="text-slate-600">/</span>
+              <span className="text-cyan-400 font-bold">{selectedImage.name}</span>
             </div>
-          ) : (
-            <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+          </div>
+
+          <div className="flex-1 flex flex-col overflow-hidden min-w-0">
               {/* Repository Header Banner */}
               <div className="p-4 md:p-6 border-b border-slate-800 bg-slate-900/60 min-w-0">
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
@@ -605,9 +675,8 @@ export default function RegistryView({
                 </div>
               )}
             </div>
-          )}
-        </div>
-      </div>
+          </div>
+      )}
     </div>
   );
 }

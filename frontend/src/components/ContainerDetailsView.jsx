@@ -32,6 +32,7 @@ import {
   Maximize2
 } from 'lucide-react';
 import LogsModal, { highlightLogMatches, highlightLogText } from './LogsModal';
+import ExecutionDetailsModal from './ExecutionDetailsModal';
 import { 
   InspectContainer, 
   GetContainerLogs, 
@@ -46,10 +47,28 @@ import {
 } from '../../wailsjs/go/main/App';
 import { formatEngineError } from './Toast';
 
+export function formatDateTime(dateStr) {
+  if (!dateStr || dateStr === '-' || dateStr.startsWith('0001-01-01')) return '-';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    const seconds = String(d.getSeconds()).padStart(2, '0');
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+  } catch {
+    return dateStr;
+  }
+}
+
 export default function ContainerDetailsView({ containerId, onBack, onRefreshList, onToast, onConfirm, onOpenLogs }) {
   const [details, setDetails] = useState(null);
   const [logs, setLogs] = useState('');
   const [localLogsModalOpen, setLocalLogsModalOpen] = useState(false);
+  const [showExecutionModal, setShowExecutionModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [logsLoading, setLogsLoading] = useState(false);
   const [activeSubTab, setActiveSubTab] = useState('overview'); // 'overview' | 'terminal' | 'logs' | 'env' | 'mounts' | 'raw'
@@ -625,34 +644,57 @@ export default function ContainerDetailsView({ containerId, onBack, onRefreshLis
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {/* General Info Card */}
             <div className="p-5 rounded-xl border border-slate-800 bg-slate-950/60 space-y-3">
-              <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                <Cpu className="w-4 h-4 text-cyan-400" />
-                Execution Details
-              </h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                  <Cpu className="w-4 h-4 text-cyan-400" />
+                  Execution Details
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setShowExecutionModal(true)}
+                  className="flex items-center gap-1 px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-cyan-400 border border-slate-800 text-[11px] font-medium transition cursor-pointer hover:border-cyan-500/50"
+                  title="View Full Execution & Container Details"
+                >
+                  <Maximize2 className="w-3 h-3" />
+                  <span>Expand</span>
+                </button>
+              </div>
               <div className="space-y-2 text-xs">
-                <div>
-                  <span className="text-slate-500">Image ID:</span>{' '}
-                  <span className="font-mono text-slate-300">{details?.imageId?.slice(0, 19)}...</span>
+                <div className="flex items-center justify-between gap-2 border-b border-slate-900/80 pb-1.5">
+                  <span className="text-slate-500 shrink-0">Image ID:</span>
+                  <span className="font-mono text-slate-300 truncate" title={details?.imageId}>
+                    {details?.imageId ? `${details.imageId.slice(0, 19)}...` : '-'}
+                  </span>
                 </div>
-                <div>
-                  <span className="text-slate-500">Command:</span>{' '}
-                  <span className="font-mono text-cyan-400">{details?.command || details?.args?.join(' ') || '-'}</span>
+                <div className="flex items-center justify-between gap-2 border-b border-slate-900/80 pb-1.5">
+                  <span className="text-slate-500 shrink-0">Command:</span>
+                  <span className="font-mono text-cyan-400 truncate max-w-[200px]" title={details?.command || details?.args?.join(' ') || '-'}>
+                    {details?.command || details?.args?.join(' ') || '-'}
+                  </span>
                 </div>
-                <div>
-                  <span className="text-slate-500">Created:</span>{' '}
-                  <span className="text-slate-300">{details?.created}</span>
+                <div className="flex items-center justify-between gap-2 border-b border-slate-900/80 pb-1.5">
+                  <span className="text-slate-500 shrink-0">Created:</span>
+                  <span className="font-mono text-slate-300 truncate" title={details?.created}>
+                    {formatDateTime(details?.created)}
+                  </span>
                 </div>
-                <div>
-                  <span className="text-slate-500">Started At:</span>{' '}
-                  <span className="text-slate-300">{details?.state?.startedAt || '-'}</span>
+                <div className="flex items-center justify-between gap-2 border-b border-slate-900/80 pb-1.5">
+                  <span className="text-slate-500 shrink-0">Started At:</span>
+                  <span className="font-mono text-slate-300 truncate" title={details?.state?.startedAt || '-'}>
+                    {formatDateTime(details?.state?.startedAt)}
+                  </span>
                 </div>
-                <div>
-                  <span className="text-slate-500">Finished At:</span>{' '}
-                  <span className="text-slate-300">{details?.state?.finishedAt || '-'}</span>
+                <div className="flex items-center justify-between gap-2 border-b border-slate-900/80 pb-1.5">
+                  <span className="text-slate-500 shrink-0">Finished At:</span>
+                  <span className="font-mono text-slate-300 truncate" title={details?.state?.finishedAt || '-'}>
+                    {formatDateTime(details?.state?.finishedAt)}
+                  </span>
                 </div>
-                <div>
-                  <span className="text-slate-500">Exit Code:</span>{' '}
-                  <span className="font-mono text-slate-300">{details?.state?.exitCode ?? '-'}</span>
+                <div className="flex items-center justify-between gap-2 pt-0.5">
+                  <span className="text-slate-500 shrink-0">Exit Code:</span>
+                  <span className="font-mono text-slate-300 font-semibold">
+                    {details?.state?.exitCode !== undefined ? details.state.exitCode : '-'}
+                  </span>
                 </div>
               </div>
             </div>
@@ -1150,6 +1192,15 @@ export default function ContainerDetailsView({ containerId, onBack, onRefreshLis
           containerName={containerName}
           onClose={() => setLocalLogsModalOpen(false)}
           onFetchLogs={GetContainerLogs}
+        />
+      )}
+
+      {showExecutionModal && (
+        <ExecutionDetailsModal
+          isOpen={showExecutionModal}
+          details={details}
+          resourceStats={resourceStats}
+          onClose={() => setShowExecutionModal(false)}
         />
       )}
     </div>

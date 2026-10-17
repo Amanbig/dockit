@@ -1,10 +1,24 @@
 # Dockit v0.6.5 🚀
 
-Dockit **v0.6.5** brings multi-select checkboxes and 1-click batch actions across Containers, Images, and Volumes, a dedicated **Create Container Wizard Overhaul** (featuring interactive dialogs for Port Bindings with presets, Environment Variables with `.env` file upload, and Command Override with quote-aware argument tokenization), a major upgrade to **Container Logs** with interactive search match navigation arrows (`▲` / `▼`), active highlight focusing, and auto-scrolling to latest logs. It also introduces a robust **Reliability & Error Handling Architecture** (replacing native alerts with floating toast notifications and in-app confirm dialogs), automatic native package selection in the **In-App Updater**, and refined **Disk Space & Prune Dashboard** visuals.
+Dockit **v0.6.5** brings multi-select checkboxes and 1-click batch actions across Containers, Images, and Volumes, a dedicated **Create Container Wizard Overhaul** (featuring interactive dialogs for Port Bindings with presets, Environment Variables with `.env` file upload, and Command Override with quote-aware argument tokenization), an overhaul of the **Registry Hub** to full-page responsive grid navigation with dedicated image documentation and tags view, a comprehensive **Container Execution & Runtime Inspector Dialog** with clean timestamp formatting, a major upgrade to **Container Logs** with interactive search match navigation arrows (`▲` / `▼`), active highlight focusing, and auto-scrolling to latest logs. It also introduces a robust **Reliability & Error Handling Architecture** (replacing native alerts with floating toast notifications and in-app confirm dialogs), automatic native package selection in the **In-App Updater**, and refined **Disk Space & Prune Dashboard** visuals.
 
 ---
 
 ### ✨ What's New & Highlights
+
+#### 🔍 Full-Page Registry Hub & Dedicated Image Documentation Viewer
+- **Full-Page Search Grid**: Replaced the cramped 2-column split layout with a spacious, full-width responsive card grid (`grid-cols-1 md:grid-cols-2 lg:grid-cols-3`) displaying repository stars, pull counts, official badges, and descriptions.
+- **Dedicated Image Documentation Workspace**: Clicking any repository smoothly transitions to a full-viewport dedicated view featuring a top navigation bar with a 1-click "← Back to Search Results" button and breadcrumb path (`Registry Hub / <image>`).
+- **Complete Markdown & Tag Viewing**: Documentation READMEs, run commands, and architecture/tag tables now utilize the full application width without horizontal crowding or truncated tables.
+- **Quick Search Suggestions**: Added 1-click search suggestion chips (Nginx, Node, Python, Redis, Postgres, Ubuntu, Alpine, Golang) on empty search state for rapid exploration.
+
+#### ⏱️ Container Execution Details & Runtime Inspector Dialog
+- **Clean Timestamp Formatting & Overflow Prevention**: Replaced raw, overflowing ISO timestamps (`2026-08-29T14:51:11.244946742Z`) in the Execution Details card with clean `YYYY-MM-DD HH:mm:ss` timestamps, full-width row alignment (`justify-between`), and complete raw timestamps in hover tooltips.
+- **Dedicated "Expand" Modal (<kbd>Maximize2</kbd>)**: Added an Expand button on the Execution Details card that opens a comprehensive inspection dialog showcasing:
+  - Container State, PID, Exit Code, OOMKilled flag, and Active/Total Duration uptime.
+  - Image ID, Architecture, Platform, and full Startup Command breakdown.
+  - Network Configuration (IP, Gateway, MAC address, Ports) and Mounts/Volumes.
+  - 1-Click Copy actions for individual fields and full raw JSON container payload.
 
 #### 🌐 Interactive Port Bindings Dialog with 1-Click Presets
 - **Visual Port Mapping Table**: Manage host-to-container port forwards (`host_port:container_port`) with protocol selection (`TCP` / `UDP`) and keyboard navigation (<kbd>Enter</kbd> on container port adds a new row).
