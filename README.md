@@ -54,6 +54,9 @@ Built with **Go (Wails v2)** + **React 19** + **Tailwind CSS v4** + **Base UI / 
 - **Keyboard-Accessible Confirmation Dialogs**: Polished in-app modal confirmations (<kbd>Enter</kbd> / <kbd>Esc</kbd>) for all destructive operations.
 - **React Error Boundaries**: Component-level isolation preventing white-screen crashes with instant 1-click view reloading.
 - **Window Focus Auto-Sync**: Automatically refreshes container states and host metrics whenever the window regains focus.
+- **Lightweight Memory Management & Proactive GC**: Proactive Go runtime heap recycling (`GOGC=50`, 256MB soft memory limit) and a 45-second idle memory scavenger (`debug.FreeOSMemory()`), returning unused pages back to the host OS.
+- **Visibility-Aware Throttled Polling**: Automatic pause on background polling and resource streaming when Dockit is minimized or inactive (`document.hidden`), saving CPU cycles and memory churn.
+- **Log Buffer Guardrails & Code Splitting**: Safe log tail capping (`Tail: 2500`) and 500KB frontend string bounding prevent DOM bloat, paired with modular Vite Rollup code-splitting for fast WebKit startup.
 - **Defensive Backend Timeouts**: 15-second bounded execution across Go RPC methods to prevent IPC hangs.
 
 ### 🧪 Docker Compose Studio & Workspace

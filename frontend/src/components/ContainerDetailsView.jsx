@@ -64,7 +64,7 @@ export function formatDateTime(dateStr) {
   }
 }
 
-export default function ContainerDetailsView({ containerId, onBack, onRefreshList, onToast, onConfirm, onOpenLogs }) {
+export default function ContainerDetailsView({ containerId, isTabActive = true, onBack, onRefreshList, onToast, onConfirm, onOpenLogs }) {
   const [details, setDetails] = useState(null);
   const [logs, setLogs] = useState('');
   const [localLogsModalOpen, setLocalLogsModalOpen] = useState(false);
@@ -226,7 +226,8 @@ export default function ContainerDetailsView({ containerId, onBack, onRefreshLis
     try {
       setLogsLoading(true);
       const output = await GetContainerLogs(containerId);
-      setLogs(output || 'No logs found for this container.');
+      // Cap in-memory log buffer to last 500,000 characters (~5,000 lines) to prevent DOM bloat
+      setLogs(output && output.length > 500000 ? output.slice(-500000) : (output || 'No logs found for this container.'));
     } catch (err) {
       setLogs(`Failed to fetch logs: ${err}`);
     } finally {
@@ -234,24 +235,28 @@ export default function ContainerDetailsView({ containerId, onBack, onRefreshLis
     }
   };
 
-  // Auto-poll logs when on logs tab and autoTail is on
+  // Auto-poll logs when on logs tab and autoTail is on, pausing when hidden or backgrounded
   useEffect(() => {
     let timer;
-    if (activeSubTab === 'logs' && autoTail && details?.state?.running) {
+    if (isTabActive && activeSubTab === 'logs' && autoTail && details?.state?.running) {
       timer = setInterval(() => {
+        if (typeof document !== 'undefined' && document.hidden) return;
         GetContainerLogs(containerId).then(out => {
-          if (out) setLogs(out);
+          if (out) {
+            setLogs(out.length > 500000 ? out.slice(-500000) : out);
+          }
         }).catch(() => {});
       }, 3000);
     }
     return () => clearInterval(timer);
-  }, [activeSubTab, autoTail, containerId, details?.state?.running]);
+  }, [isTabActive, activeSubTab, autoTail, containerId, details?.state?.running]);
 
-  // Auto-poll resource stats when container is running
+  // Auto-poll resource stats only when tab is active and container is running
   useEffect(() => {
     let timer;
-    if (details?.state?.running) {
+    if (isTabActive && details?.state?.running) {
       const fetchStats = () => {
+        if (typeof document !== 'undefined' && document.hidden) return;
         GetContainerResourceStats(containerId)
           .then((st) => {
             if (st) setResourceStats(st);
@@ -260,20 +265,20 @@ export default function ContainerDetailsView({ containerId, onBack, onRefreshLis
       };
       fetchStats();
       timer = setInterval(fetchStats, 2000);
-    } else {
+    } else if (!details?.state?.running) {
       setResourceStats(null);
     }
     return () => {
       if (timer) clearInterval(timer);
     };
-  }, [containerId, details?.state?.running]);
+  }, [isTabActive, containerId, details?.state?.running]);
 
   useEffect(() => {
-    if (containerId) {
+    if (containerId && isTabActive) {
       fetchDetails();
       fetchLogs();
     }
-  }, [containerId, activeSubTab]);
+  }, [containerId, isTabActive, activeSubTab]);
 
   const copyText = (text, key) => {
     navigator.clipboard.writeText(text);

@@ -21,6 +21,16 @@ Dockit **v0.7.0** introduces a complete overhaul of the **Registry Hub** (featur
   - **Containers & Images**: Retains search filters, multi-select batch checkboxes, and active container inspection details.
 - **Lazy Mounting with Instant Switching**: Views are mounted lazily upon first visit for rapid application launch, and then maintained with zero-lag CSS visibility toggles (0ms switching with zero flicker).
 
+#### ⚡ App Memory Management & Lightweight Resource Utilization
+- **Visibility-Aware Smart Polling**: Background polling for containers, host hardware metrics, live resource stats, and log streams automatically suspends whenever Dockit is minimized or placed in the background (`document.hidden`), eliminating idle CPU cycles and memory churn.
+- **Tab-Aware Interval Throttling**: Container resource stats (CPU/RAM/IO) and log polling immediately suspend when navigating away to other tabs, resuming instantly upon returning.
+- **Log Buffer Memory Guardrails**: Capped container log queries to `Tail: 2500` in the engine and bounded React in-memory log state to 500,000 characters, preventing DOM bloat and out-of-memory spikes on heavy logging containers.
+- **Proactive Go Runtime Memory Scavenging**:
+  - Configured `debug.SetGCPercent(50)` for more frequent garbage collection and a compact heap footprint.
+  - Set a 256MB soft memory limit (`debug.SetMemoryLimit`) to prevent uncontrolled heap expansion.
+  - Added a periodic idle OS memory scavenger calling `debug.FreeOSMemory()` to proactively return unused heap pages back to the OS (`MADV_DONTNEED`).
+- **Modular Rollup Code-Splitting**: Configured manual vendor chunks (`vendor-react`, `vendor-marked`, `vendor-icons`), eliminating monolithic bundle warnings, accelerating WebKit compilation, and reducing initial JavaScript VM heap allocation.
+
 #### ⏱️ Container Execution Details & Runtime Inspector Dialog
 - **Clean Timestamp Formatting & Overflow Prevention**: Replaced raw, overflowing ISO timestamps (`2026-08-29T14:51:11.244946742Z`) in the Execution Details card with clean `YYYY-MM-DD HH:mm:ss` timestamps, full-width row alignment (`justify-between`), and complete raw timestamps in hover tooltips.
 - **Dedicated "Expand" Modal (<kbd>Maximize2</kbd>)**: Added an Expand button on the Execution Details card that opens a comprehensive inspection dialog showcasing:

@@ -69,7 +69,7 @@ export default function LogsModal({ isOpen, containerId, containerName, onClose,
     try {
       if (onFetchLogs) {
         const output = await onFetchLogs(containerId);
-        setLogs(output || 'No logs found for this container.');
+        setLogs(output && output.length > 500000 ? output.slice(-500000) : (output || 'No logs found for this container.'));
       }
     } catch (err) {
       setLogs(`Error fetching logs: ${err}`);

@@ -341,7 +341,9 @@ export default function App() {
   useEffect(() => {
     refreshAll();
     const interval = setInterval(() => {
-      // Periodic background refresh for container health & host metrics
+      // Skip background polling when window is minimized or hidden to conserve CPU and RAM
+      if (typeof document !== 'undefined' && document.hidden) return;
+
       GetContainers(true).then((list) => {
         if (Array.isArray(list)) setContainers(list);
       }).catch(() => {});
@@ -350,15 +352,24 @@ export default function App() {
       }).catch(() => {});
     }, 4000);
 
-    // Auto-sync state whenever user switches back to Dockit
+    // Auto-sync state immediately whenever user switches back to Dockit
     const handleFocus = () => {
       refreshAll();
     };
+
+    const handleVisibilityChange = () => {
+      if (typeof document !== 'undefined' && !document.hidden) {
+        refreshAll();
+      }
+    };
+
     window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       clearInterval(interval);
       window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [refreshAll]);
 
@@ -887,6 +898,7 @@ export default function App() {
                 {selectedContainerId ? (
                   <ContainerDetailsView
                     containerId={selectedContainerId}
+                    isTabActive={activeTab === 'containers'}
                     onBack={() => setSelectedContainerId(null)}
                     onRefreshList={refreshAll}
                     onToast={addToast}

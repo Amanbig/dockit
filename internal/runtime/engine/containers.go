@@ -363,6 +363,7 @@ func (e *Engine) GetContainerLogs(ctx context.Context, containerID string) (stri
 		ShowStderr: true,
 		Timestamps: false,
 		Follow:     false,
+		Tail:       "2500",
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to get logs for container %q: %w", containerID, err)
@@ -386,6 +387,7 @@ func (e *Engine) GetContainerLogs(ctx context.Context, containerID string) (stri
 			logs2, err2 := e.api.ContainerLogs(ctx, containerID, client.ContainerLogsOptions{
 				ShowStdout: true,
 				ShowStderr: true,
+				Tail:       "2500",
 			})
 			if err2 == nil {
 				defer logs2.Close()

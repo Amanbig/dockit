@@ -3,6 +3,8 @@ package main
 import (
 	"embed"
 	"os"
+	"runtime/debug"
+	"time"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -18,6 +20,14 @@ func init() {
 	if os.Getenv("WEBKIT_DISABLE_DMABUF_RENDERER") == "" {
 		_ = os.Setenv("WEBKIT_DISABLE_DMABUF_RENDERER", "1")
 	}
+
+	// Optimize Go runtime for desktop memory efficiency:
+	// Set target GC percentage to 50% (default 100%) so garbage is collected more frequently,
+	// keeping the heap tight and lightweight.
+	debug.SetGCPercent(50)
+
+	// Set soft memory limit (256MB) to trigger garbage collection before heap expands.
+	debug.SetMemoryLimit(256 * 1024 * 1024)
 }
 
 //go:embed all:frontend/dist
@@ -29,6 +39,15 @@ var appIcon []byte
 func main() {
 	// Automatically register icon and desktop entry on Linux for standalone binaries
 	installDesktopIntegration(appIcon)
+
+	// Periodic idle OS memory scavenger to return unused heap pages back to the OS
+	go func() {
+		ticker := time.NewTicker(45 * time.Second)
+		defer ticker.Stop()
+		for range ticker.C {
+			debug.FreeOSMemory()
+		}
+	}()
 
 	// Create an instance of the app structure
 	app := NewApp()
