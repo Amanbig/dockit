@@ -406,7 +406,7 @@ export default function ContainerDetailsView({ containerId, isTabActive = true, 
   return (
     <div className="flex-1 flex flex-col h-full bg-slate-900/60 overflow-hidden">
       {/* Top Navigation & Action Header */}
-      <div className="p-4 md:p-6 border-b border-slate-800 flex flex-wrap items-center justify-between gap-4 bg-slate-950/40">
+      <div className="p-4 md:p-6 border-b border-slate-800 flex flex-wrap items-center justify-between gap-4 bg-slate-950/40 shrink-0">
         <div className="flex items-center gap-3">
           <button
             onClick={onBack}
@@ -508,7 +508,7 @@ export default function ContainerDetailsView({ containerId, isTabActive = true, 
       </div>
 
       {/* Sub Tabs Bar */}
-      <div className="px-6 py-2.5 border-b border-slate-800 bg-slate-950/20 flex items-center gap-1 overflow-x-auto select-none">
+      <div className="px-6 py-2.5 border-b border-slate-800 bg-slate-950/20 flex items-center gap-1 overflow-x-auto select-none shrink-0">
         {[
           { id: 'overview', label: 'Overview & Health', icon: Sliders },
           { id: 'terminal', label: 'Terminal Exec', icon: Terminal },
@@ -537,7 +537,11 @@ export default function ContainerDetailsView({ containerId, isTabActive = true, 
       </div>
 
       {/* Main Tab View Content */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+      <div className={`flex-1 min-h-0 p-4 md:p-6 ${
+        activeSubTab === 'terminal' || activeSubTab === 'logs' || activeSubTab === 'raw'
+          ? 'flex flex-col overflow-y-auto'
+          : 'overflow-y-auto space-y-6'
+      }`}>
         {/* Tab 1: Overview */}
         {activeSubTab === 'overview' && (
           <div className="space-y-6">
@@ -773,10 +777,10 @@ export default function ContainerDetailsView({ containerId, isTabActive = true, 
         {activeSubTab === 'terminal' && (
           <div 
             onClick={() => terminalInputRef.current?.focus({ preventScroll: true })}
-            className="terminal-window flex flex-col h-[360px] rounded-xl border border-slate-800 bg-[#0c1017] overflow-hidden shadow-2xl font-mono cursor-text"
+            className="terminal-window flex-1 flex flex-col min-h-[360px] rounded-xl border border-slate-800 bg-[#0c1017] overflow-hidden shadow-2xl font-mono cursor-text"
           >
             {/* Terminal Window Titlebar */}
-            <div className="px-4 py-2.5 bg-[#161b22] border-b border-slate-800 flex items-center justify-between text-xs select-none">
+            <div className="px-4 py-2.5 bg-[#161b22] border-b border-slate-800 flex items-center justify-between text-xs select-none shrink-0">
               <div className="flex items-center gap-2">
                 <span className="w-3 h-3 rounded-full bg-rose-500/80 inline-block"></span>
                 <span className="w-3 h-3 rounded-full bg-amber-500/80 inline-block"></span>
@@ -936,8 +940,8 @@ export default function ContainerDetailsView({ containerId, isTabActive = true, 
           };
 
           return (
-            <div className="flex flex-col h-[380px] rounded-xl border border-slate-800 bg-slate-950 overflow-hidden shadow-inner">
-              <div className="px-4 py-2.5 bg-slate-900 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div className="flex-1 flex flex-col min-h-[380px] rounded-xl border border-slate-800 bg-slate-950 overflow-hidden shadow-inner">
+              <div className="px-4 py-2.5 bg-slate-900 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs shrink-0">
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-slate-300 font-semibold">Container Logs</span>
                   <button
@@ -1100,7 +1104,7 @@ export default function ContainerDetailsView({ containerId, isTabActive = true, 
               </div>
 
               {/* Log Footer Bar */}
-              <div className="px-4 py-2 border-t border-slate-800 bg-slate-950/60 flex justify-between items-center text-[11px] text-slate-400 font-mono">
+              <div className="px-4 py-2 border-t border-slate-800 bg-slate-950/60 flex justify-between items-center text-[11px] text-slate-400 font-mono shrink-0">
                 <div className="flex items-center gap-2">
                   <span>
                     Showing <strong className="text-slate-200">{filteredLines.length}</strong> of <strong className="text-slate-200">{rawLines.length}</strong> lines
@@ -1184,7 +1188,7 @@ export default function ContainerDetailsView({ containerId, isTabActive = true, 
 
         {/* Tab 5: Raw JSON */}
         {activeSubTab === 'raw' && (
-          <div className="rounded-xl border border-slate-800 bg-slate-950 p-4 font-mono text-xs text-slate-300 overflow-auto whitespace-pre-wrap select-text leading-relaxed">
+          <div className="flex-1 min-h-[380px] rounded-xl border border-slate-800 bg-slate-950 p-4 font-mono text-xs text-slate-300 overflow-auto whitespace-pre-wrap select-text leading-relaxed">
             {JSON.stringify(details, null, 2)}
           </div>
         )}
