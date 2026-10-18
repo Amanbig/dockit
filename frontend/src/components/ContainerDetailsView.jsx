@@ -780,11 +780,11 @@ export default function ContainerDetailsView({ containerId, isTabActive = true, 
             className="terminal-window flex-1 flex flex-col min-h-[360px] rounded-xl border border-slate-800 bg-[#0c1017] overflow-hidden shadow-2xl font-mono cursor-text"
           >
             {/* Terminal Window Titlebar */}
-            <div className="px-4 py-2.5 bg-[#161b22] border-b border-slate-800 flex items-center justify-between text-xs select-none shrink-0">
+            <div className="terminal-titlebar px-4 py-2.5 bg-[#161b22] border-b border-slate-800 flex items-center justify-between text-xs select-none shrink-0">
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-rose-500/80 inline-block"></span>
-                <span className="w-3 h-3 rounded-full bg-amber-500/80 inline-block"></span>
-                <span className="w-3 h-3 rounded-full bg-emerald-500/80 inline-block"></span>
+                <span className="terminal-dot-red w-3 h-3 rounded-full bg-rose-500/80 inline-block"></span>
+                <span className="terminal-dot-yellow w-3 h-3 rounded-full bg-amber-500/80 inline-block"></span>
+                <span className="terminal-dot-green w-3 h-3 rounded-full bg-emerald-500/80 inline-block"></span>
                 <span className="ml-2 text-slate-400 font-semibold text-[11px]">
                   root@{details?.name || 'container'}: ~
                 </span>
@@ -800,7 +800,7 @@ export default function ContainerDetailsView({ containerId, isTabActive = true, 
                     e.stopPropagation();
                     setTerminalHistory([]);
                   }}
-                  className="text-[10px] px-2 py-0.5 rounded bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition cursor-pointer"
+                  className="terminal-clear-btn text-[10px] px-2 py-0.5 rounded bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition cursor-pointer"
                 >
                   Clear
                 </button>
@@ -813,7 +813,7 @@ export default function ContainerDetailsView({ containerId, isTabActive = true, 
               className="flex-1 p-4 overflow-y-auto text-xs space-y-1.5 select-text leading-relaxed"
             >
               {!isRunning && (
-                <div className="p-3 mb-2 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-300 text-xs flex flex-wrap items-center justify-between gap-2 select-none">
+                <div className="terminal-alert p-3 mb-2 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-300 text-xs flex flex-wrap items-center justify-between gap-2 select-none">
                   <div className="flex items-center gap-2">
                     <AlertCircle className="w-4 h-4 shrink-0 text-amber-400" />
                     <span>
@@ -827,7 +827,7 @@ export default function ContainerDetailsView({ containerId, isTabActive = true, 
                       handleStart();
                     }}
                     disabled={actionInProgress}
-                    className="px-3 py-1 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition cursor-pointer disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
+                    className="terminal-start-btn px-3 py-1 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition cursor-pointer disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
                   >
                     <Play className="w-3 h-3 fill-current" />
                     <span>{actionInProgress ? 'Starting...' : 'Start Container'}</span>

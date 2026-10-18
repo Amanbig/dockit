@@ -595,12 +595,136 @@ html.light textarea {
 .terminal-window,
 html.light .terminal-window {
     background-color: #0c1017 !important;
-    border-color: #30363d !important;
+    border: 1px solid #30363d !important;
     color: #e6edf3 !important;
+    box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(255, 255, 255, 0.05) !important;
 }
 
 .terminal-window * {
     color-scheme: dark;
+}
+
+/* Ensure terminal titlebar and internal borders remain authentic dark */
+.terminal-window .terminal-titlebar,
+html.light .terminal-window .terminal-titlebar,
+html.light .terminal-window div[class*="bg-[#161b22]"] {
+    background-color: #161b22 !important;
+    border-bottom: 1px solid #21262d !important;
+}
+
+html.light .terminal-window .border-b,
+html.light .terminal-window .border-slate-800,
+html.light .terminal-window div[class*="border-slate-800"] {
+    border-color: #21262d !important;
+}
+
+/* Authentic vibrant macOS window control dots */
+.terminal-window .terminal-dot-red,
+html.light .terminal-window .terminal-dot-red,
+html.light .terminal-window span[class*="bg-rose-500"] {
+    background-color: #ff5f56 !important;
+    border: none !important;
+    opacity: 0.9;
+}
+
+.terminal-window .terminal-dot-yellow,
+html.light .terminal-window .terminal-dot-yellow,
+html.light .terminal-window span[class*="bg-amber-500"] {
+    background-color: #ffbd2e !important;
+    border: none !important;
+    opacity: 0.9;
+}
+
+.terminal-window .terminal-dot-green,
+html.light .terminal-window .terminal-dot-green,
+html.light .terminal-window span[class*="bg-emerald-500"] {
+    background-color: #27c93f !important;
+    border: none !important;
+    opacity: 0.9;
+}
+
+/* Terminal Titlebar Clear button */
+.terminal-window .terminal-clear-btn,
+html.light .terminal-window .terminal-clear-btn,
+html.light .terminal-window button[class*="bg-slate-800"] {
+    background-color: #21262d !important;
+    color: #8b949e !important;
+    border: 1px solid #30363d !important;
+    box-shadow: none !important;
+}
+
+.terminal-window .terminal-clear-btn:hover,
+html.light .terminal-window .terminal-clear-btn:hover,
+html.light .terminal-window button[class*="bg-slate-800"]:hover {
+    background-color: #30363d !important;
+    color: #f0f6fc !important;
+    border-color: #484f58 !important;
+}
+
+/* Stopped container banner inside terminal - cohesive dark console amber alert */
+.terminal-window .terminal-alert,
+html.light .terminal-window .terminal-alert,
+html.light .terminal-window div[class*="bg-amber-500/10"] {
+    background-color: rgba(245, 158, 11, 0.12) !important;
+    border: 1px solid rgba(245, 158, 11, 0.3) !important;
+    color: #fbbf24 !important;
+}
+
+.terminal-window .terminal-alert span,
+html.light .terminal-window .terminal-alert span,
+html.light .terminal-window div[class*="bg-amber-500/10"] span {
+    color: #fde68a !important;
+}
+
+.terminal-window .terminal-alert strong,
+html.light .terminal-window .terminal-alert strong,
+html.light .terminal-window div[class*="bg-amber-500/10"] strong {
+    color: #ffffff !important;
+    font-weight: 700 !important;
+}
+
+.terminal-window .terminal-alert svg,
+html.light .terminal-window .terminal-alert svg,
+html.light .terminal-window div[class*="bg-amber-500/10"] svg {
+    color: #f59e0b !important;
+}
+
+/* Start container button inside terminal */
+.terminal-window .terminal-start-btn,
+html.light .terminal-window .terminal-start-btn,
+html.light .terminal-window button[class*="bg-amber-500"] {
+    background-color: #f59e0b !important;
+    color: #0c1017 !important;
+    border: 1px solid transparent !important;
+    font-weight: 700 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+}
+
+.terminal-window .terminal-start-btn:hover,
+html.light .terminal-window .terminal-start-btn:hover,
+html.light .terminal-window button[class*="bg-amber-500"]:hover {
+    background-color: #fbbf24 !important;
+    color: #0c1017 !important;
+}
+
+.terminal-window .terminal-start-btn svg,
+html.light .terminal-window .terminal-start-btn svg,
+html.light .terminal-window button[class*="bg-amber-500"] svg {
+    color: #0c1017 !important;
+    fill: #0c1017 !important;
+}
+
+/* Scrollbars inside terminal */
+html.light .terminal-window ::-webkit-scrollbar-track {
+    background: #0c1017 !important;
+}
+
+html.light .terminal-window ::-webkit-scrollbar-thumb {
+    background: #21262d !important;
+}
+
+html.light .terminal-window ::-webkit-scrollbar-thumb:hover {
+    background: #30363d !important;
 }
 
 html.light .terminal-window .text-slate-100,
