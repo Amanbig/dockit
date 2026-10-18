@@ -434,7 +434,9 @@ func (a *App) ExecContainer(id string, cmd []string) (string, error) {
 	if svc == nil {
 		return "", fmt.Errorf("container runtime not connected")
 	}
-	return svc.Exec(a.ctx, id, cmd)
+	ctx, cancel := a.getContext(120 * time.Second)
+	defer cancel()
+	return svc.Exec(ctx, id, cmd)
 }
 
 // ==========================================

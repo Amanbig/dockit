@@ -101,8 +101,8 @@ func (s *Service) Cancel() bool {
 	defer s.mu.Unlock()
 	if s.currentCancel != nil {
 		s.currentCancel()
-		if s.currentCmd != nil && s.currentCmd.Process != nil {
-			_ = s.currentCmd.Process.Kill()
+		if s.currentCmd != nil {
+			killProcessGroup(s.currentCmd)
 		}
 		s.currentCancel = nil
 		s.currentCmd = nil
@@ -218,6 +218,7 @@ func (s *Service) Exec(ctx context.Context, command string) Result {
 	cmd := exec.CommandContext(execCtx, shell, flag, trimmed)
 	cmd.Dir = currentCwd
 	cmd.Env = os.Environ()
+	setSysProcAttr(cmd)
 
 	var combined bytes.Buffer
 	cmd.Stdout = &combined
@@ -230,6 +231,9 @@ func (s *Service) Exec(ctx context.Context, command string) Result {
 
 	defer func() {
 		s.mu.Lock()
+		if execCtx.Err() != nil && s.currentCmd != nil {
+			killProcessGroup(s.currentCmd)
+		}
 		s.currentCancel = nil
 		s.currentCmd = nil
 		s.mu.Unlock()

@@ -114,22 +114,38 @@ export default function ContainerDetailsView({ containerId, isTabActive = true, 
     if (cmdStr === 'clear') {
       setTerminalHistory([]);
       setCommandInput('');
-      setHistoryList(prev => [...prev, 'clear']);
+      setHistoryList(prev => {
+        const next = [...prev, 'clear'];
+        return next.length > 100 ? next.slice(-100) : next;
+      });
       setHistoryIndex(-1);
       return;
     }
 
     setExecuting(true);
-    setTerminalHistory(prev => [...prev, { type: 'cmd', text: cmdStr }]);
-    setHistoryList(prev => [...prev, cmdStr]);
+    setTerminalHistory(prev => {
+      const next = [...prev, { type: 'cmd', text: cmdStr }];
+      return next.length > 150 ? next.slice(-150) : next;
+    });
+    setHistoryList(prev => {
+      const next = [...prev, cmdStr];
+      return next.length > 100 ? next.slice(-100) : next;
+    });
     setHistoryIndex(-1);
     setCommandInput('');
 
     try {
       const out = await ExecContainer(containerId, ['sh', '-c', cmdStr]);
-      setTerminalHistory(prev => [...prev, { type: 'out', text: out || '' }]);
+      const safeOut = out && out.length > 100000 ? out.slice(0, 100000) + '\n[...output truncated to 100,000 characters to conserve memory...]' : (out || '');
+      setTerminalHistory(prev => {
+        const next = [...prev, { type: 'out', text: safeOut }];
+        return next.length > 150 ? next.slice(-150) : next;
+      });
     } catch (err) {
-      setTerminalHistory(prev => [...prev, { type: 'err', text: `Error: ${err}` }]);
+      setTerminalHistory(prev => {
+        const next = [...prev, { type: 'err', text: `Error: ${err}` }];
+        return next.length > 150 ? next.slice(-150) : next;
+      });
     } finally {
       setExecuting(false);
       setTimeout(() => terminalInputRef.current?.focus({ preventScroll: true }), 50);
@@ -142,10 +158,16 @@ export default function ContainerDetailsView({ containerId, isTabActive = true, 
       if (selection && selection.length > 0) return;
       e.preventDefault();
       if (commandInput) {
-        setTerminalHistory(prev => [...prev, { type: 'cmd', text: `${commandInput}^C` }]);
+        setTerminalHistory(prev => {
+          const next = [...prev, { type: 'cmd', text: `${commandInput}^C` }];
+          return next.length > 150 ? next.slice(-150) : next;
+        });
         setCommandInput('');
       } else {
-        setTerminalHistory(prev => [...prev, { type: 'cmd', text: '^C' }]);
+        setTerminalHistory(prev => {
+          const next = [...prev, { type: 'cmd', text: '^C' }];
+          return next.length > 150 ? next.slice(-150) : next;
+        });
       }
       return;
     }
@@ -289,6 +311,11 @@ export default function ContainerDetailsView({ containerId, isTabActive = true, 
   useEffect(() => {
     if (containerId && isTabActive) {
       fetchDetails();
+    }
+  }, [containerId, isTabActive]);
+
+  useEffect(() => {
+    if (containerId && isTabActive && activeSubTab === 'logs') {
       fetchLogs();
     }
   }, [containerId, isTabActive, activeSubTab]);

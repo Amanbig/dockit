@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import ContainersView from './components/ContainersView';
@@ -111,6 +111,10 @@ export default function App() {
   const [systemInfo, setSystemInfo] = useState(null);
   const [hostMetrics, setHostMetrics] = useState(null);
   const [runtimesStatus, setRuntimesStatus] = useState(null);
+  const activeRuntimeRef = useRef(activeRuntime);
+  activeRuntimeRef.current = activeRuntime;
+  const runtimesStatusRef = useRef(runtimesStatus);
+  runtimesStatusRef.current = runtimesStatus;
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [appConfig, setAppConfig] = useState(null);
   const [theme, setTheme] = useState('dark');
@@ -361,13 +365,44 @@ export default function App() {
 
   useEffect(() => {
     refreshAll();
+    let offlineTicks = 0;
     const interval = setInterval(() => {
       // Skip background polling when window is minimized or hidden to conserve CPU and RAM
       if (typeof document !== 'undefined' && document.hidden) return;
 
-      GetContainers(true).then((list) => {
-        if (Array.isArray(list)) setContainers(list);
-      }).catch(() => {});
+      const currentRt = activeRuntimeRef.current;
+      const status = runtimesStatusRef.current;
+      const isEngineOffline = currentRt === 'none' || (status && status[currentRt] && status[currentRt].running === false);
+
+      if (!isEngineOffline) {
+        GetContainers(true).then((list) => {
+          if (Array.isArray(list)) setContainers(list);
+        }).catch(() => {
+          offlineTicks++;
+          if (offlineTicks >= 2) {
+            offlineTicks = 0;
+            DetectRuntimes().then((st) => {
+              if (st) setRuntimesStatus(st);
+            }).catch(() => {});
+          }
+        });
+      } else {
+        // When runtime is stopped/offline, back off container calls to save CPU and socket thrashing.
+        // Periodically check DetectRuntimes() (~every 12s) to detect if daemon was started outside Dockit.
+        offlineTicks++;
+        if (offlineTicks >= 3) {
+          offlineTicks = 0;
+          DetectRuntimes().then((st) => {
+            if (st) {
+              setRuntimesStatus(st);
+              if (st[currentRt]?.running) {
+                refreshAll();
+              }
+            }
+          }).catch(() => {});
+        }
+      }
+
       GetHostMetrics().then((m) => {
         if (m) setHostMetrics(m);
       }).catch(() => {});

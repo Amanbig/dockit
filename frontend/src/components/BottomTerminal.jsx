@@ -14,6 +14,16 @@ import {
   Square
 } from 'lucide-react';
 
+const MAX_HISTORY = 150;
+const MAX_CMD_HISTORY = 100;
+const MAX_OUTPUT_CHARS = 100000;
+
+function truncateText(str, max = MAX_OUTPUT_CHARS) {
+  if (!str || typeof str !== 'string') return '';
+  if (str.length <= max) return str;
+  return str.slice(0, max) + '\n\n[...output truncated to 100,000 characters to conserve memory...]';
+}
+
 export default function BottomTerminal({
   isOpen,
   onToggle,
@@ -39,6 +49,20 @@ export default function BottomTerminal({
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [isMaximized, setIsMaximized] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  const appendHistory = useCallback((entry) => {
+    setHistory((prev) => {
+      const next = [...prev, entry];
+      return next.length > MAX_HISTORY ? next.slice(-MAX_HISTORY) : next;
+    });
+  }, []);
+
+  const appendCmdHistory = useCallback((cmd) => {
+    setCmdHistory((prev) => {
+      const next = [...prev, cmd];
+      return next.length > MAX_CMD_HISTORY ? next.slice(-MAX_CMD_HISTORY) : next;
+    });
+  }, []);
 
   const terminalScrollRef = useRef(null);
   const inputRef = useRef(null);
@@ -96,11 +120,11 @@ export default function BottomTerminal({
       if (onCancelHostCommand) {
         await onCancelHostCommand();
       }
-      setHistory((prev) => [...prev, { type: 'err', text: '^C (command canceled)' }]);
+      appendHistory({ type: 'err', text: '^C (command canceled)' });
     } catch (_) {}
     setExecuting(false);
     setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 40);
-  }, [onCancelHostCommand]);
+  }, [onCancelHostCommand, appendHistory]);
 
   // Window-level Ctrl+C handling ensuring it always works during execution or typing
   useEffect(() => {
@@ -128,10 +152,10 @@ export default function BottomTerminal({
         ) {
           e.preventDefault();
           if (commandInput) {
-            setHistory((prev) => [...prev, { type: 'cmd', text: `${commandInput}^C`, cwd }]);
+            appendHistory({ type: 'cmd', text: `${commandInput}^C`, cwd });
             setCommandInput('');
           } else {
-            setHistory((prev) => [...prev, { type: 'cmd', text: '^C', cwd }]);
+            appendHistory({ type: 'cmd', text: '^C', cwd });
           }
           setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 30);
         }
@@ -140,7 +164,7 @@ export default function BottomTerminal({
 
     window.addEventListener('keydown', handleKeyDownGlobal);
     return () => window.removeEventListener('keydown', handleKeyDownGlobal);
-  }, [isOpen, executing, commandInput, cwd, handleCancelCommand]);
+  }, [isOpen, executing, commandInput, cwd, handleCancelCommand, appendHistory]);
 
   const handleRunCommand = async (e) => {
     if (e) e.preventDefault();
@@ -150,14 +174,14 @@ export default function BottomTerminal({
     if (cmdStr.toLowerCase() === 'clear') {
       setHistory([]);
       setCommandInput('');
-      setCmdHistory((prev) => [...prev, 'clear']);
+      appendCmdHistory('clear');
       setHistoryIndex(-1);
       return;
     }
 
     setExecuting(true);
-    setHistory((prev) => [...prev, { type: 'cmd', text: cmdStr, cwd }]);
-    setCmdHistory((prev) => [...prev, cmdStr]);
+    appendHistory({ type: 'cmd', text: cmdStr, cwd });
+    appendCmdHistory(cmdStr);
     setHistoryIndex(-1);
     setCommandInput('');
 
@@ -167,15 +191,15 @@ export default function BottomTerminal({
         if (res) {
           if (res.cwd) setCwd(res.cwd);
           if (res.output) {
-            setHistory((prev) => [...prev, { type: 'out', text: res.output }]);
+            appendHistory({ type: 'out', text: truncateText(res.output) });
           }
           if (res.error) {
-            setHistory((prev) => [...prev, { type: 'err', text: res.error }]);
+            appendHistory({ type: 'err', text: truncateText(res.error) });
           }
         }
       }
     } catch (err) {
-      setHistory((prev) => [...prev, { type: 'err', text: `Execution failed: ${err}` }]);
+      appendHistory({ type: 'err', text: `Execution failed: ${err}` });
     } finally {
       setExecuting(false);
       setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 40);
@@ -190,7 +214,7 @@ export default function BottomTerminal({
         handleCancelCommand();
       } else {
         if (commandInput) {
-          setHistory((prev) => [...prev, { type: 'cmd', text: `${commandInput}^C`, cwd }]);
+          appendHistory({ type: 'cmd', text: `${commandInput}^C`, cwd });
           setCommandInput('');
         }
       }
@@ -231,13 +255,10 @@ export default function BottomTerminal({
     try {
       await onSetHostCwd(activeComposeDir);
       setCwd(activeComposeDir);
-      setHistory((prev) => [
-        ...prev,
-        { type: 'system', text: `Switched working directory to: ${activeComposeDir}` }
-      ]);
+      appendHistory({ type: 'system', text: `Switched working directory to: ${activeComposeDir}` });
       setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 40);
     } catch (err) {
-      setHistory((prev) => [...prev, { type: 'err', text: `Failed to cd: ${err}` }]);
+      appendHistory({ type: 'err', text: `Failed to cd: ${err}` });
     }
   };
 
