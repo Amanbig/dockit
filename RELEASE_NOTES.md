@@ -1,54 +1,42 @@
-# Dockit v0.7.0 🚀
+# Dockit v0.8.0 🚀
 
-Dockit **v0.7.0** introduces a complete overhaul of the **Registry Hub** (featuring a full-page responsive search grid and dedicated full-screen image documentation viewer), **Tab Keep-Alive & Seamless Navigation State Retention** across all workspace views (Compose, Registry, Containers, Images), a comprehensive **Container Execution & Runtime Inspector Dialog** with clean timestamp formatting, and interactive **Port Bindings** and **Command Override** dialogs with live Docker argument tokenization and 1-click popular development presets.
+Dockit **v0.8.0** is a major feature and performance release introducing the **VS Code-Style Global Bottom Host Terminal Drawer** (<kbd>Ctrl + `</kbd>) with stateful directory navigation and 1-click Compose directory synchronization, **Comprehensive Clipboard & Paste Integration** (native <kbd>Ctrl + V</kbd>, Linux standard <kbd>Ctrl + Shift + V</kbd>, and titlebar Paste buttons), **Process Group Isolation & Interruption** (<kbd>Ctrl + C</kbd>), **Conditional Compose `.env` File Management**, **Responsive Full-Height Terminal Stretch**, and significant **Resource Optimization & Daemon Offline Throttling**.
 
 ---
 
 ### ✨ What's New & Highlights
 
-#### 🔍 Full-Page Registry Hub & Dedicated Image Documentation Viewer
-- **Full-Page Search Grid**: Replaced the cramped 2-column split layout with a spacious, full-width responsive card grid (`grid-cols-1 md:grid-cols-2 lg:grid-cols-3`) displaying repository stars, pull counts, official badges, and descriptions across the entire viewport.
-- **Dedicated Image Documentation Workspace**: Clicking any repository smoothly transitions to a full-viewport dedicated view featuring a top navigation bar with a 1-click "← Back to Search Results" button and breadcrumb path (`Registry Hub / <image>`).
-- **Complete Markdown & Tag Viewing**: Documentation READMEs, run commands, and architecture/tag tables now utilize the full application width without horizontal crowding or truncated tables.
-- **Header Cleanliness**: The main search bar and header are cleanly hidden while exploring an image's details, maximizing vertical reading space.
-- **Quick Search Suggestions**: Added 1-click search suggestion chips (Nginx, Node, Python, Redis, Postgres, Ubuntu, Alpine, Golang) on empty search state for rapid exploration.
+#### 💻 VS Code-Style Global Bottom Host Terminal Drawer (<kbd>Ctrl + `</kbd>)
+- **Global Slide-Up Terminal**: Press <kbd>Ctrl + `</kbd> (or click the bottom status bar) anywhere in the application to summon an integrated host terminal without leaving Dockit.
+- **Stateful Directory Navigation**: Persists your current working directory (`cd`) across commands, starting at user home (`~`) with clean path shortening (`~/projects/...`).
+- **1-Click Compose Directory Sync**: When working in Compose Studio, a titlebar quick-nav button allows switching the terminal's working directory directly to the active project folder in one click.
+- **Clean Titlebar Controls**: Maximize/restore drawer height (<kbd>65vh</kbd> / <kbd>h-72</kbd>), clear screen button, and session copy.
 
-#### 🗂️ Tab Keep-Alive & Seamless Navigation State Retention
-- **No More Resetting on Tab Switch**: Navigating between sidebar tabs (e.g. from Registry Hub to Compose Projects, Containers, or Settings) no longer destroys component trees or wipes working progress.
-- **Persistent State Across Views**:
-  - **Registry Hub**: Preserves active search queries, search results, selected image documentation view, scroll positions, and open tag browsers.
-  - **Compose Studio**: Keeps opened compose projects, unstaged/staged YAML edits, `.env` configurations, and terminal execution streams active.
-  - **Containers & Images**: Retains search filters, multi-select batch checkboxes, and active container inspection details.
-- **Lazy Mounting with Instant Switching**: Views are mounted lazily upon first visit for rapid application launch, and then maintained with zero-lag CSS visibility toggles (0ms switching with zero flicker).
+#### 📋 Comprehensive Clipboard & Paste Integration
+- **Linux Terminal Convention (<kbd>Ctrl + Shift + V</kbd>)**: Standard HTML inputs ignore Shift when pasting. Dockit now explicitly intercepts <kbd>Ctrl + Shift + V</kbd> across both the Host Terminal drawer and Container Exec terminal to paste instantly.
+- **Unfocused Terminal Paste (<kbd>Ctrl + V</kbd>)**: Clicking on output lines or history previously caused the input to lose focus. Pressing <kbd>Ctrl + V</kbd> or <kbd>Ctrl + Shift + V</kbd> anywhere within the terminal window now automatically routes clipboard contents directly into the prompt.
+- **Click-to-Focus Prompt**: Simply clicking anywhere in the terminal scroll area immediately returns focus to the command input.
+- **1-Click Titlebar Paste Button**: Added dedicated **Paste** buttons (`ClipboardPaste` icon) in the titlebar of both host and container terminals.
+- **Native OS Clipboard Engine**: Utilizes Wails native OS clipboard (`window.runtime.ClipboardGetText()`) with graceful browser fallback.
 
-#### ⚡ App Memory Management & Lightweight Resource Utilization
-- **Visibility-Aware Smart Polling**: Background polling for containers, host hardware metrics, live resource stats, and log streams automatically suspends whenever Dockit is minimized or placed in the background (`document.hidden`), eliminating idle CPU cycles and memory churn.
-- **Tab-Aware Interval Throttling**: Container resource stats (CPU/RAM/IO) and log polling immediately suspend when navigating away to other tabs, resuming instantly upon returning.
-- **Log Buffer Memory Guardrails**: Capped container log queries to `Tail: 2500` in the engine and bounded React in-memory log state to 500,000 characters, preventing DOM bloat and out-of-memory spikes on heavy logging containers.
-- **Proactive Go Runtime Memory Scavenging**:
-  - Configured `debug.SetGCPercent(50)` for more frequent garbage collection and a compact heap footprint.
-  - Set a 256MB soft memory limit (`debug.SetMemoryLimit`) to prevent uncontrolled heap expansion.
-  - Added a periodic idle OS memory scavenger calling `debug.FreeOSMemory()` to proactively return unused heap pages back to the OS (`MADV_DONTNEED`).
-- **Modular Rollup Code-Splitting**: Configured manual vendor chunks (`vendor-react`, `vendor-marked`, `vendor-icons`), eliminating monolithic bundle warnings, accelerating WebKit compilation, and reducing initial JavaScript VM heap allocation.
+#### 🛑 Command Interruption & Process Group Isolation
+- **Global <kbd>Ctrl + C</kbd> Cancellation**: Pressing <kbd>Ctrl + C</kbd> cancels active host commands, halts container exec sessions, or clears the current prompt line.
+- **Process Group Termination (`Setpgid`)**: Executed commands run within dedicated process groups on Unix. Canceling or timing out terminates both the shell and any child processes (such as background scripts, `sleep`, or `ping`), preventing orphaned zombie processes.
+- **Interactive TTY Interceptor**: Detects full-screen interactive programs (`vim`, `nano`, `top`, `htop`, `less`, `more`) before execution, explaining that interactive TTYs cannot run inside inline subshells and offering convenient non-interactive alternatives.
 
-#### ⏱️ Container Execution Details & Runtime Inspector Dialog
-- **Clean Timestamp Formatting & Overflow Prevention**: Replaced raw, overflowing ISO timestamps (`2026-08-29T14:51:11.244946742Z`) in the Execution Details card with clean `YYYY-MM-DD HH:mm:ss` timestamps, full-width row alignment (`justify-between`), and complete raw timestamps in hover tooltips.
-- **Dedicated "Expand" Modal (<kbd>Maximize2</kbd>)**: Added an Expand button on the Execution Details card that opens a comprehensive inspection dialog showcasing:
-  - Container State, PID, Exit Code, OOMKilled flag, and Active/Total Duration uptime.
-  - Image ID, Architecture, Platform, and full Startup Command breakdown.
-  - Network Configuration (IP, Gateway, MAC address, Ports) and Mounts/Volumes.
-  - 1-Click Copy actions for individual fields and full raw JSON container payload.
+#### 🌿 Conditional Compose `.env` Environment Management
+- **Dynamic `.env` Tab**: The environment variable tab in Compose Studio is now conditionally displayed only when the project actually contains an `.env` file, decluttering projects that define variables directly in `docker-compose.yml`.
+- **Inline Create & Delete**: Added a 1-click **+ Add .env** action when no file is present, and a **Delete .env** option with confirmation dialog.
 
-#### 🌐 Interactive Port Bindings Dialog with 1-Click Presets
-- **Visual Port Mapping Table**: Manage host-to-container port forwards (`host_port:container_port`) with protocol selection (`TCP` / `UDP`) and keyboard navigation (<kbd>Enter</kbd> on container port adds a new row).
-- **1-Click Popular Presets**: Instant one-click port presets for standard development services (HTTP `80:80`, HTTPS `443:443`, Node/React `3000:3000`, Web `8080:8080`, Vite `5173:5173`, PostgreSQL `5432:5432`, MySQL `3306:3306`, Redis `6379:6379`).
-- **Quick String Mode**: Paste or edit multi-port strings (e.g. `8080:80, 443:443/udp, 127.0.0.1:3000:3000`) with two-way synchronization.
-- **Form Preview & Quick Clear**: Clean preview chips showing active port mappings with one-click Clear and Edit actions.
+#### 📐 Responsive Full-Height Terminal & Log Views
+- **Large Screen Expansion**: In Container Details, the Terminal, Live Logs, and Raw JSON inspection panels expand responsively to fill the full height of larger desktop monitors instead of being locked to a fixed 400px box.
+- **Theme Consistency**: Terminal consoles maintain an authentic true-dark visual style (`#0c1017`) across both Dark and Light application modes.
 
-#### ⌨️ Command Override (CMD) Dialog & Live Argument Tokenizer
-- **Dedicated Command Editor**: Spacious multi-line script editor for overriding container startup commands or entrypoints.
-- **Live Docker Argument Tokenizer**: Real-time visual breakdown displaying exact parsed arguments `[0]`, `[1]`, `[2]` with shell quote preservation (`"..."` and `'...'`), preventing argument mangling.
-- **Convenient Command Snippets**: Built-in 1-tap snippets for container debugging: Keep-Alive (`sleep infinity`, `tail -f /dev/null`), interactive shells (`/bin/sh`, `/bin/bash`), and inline shell wrappers (`sh -c "..."`).
+#### ⚡ Resource Optimization & Daemon Offline Throttling
+- **Smart Engine Offline Backoff**: When Docker or Podman daemon is stopped, background container polling automatically backs off to eliminate socket churn and CPU load, while host hardware metrics continue updating smoothly. Once the daemon is started, full polling resumes automatically.
+- **Subtab Fetching Efficiency**: Switching subtabs in Container Details only fetches logs when the Logs tab is active, eliminating redundant 500KB network transfers on every tab click.
+- **Bounded In-Memory Buffers**: Terminal history arrays are capped to 150 entries, and single command outputs exceeding 100,000 characters are safely truncated to preserve browser DOM responsiveness and RAM.
+- **Goroutine Leak Protection**: Added a 120-second execution context timeout to container exec operations to prevent hanging goroutines.
 
 ---
 
@@ -58,8 +46,7 @@ Dockit **v0.7.0** introduces a complete overhaul of the **Registry Hub** (featur
   - `dockit-linux-amd64.rpm` (Fedora, RHEL, CentOS, openSUSE)
   - `dockit-linux-amd64.tar.gz` (Portable Linux archive)
 - **Windows**:
-  - `dockit-windows-amd64-installer.exe` (NSIS Setup Wizard)
-  - `dockit-windows-amd64.zip` (Portable executable)
+  - `dockit-windows-amd64.exe` (Standalone Windows executable)
+  - `dockit-windows-amd64.zip` (Portable Windows archive)
 - **macOS**:
-  - `dockit-darwin-universal.dmg` (Drag-and-Drop Disk Image for Apple Silicon & Intel)
-  - `dockit-darwin-universal.zip` (Universal application bundle)
+  - `dockit-darwin-universal.zip` (Universal binary for Intel & Apple Silicon)
