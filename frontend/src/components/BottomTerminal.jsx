@@ -11,7 +11,8 @@ import {
   Copy, 
   Check, 
   Folder,
-  Square
+  Square,
+  ClipboardPaste
 } from 'lucide-react';
 
 const MAX_HISTORY = 150;
@@ -23,6 +24,24 @@ function truncateText(str, max = MAX_OUTPUT_CHARS) {
   if (str.length <= max) return str;
   return str.slice(0, max) + '\n\n[...output truncated to 100,000 characters to conserve memory...]';
 }
+
+const getClipboardText = async () => {
+  try {
+    if (typeof window !== 'undefined' && window.runtime?.ClipboardGetText) {
+      const text = await window.runtime.ClipboardGetText();
+      if (text) return text;
+    }
+  } catch (_) {}
+
+  try {
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.readText) {
+      const text = await navigator.clipboard.readText();
+      if (text) return text;
+    }
+  } catch (_) {}
+
+  return '';
+};
 
 export default function BottomTerminal({
   isOpen,
@@ -126,11 +145,47 @@ export default function BottomTerminal({
     setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 40);
   }, [onCancelHostCommand, appendHistory]);
 
-  // Window-level Ctrl+C handling ensuring it always works during execution or typing
+  const handlePasteToInput = useCallback(async () => {
+    const text = await getClipboardText();
+    if (!text) return;
+
+    if (inputRef.current) {
+      inputRef.current.focus({ preventScroll: true });
+      const el = inputRef.current;
+      const start = el.selectionStart ?? commandInput.length;
+      const end = el.selectionEnd ?? commandInput.length;
+      const updated = commandInput.slice(0, start) + text + commandInput.slice(end);
+      setCommandInput(updated);
+      setTimeout(() => {
+        el.setSelectionRange(start + text.length, start + text.length);
+        el.focus({ preventScroll: true });
+      }, 10);
+    } else {
+      setCommandInput((prev) => prev + text);
+      setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 30);
+    }
+  }, [commandInput]);
+
+  // Window-level Ctrl+C and Ctrl+V / Ctrl+Shift+V handling ensuring clipboard operations always work
   useEffect(() => {
     if (!isOpen) return;
 
     const handleKeyDownGlobal = (e) => {
+      // Ctrl+V or Ctrl+Shift+V handling
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V')) {
+        if (
+          drawerRef.current?.contains(document.activeElement) ||
+          document.activeElement === inputRef.current
+        ) {
+          // If Shift is pressed (Linux terminal standard) OR input is not currently focused, handle paste programmatically
+          if (e.shiftKey || document.activeElement !== inputRef.current) {
+            e.preventDefault();
+            handlePasteToInput();
+            return;
+          }
+        }
+      }
+
       if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C')) {
         // If user highlighted text to copy, let native copy work
         const selection = window.getSelection()?.toString();
@@ -164,7 +219,7 @@ export default function BottomTerminal({
 
     window.addEventListener('keydown', handleKeyDownGlobal);
     return () => window.removeEventListener('keydown', handleKeyDownGlobal);
-  }, [isOpen, executing, commandInput, cwd, handleCancelCommand, appendHistory]);
+  }, [isOpen, executing, commandInput, cwd, handleCancelCommand, appendHistory, handlePasteToInput]);
 
   const handleRunCommand = async (e) => {
     if (e) e.preventDefault();
@@ -207,6 +262,15 @@ export default function BottomTerminal({
   };
 
   const handleKeyDown = (e) => {
+    // Ctrl + Shift + V handling on input element
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V')) {
+      if (e.shiftKey) {
+        e.preventDefault();
+        handlePasteToInput();
+        return;
+      }
+    }
+
     // Ctrl + C handling
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
       e.preventDefault();
@@ -347,6 +411,18 @@ export default function BottomTerminal({
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
+                  handlePasteToInput();
+                }}
+                className="terminal-clear-btn p-1 rounded bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-cyan-300 transition cursor-pointer"
+                title="Paste from clipboard (Ctrl+V / Ctrl+Shift+V)"
+              >
+                <ClipboardPaste className="w-3.5 h-3.5" />
+              </button>
+
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
                   setHistory([]);
                 }}
                 className="terminal-clear-btn text-[10px] px-2 py-0.5 rounded bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition cursor-pointer"
@@ -384,6 +460,12 @@ export default function BottomTerminal({
           {/* Drawer Output Scroll Body */}
           <div
             ref={terminalScrollRef}
+            onClick={() => {
+              const selection = window.getSelection()?.toString();
+              if (!selection && !executing) {
+                inputRef.current?.focus({ preventScroll: true });
+              }
+            }}
             className="flex-1 p-3.5 overflow-y-auto text-xs space-y-1.5 select-text leading-relaxed cursor-text"
           >
             {history.map((item, idx) => (

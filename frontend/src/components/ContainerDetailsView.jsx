@@ -29,8 +29,27 @@ import {
   ChevronUp,
   ChevronDown,
   Filter,
-  Maximize2
+  Maximize2,
+  ClipboardPaste
 } from 'lucide-react';
+
+const getClipboardText = async () => {
+  try {
+    if (typeof window !== 'undefined' && window.runtime?.ClipboardGetText) {
+      const text = await window.runtime.ClipboardGetText();
+      if (text) return text;
+    }
+  } catch (_) {}
+
+  try {
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.readText) {
+      const text = await navigator.clipboard.readText();
+      if (text) return text;
+    }
+  } catch (_) {}
+
+  return '';
+};
 import LogsModal, { highlightLogMatches, highlightLogText } from './LogsModal';
 import ExecutionDetailsModal from './ExecutionDetailsModal';
 import { 
@@ -152,7 +171,57 @@ export default function ContainerDetailsView({ containerId, isTabActive = true, 
     }
   };
 
+  const handlePasteToContainerTerminal = React.useCallback(async () => {
+    const text = await getClipboardText();
+    if (!text) return;
+
+    if (terminalInputRef.current) {
+      terminalInputRef.current.focus({ preventScroll: true });
+      const el = terminalInputRef.current;
+      const start = el.selectionStart ?? commandInput.length;
+      const end = el.selectionEnd ?? commandInput.length;
+      const updated = commandInput.slice(0, start) + text + commandInput.slice(end);
+      setCommandInput(updated);
+      setTimeout(() => {
+        el.setSelectionRange(start + text.length, start + text.length);
+        el.focus({ preventScroll: true });
+      }, 10);
+    } else {
+      setCommandInput((prev) => prev + text);
+      setTimeout(() => terminalInputRef.current?.focus({ preventScroll: true }), 30);
+    }
+  }, [commandInput]);
+
+  useEffect(() => {
+    if (activeSubTab !== 'terminal') return;
+    const handleGlobalTerminalKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V')) {
+        const termWindow = document.querySelector('.terminal-window');
+        if (
+          document.activeElement === terminalInputRef.current ||
+          termWindow?.contains(document.activeElement)
+        ) {
+          if (e.shiftKey || document.activeElement !== terminalInputRef.current) {
+            e.preventDefault();
+            handlePasteToContainerTerminal();
+          }
+        }
+      }
+    };
+    window.addEventListener('keydown', handleGlobalTerminalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalTerminalKeyDown);
+  }, [activeSubTab, handlePasteToContainerTerminal]);
+
   const handleKeyDown = (e) => {
+    // Ctrl + Shift + V handling on container terminal input
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V')) {
+      if (e.shiftKey) {
+        e.preventDefault();
+        handlePasteToContainerTerminal();
+        return;
+      }
+    }
+
     if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C')) {
       const selection = window.getSelection()?.toString();
       if (selection && selection.length > 0) return;
@@ -816,7 +885,12 @@ export default function ContainerDetailsView({ containerId, isTabActive = true, 
         {/* Tab: Terminal Exec */}
         {activeSubTab === 'terminal' && (
           <div 
-            onClick={() => terminalInputRef.current?.focus({ preventScroll: true })}
+            onClick={() => {
+              const sel = window.getSelection()?.toString();
+              if (!sel && isRunning && !executing) {
+                terminalInputRef.current?.focus({ preventScroll: true });
+              }
+            }}
             className="terminal-window flex-1 flex flex-col min-h-[360px] rounded-xl border border-slate-800 bg-[#0c1017] overflow-hidden shadow-2xl font-mono cursor-text"
           >
             {/* Terminal Window Titlebar */}
@@ -829,11 +903,23 @@ export default function ContainerDetailsView({ containerId, isTabActive = true, 
                   root@{details?.name || 'container'}: ~
                 </span>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2.5">
                 <span className="text-[10px] text-slate-400 flex items-center gap-1.5 font-medium">
                   <span className={`w-1.5 h-1.5 rounded-full ${isRunning ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`}></span>
                   {isRunning ? 'Connected (exec session)' : 'Container Stopped'}
                 </span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handlePasteToContainerTerminal();
+                  }}
+                  className="terminal-clear-btn p-1 rounded bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-cyan-300 transition cursor-pointer flex items-center gap-1"
+                  title="Paste from clipboard (Ctrl+V / Ctrl+Shift+V)"
+                >
+                  <ClipboardPaste className="w-3 h-3" />
+                  <span className="text-[10px]">Paste</span>
+                </button>
                 <button
                   type="button"
                   onClick={(e) => {
@@ -850,7 +936,13 @@ export default function ContainerDetailsView({ containerId, isTabActive = true, 
             {/* Terminal Output & Inline Prompt Area */}
             <div 
               ref={terminalScrollRef}
-              className="flex-1 p-4 overflow-y-auto text-xs space-y-1.5 select-text leading-relaxed"
+              onClick={() => {
+                const sel = window.getSelection()?.toString();
+                if (!sel && isRunning && !executing) {
+                  terminalInputRef.current?.focus({ preventScroll: true });
+                }
+              }}
+              className="flex-1 p-4 overflow-y-auto text-xs space-y-1.5 select-text leading-relaxed cursor-text"
             >
               {!isRunning && (
                 <div className="terminal-alert p-3 mb-2 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-300 text-xs flex flex-wrap items-center justify-between gap-2 select-none">
