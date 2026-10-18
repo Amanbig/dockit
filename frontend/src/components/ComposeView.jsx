@@ -47,6 +47,7 @@ export default function ComposeView({
   onRestoreSnapshot,
   onReadEnv,
   onSaveEnv,
+  onDeleteEnv,
   onToast,
   onConfirm
 }) {
@@ -69,6 +70,7 @@ export default function ComposeView({
   const [originalEnv, setOriginalEnv] = useState('');
   const [hasEnv, setHasEnv] = useState(false);
   const [isSavingEnv, setIsSavingEnv] = useState(false);
+  const [isDeletingEnv, setIsDeletingEnv] = useState(false);
   const [envSavedSuccess, setEnvSavedSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
   const [actionOutput, setActionOutput] = useState('');
@@ -316,6 +318,46 @@ export default function ComposeView({
 
   const handleDiscardEnv = () => {
     setEnvContent(originalEnv);
+    if (!project?.hasEnvFile && !originalEnv) {
+      setHasEnv(false);
+      setActiveTab('services');
+    }
+  };
+
+  const handleDeleteEnv = async () => {
+    if (!project || !projectKey) return;
+
+    const performDelete = async () => {
+      try {
+        setIsDeletingEnv(true);
+        if (onDeleteEnv) {
+          await onDeleteEnv(projectKey);
+        }
+        setEnvContent('');
+        setOriginalEnv('');
+        setHasEnv(false);
+        setActiveTab('services');
+        notify('.env file was removed from project.', 'info', 'Environment Removed');
+      } catch (err) {
+        notify(`Failed to remove .env file: ${err}`, 'error', 'Delete Failed');
+      } finally {
+        setIsDeletingEnv(false);
+      }
+    };
+
+    if (onConfirm) {
+      onConfirm({
+        title: 'Delete .env File?',
+        message: `Are you sure you want to delete the .env file from ${project.workingDir}? Any environment variables in this file will be permanently removed from disk.`,
+        confirmText: 'Delete .env',
+        confirmStyle: 'danger',
+        onConfirm: performDelete
+      });
+    } else {
+      if (confirm('Are you sure you want to delete the .env file?')) {
+        performDelete();
+      }
+    }
   };
 
   const handleAddEnvSample = () => {
@@ -674,20 +716,32 @@ SECRET_KEY=dockit_super_secret_key
                 <Code className="w-3.5 h-3.5 text-cyan-400" />
                 <span>YAML Testing Studio</span>
               </button>
-              <button
-                onClick={() => setActiveTab('env')}
-                className={`px-3 py-1 rounded-md text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
-                  activeTab === 'env'
-                    ? 'bg-slate-800 text-cyan-400 font-semibold shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <FileText className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Environment (.env)</span>
-                {hasEnv && (
+              {hasEnv ? (
+                <button
+                  onClick={() => setActiveTab('env')}
+                  className={`px-3 py-1 rounded-md text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
+                    activeTab === 'env'
+                      ? 'bg-slate-800 text-cyan-400 font-semibold shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <FileText className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Environment (.env)</span>
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50"></span>
-                )}
-              </button>
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    setHasEnv(true);
+                    setActiveTab('env');
+                  }}
+                  className="px-2.5 py-1 rounded-md text-xs font-medium flex items-center gap-1 text-slate-400 hover:text-cyan-400 hover:bg-slate-800/60 transition-all cursor-pointer"
+                  title="Create a .env file for this Compose project"
+                >
+                  <Plus className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Add .env</span>
+                </button>
+              )}
               <button
                 onClick={() => setActiveTab('snapshots')}
                 className={`px-3 py-1 rounded-md text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
@@ -964,13 +1018,13 @@ SECRET_KEY=dockit_super_secret_key
                     <span className="shrink-0 px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[11px] font-semibold">
                       Unsaved Changes
                     </span>
-                  ) : hasEnv ? (
+                  ) : hasEnv && project?.hasEnvFile ? (
                     <span className="shrink-0 px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[11px] font-semibold">
                       Synced to Disk
                     </span>
                   ) : (
-                    <span className="shrink-0 px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 text-[11px] font-semibold">
-                      New File
+                    <span className="shrink-0 px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 text-[11px] font-semibold">
+                      New .env File
                     </span>
                   )}
                   {envSavedSuccess && (
@@ -999,6 +1053,18 @@ SECRET_KEY=dockit_super_secret_key
                     >
                       <Undo2 className="w-3.5 h-3.5" />
                       <span>Discard</span>
+                    </button>
+                  )}
+
+                  {(project?.hasEnvFile || originalEnv) && (
+                    <button
+                      onClick={handleDeleteEnv}
+                      disabled={isDeletingEnv}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 border border-rose-500/30 text-xs font-semibold transition-all cursor-pointer disabled:opacity-50"
+                      title="Delete .env file from disk"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>{isDeletingEnv ? 'Deleting...' : 'Delete .env'}</span>
                     </button>
                   )}
 

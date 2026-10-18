@@ -763,6 +763,14 @@ func (a *App) ComposeSaveEnv(projectID, content string) error {
 	return a.composeMgr.SaveEnv(projectID, content)
 }
 
+// ComposeDeleteEnv removes the .env file for the given project.
+func (a *App) ComposeDeleteEnv(projectID string) error {
+	if a.composeMgr == nil {
+		return fmt.Errorf("compose manager not initialized")
+	}
+	return a.composeMgr.DeleteEnv(projectID)
+}
+
 // ==========================================
 // Registry Methods
 // ==========================================

@@ -66,6 +66,7 @@ import {
   ComposeRestoreSnapshot,
   ComposeReadEnv,
   ComposeSaveEnv,
+  ComposeDeleteEnv,
   SearchRegistry,
   SearchAllRegistries,
   GetRegistryTags,
@@ -1017,6 +1018,7 @@ export default function App() {
                   onRestoreSnapshot={ComposeRestoreSnapshot}
                   onReadEnv={ComposeReadEnv}
                   onSaveEnv={ComposeSaveEnv}
+                  onDeleteEnv={ComposeDeleteEnv}
                   onToast={addToast}
                   onConfirm={requestConfirmation}
                 />

@@ -14,6 +14,10 @@ export function ComposeApplyChanges(arg1) {
   return window['go']['main']['App']['ComposeApplyChanges'](arg1);
 }
 
+export function ComposeDeleteEnv(arg1) {
+  return window['go']['main']['App']['ComposeDeleteEnv'](arg1);
+}
+
 export function ComposeDiscardChanges(arg1) {
   return window['go']['main']['App']['ComposeDiscardChanges'](arg1);
 }

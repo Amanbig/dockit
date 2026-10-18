@@ -18,6 +18,8 @@ export function CheckForAppUpdate():Promise<updater.UpdateInfo>;
 
 export function ComposeApplyChanges(arg1:string):Promise<void>;
 
+export function ComposeDeleteEnv(arg1:string):Promise<void>;
+
 export function ComposeDiscardChanges(arg1:string):Promise<void>;
 
 export function ComposeDown(arg1:string,arg2:compose.DownOptions):Promise<string>;

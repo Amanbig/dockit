@@ -497,3 +497,21 @@ func (m *Manager) SaveEnv(projectID string, content string) error {
 	m.mu.Unlock()
 	return nil
 }
+
+// DeleteEnv removes the .env file from the project's working directory.
+func (m *Manager) DeleteEnv(projectID string) error {
+	proj, err := m.getProject(projectID)
+	if err != nil {
+		return err
+	}
+	envPath := filepath.Join(proj.WorkingDir, ".env")
+	if err := os.Remove(envPath); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("failed to remove .env file: %w", err)
+	}
+	m.mu.Lock()
+	proj.EnvContent = ""
+	proj.HasEnvFile = false
+	m.mu.Unlock()
+	return nil
+}
+
