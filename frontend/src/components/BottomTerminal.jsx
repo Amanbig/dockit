@@ -42,6 +42,7 @@ export default function BottomTerminal({
 
   const terminalScrollRef = useRef(null);
   const inputRef = useRef(null);
+  const drawerRef = useRef(null);
 
   // Fetch initial cwd and home directory on mount or open
   useEffect(() => {
@@ -100,6 +101,46 @@ export default function BottomTerminal({
     setExecuting(false);
     setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 40);
   }, [onCancelHostCommand]);
+
+  // Window-level Ctrl+C handling ensuring it always works during execution or typing
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDownGlobal = (e) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C')) {
+        // If user highlighted text to copy, let native copy work
+        const selection = window.getSelection()?.toString();
+        if (selection && selection.length > 0) {
+          return;
+        }
+
+        // If command is currently executing, cancel it immediately
+        if (executing) {
+          e.preventDefault();
+          handleCancelCommand();
+          return;
+        }
+
+        // If drawer has focus or is active, cancel current prompt line with ^C
+        if (
+          drawerRef.current?.contains(document.activeElement) ||
+          document.activeElement === inputRef.current
+        ) {
+          e.preventDefault();
+          if (commandInput) {
+            setHistory((prev) => [...prev, { type: 'cmd', text: `${commandInput}^C`, cwd }]);
+            setCommandInput('');
+          } else {
+            setHistory((prev) => [...prev, { type: 'cmd', text: '^C', cwd }]);
+          }
+          setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 30);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDownGlobal);
+    return () => window.removeEventListener('keydown', handleKeyDownGlobal);
+  }, [isOpen, executing, commandInput, cwd, handleCancelCommand]);
 
   const handleRunCommand = async (e) => {
     if (e) e.preventDefault();
@@ -205,6 +246,7 @@ export default function BottomTerminal({
       {/* Sliding Drawer Container */}
       {isOpen && (
         <div
+          ref={drawerRef}
           className={`terminal-window border-t border-slate-800 bg-[#0c1017] flex flex-col transition-all duration-200 overflow-hidden shadow-2xl font-mono ${
             isMaximized ? 'h-[65vh]' : 'h-72'
           }`}

@@ -137,6 +137,19 @@ export default function ContainerDetailsView({ containerId, isTabActive = true, 
   };
 
   const handleKeyDown = (e) => {
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C')) {
+      const selection = window.getSelection()?.toString();
+      if (selection && selection.length > 0) return;
+      e.preventDefault();
+      if (commandInput) {
+        setTerminalHistory(prev => [...prev, { type: 'cmd', text: `${commandInput}^C` }]);
+        setCommandInput('');
+      } else {
+        setTerminalHistory(prev => [...prev, { type: 'cmd', text: '^C' }]);
+      }
+      return;
+    }
+
     if (e.key === 'ArrowUp') {
       e.preventDefault();
       if (historyList.length === 0) return;
