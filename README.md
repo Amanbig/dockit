@@ -17,12 +17,22 @@ Built with **Go (Wails v2)** + **React 19** + **Tailwind CSS v4** + **Base UI / 
 - Automatic detection of standard sockets, user rootless sockets (`/run/user/$UID/podman/podman.sock`), rootful sockets, and Windows named pipes (`//./pipe/docker_engine`).
 - Custom socket endpoint overrides supported via persistent configuration.
 
+### 💻 Global Host Terminal Drawer (<kbd>Ctrl + `</kbd>)
+- **VS Code-Style Bottom Drawer**: Press <kbd>Ctrl + `</kbd> (or click the bottom status bar) anywhere in the application to summon an integrated host terminal.
+- **Stateful Directory Navigation**: Persists current working directory (`cd`) across executions, starting at user home (`~`).
+- **1-Click Compose Directory Sync**: Instant titlebar shortcut to switch the terminal's working directory directly to your active Docker Compose workspace root.
+- **Full Clipboard Integration**: Native <kbd>Ctrl + V</kbd> and Linux terminal <kbd>Ctrl + Shift + V</kbd> paste support, click-to-focus prompt area, and a 1-click **Paste** button in the titlebar.
+- **Safe Process Group Termination**: Interrupt long-running commands anytime with <kbd>Ctrl + C</kbd> or titlebar **Stop** button with process group isolation (`Setpgid`), cleanly killing the entire process tree without leaving orphaned background processes.
+- **Interactive TTY Interceptor**: Detects full-screen CLI tools (`vim`, `nano`, `top`, `less`) and provides instant hints with non-interactive alternatives.
+
 ### 📦 Containers Management & Interactive Terminal
 - View, start, stop, restart, pause, unpause, and delete containers.
 - **Multi-Select & Batch Actions**: Select multiple containers with row/master checkboxes to start, stop, restart, or delete multiple containers in 1 click with a consolidated confirmation prompt.
 - Real-time container status badges, port bindings, and created timestamps.
 - **Real-Time Resource Metrics**: Live CPU usage %, memory consumption (MB/GB) with limits, incoming/outgoing network I/O traffic, and block disk I/O / PIDs streamed directly on the overview tab.
-- **In-Container Terminal Shell (Exec)**: Launch an interactive shell terminal (`/bin/sh`, `/bin/bash`) directly into running containers to run commands and inspect runtime state.
+- **In-Container Terminal Shell (Exec)**: Launch an interactive shell terminal (`/bin/sh`, `/bin/bash`) directly into running containers to run commands, inspect runtime state, and interrupt executions with <kbd>Ctrl + C</kbd>.
+- **Full-Height Responsive Stretch**: Terminal, live logs, and raw inspection views expand to fill large desktop screens.
+- **Clipboard & Paste Support**: Full support for <kbd>Ctrl + V</kbd>, <kbd>Ctrl + Shift + V</kbd>, and a 1-click **Paste** button.
 - **Log Streaming, Search Navigation & Highlighting**: Live container logs with auto-scroll to latest entries on open/stream, interactive Next/Previous match navigation arrows (<kbd>▲</kbd> / <kbd>▼</kbd> and <kbd>Enter</kbd> / <kbd>Shift+Enter</kbd>), dynamic active match highlighting with live match counters (`1/14`), toggleable full-context vs filtered line modes, and clipboard copy.
 - **Execution & Runtime Inspector Dialog (<kbd>Maximize2</kbd>)**: Clean, formatted timestamps (`YYYY-MM-DD HH:mm:ss`) preventing card overflow, with an Expand button opening a comprehensive inspection dialog showcasing runtime state, PID, exit codes, OOMKilled status, duration uptime, network details, and full raw JSON copying.
 - **Inspect Inspector**: Deep JSON inspection of low-level container configurations and network settings.
@@ -46,24 +56,28 @@ Built with **Go (Wails v2)** + **React 19** + **Tailwind CSS v4** + **Base UI / 
 - **Storage Breakdown**: Visual breakdown of disk space consumed by Images, Containers, Volumes, and Build Cache with reclaimable percentage metrics.
 - **1-Click Quick Clean**: Safely purges stopped container layers, dangling images, and build cache in a single tap without impacting running workloads.
 - **Selective Prune**: Dedicated controls to prune specific categories (stopped containers, dangling images, unattached volumes, build cache, unused networks).
-- **Accessible Dual-Theme Design**: Polished high-contrast views across both Dark Mode and Light Mode.
+- **Accessible Dual-Theme Design**: Polished high-contrast views across both Dark Mode and Light Mode with consistent true-dark terminal styling.
 
-### 🛡️ Reliability & Notification Architecture
+### 🛡️ Reliability & Resource Optimization Architecture
 - **Floating Toast Notifications**: Non-blocking toast alerts (success, error, warning, info) with one-click error copying, replacing native browser alerts.
+- **Smart Engine Offline Throttling**: Automatically detects when Docker/Podman is stopped, backing off container polling to eliminate socket churn while keeping host metrics active, and resuming instantly once the engine starts.
+- **Process Group Isolation**: Command execution in host terminal creates dedicated process groups (`Setpgid`), preventing orphaned child processes upon cancellation or timeout.
+- **Log Fetching Efficiency**: Subtab navigation in Container Details only retrieves logs when the Logs tab is active, avoiding redundant 500KB network transfers on every subtab switch.
+- **Bounded Memory & Output Truncation**: Terminal history arrays capped to 150 items and outputs over 100,000 characters safely truncated to keep RAM and DOM slim during long sessions.
+- **Defensive Backend Context Timeouts**: 120-second bounded execution across container exec and shell operations to prevent hung processes or leaked goroutines.
 - **Human-Readable Engine Errors**: Context-aware formatting for common Docker and Podman daemon error codes.
 - **Keyboard-Accessible Confirmation Dialogs**: Polished in-app modal confirmations (<kbd>Enter</kbd> / <kbd>Esc</kbd>) for all destructive operations.
 - **React Error Boundaries**: Component-level isolation preventing white-screen crashes with instant 1-click view reloading.
 - **Window Focus Auto-Sync**: Automatically refreshes container states and host metrics whenever the window regains focus.
 - **Lightweight Memory Management & Proactive GC**: Proactive Go runtime heap recycling (`GOGC=50`, 256MB soft memory limit) and a 45-second idle memory scavenger (`debug.FreeOSMemory()`), returning unused pages back to the host OS.
 - **Visibility-Aware Throttled Polling**: Automatic pause on background polling and resource streaming when Dockit is minimized or inactive (`document.hidden`), saving CPU cycles and memory churn.
-- **Log Buffer Guardrails & Code Splitting**: Safe log tail capping (`Tail: 2500`) and 500KB frontend string bounding prevent DOM bloat, paired with modular Vite Rollup code-splitting for fast WebKit startup.
-- **Defensive Backend Timeouts**: 15-second bounded execution across Go RPC methods to prevent IPC hangs.
 
 ### 🧪 Docker Compose Studio & Workspace
 - **Multi-Project Library**: Open folders containing `docker-compose.yml`, clone from Git URLs, or browse recent projects with persistent history.
 - **Dedicated Project Workspace**:
   - **Visual Services Grid**: Context-aware Start, Stop, and Restart controls based on actual container running states.
   - **Compose Down Modal**: Choose cleanup options including volume removal (`--volumes`), orphan cleanup (`--remove-orphans`), and image deletion (`--rmi all`).
+  - **Conditional `.env` Environment Tab**: Shows `.env` tab dynamically when the project contains an environment file, with 1-click `+ Add .env` and `Delete .env` management.
   - **YAML Testing Studio**: Edit compose configs with live syntax highlighting and non-destructive memory staging.
   - **Git-Style Blob Hashing (`sha256`) & Snapshots**: Authentic Git object ID hashing (`blob <length>\0<data>`) detects uncommitted edits and provides snapshot rollbacks.
   - **Live CLI Stream**: Real-time terminal output stream for Compose Up, Down, and service orchestration commands.
@@ -112,6 +126,7 @@ dockit/
 │   ├── volumes/                # Volume domain service
 │   ├── networks/               # Network domain service
 │   ├── compose/                # Project parser, staged sandbox manager & CLI runner
+│   ├── terminal/               # Stateful host terminal execution & process group management
 │   ├── registry/               # Docker Hub & GHCR search/metadata clients
 │   ├── config/                 # App local storage & user preferences manager (atomic JSON)
 │   └── installer/              # Safe detection, authorization explanation, & OS installers
