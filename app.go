@@ -22,6 +22,7 @@ import (
 	"dockit/internal/runtime"
 	dockerclient "dockit/internal/runtime/docker"
 	podmanclient "dockit/internal/runtime/podman"
+	"dockit/internal/terminal"
 	"dockit/internal/updater"
 	"dockit/internal/version"
 	"dockit/internal/volumes"
@@ -42,6 +43,7 @@ type App struct {
 	networkSvc   *networks.Service
 	composeMgr   *compose.Manager
 	registrySvc  *registry.Service
+	terminalSvc  *terminal.Service
 }
 
 // NewApp creates a new App application struct.
@@ -66,6 +68,9 @@ func (a *App) startup(ctx context.Context) {
 	regSvc.Register(dockerhub.NewClient())
 	regSvc.Register(ghcr.NewClient())
 	a.registrySvc = regSvc
+
+	// Setup host terminal service
+	a.terminalSvc = terminal.NewService()
 
 	// Connect to preferred runtime
 	preferredRT := "auto"
@@ -958,4 +963,36 @@ func (a *App) PruneSystem(opts runtime.PruneOptions) (*runtime.PruneResult, erro
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
 	defer cancel()
 	return rt.PruneSystem(ctx, opts)
+}
+
+// ==========================================
+// Host Terminal Methods
+// ==========================================
+
+// ExecHostCommand runs a command on the host shell and returns the output and current directory.
+func (a *App) ExecHostCommand(command string) terminal.Result {
+	if a.terminalSvc == nil {
+		a.terminalSvc = terminal.NewService()
+	}
+	ctx := a.ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return a.terminalSvc.Exec(ctx, command)
+}
+
+// GetHostCwd returns the current host terminal working directory.
+func (a *App) GetHostCwd() string {
+	if a.terminalSvc == nil {
+		a.terminalSvc = terminal.NewService()
+	}
+	return a.terminalSvc.GetCwd()
+}
+
+// SetHostCwd sets the current host terminal working directory.
+func (a *App) SetHostCwd(dir string) error {
+	if a.terminalSvc == nil {
+		a.terminalSvc = terminal.NewService()
+	}
+	return a.terminalSvc.SetCwd(dir)
 }

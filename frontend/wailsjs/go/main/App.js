@@ -106,6 +106,10 @@ export function ExecContainer(arg1, arg2) {
   return window['go']['main']['App']['ExecContainer'](arg1, arg2);
 }
 
+export function ExecHostCommand(arg1) {
+  return window['go']['main']['App']['ExecHostCommand'](arg1);
+}
+
 export function GetActiveRuntime() {
   return window['go']['main']['App']['GetActiveRuntime']();
 }
@@ -144,6 +148,10 @@ export function GetDiskUsage() {
 
 export function GetFavorites() {
   return window['go']['main']['App']['GetFavorites']();
+}
+
+export function GetHostCwd() {
+  return window['go']['main']['App']['GetHostCwd']();
 }
 
 export function GetHostMetrics() {
@@ -284,6 +292,10 @@ export function SetAutoCheckUpdates(arg1) {
 
 export function SetCustomValue(arg1, arg2) {
   return window['go']['main']['App']['SetCustomValue'](arg1, arg2);
+}
+
+export function SetHostCwd(arg1) {
+  return window['go']['main']['App']['SetHostCwd'](arg1);
 }
 
 export function SetTheme(arg1) {

@@ -6,6 +6,7 @@ import {runtime} from '../models';
 import {networks} from '../models';
 import {volumes} from '../models';
 import {types} from '../models';
+import {terminal} from '../models';
 import {config} from '../models';
 import {containers} from '../models';
 import {host} from '../models';
@@ -64,6 +65,8 @@ export function DownloadAndApplyUpdate(arg1:string,arg2:string):Promise<void>;
 
 export function ExecContainer(arg1:string,arg2:Array<string>):Promise<string>;
 
+export function ExecHostCommand(arg1:string):Promise<terminal.Result>;
+
 export function GetActiveRuntime():Promise<string>;
 
 export function GetAppVersion():Promise<string>;
@@ -83,6 +86,8 @@ export function GetCustomValue(arg1:string):Promise<string>;
 export function GetDiskUsage():Promise<runtime.DiskUsage>;
 
 export function GetFavorites():Promise<Array<string>>;
+
+export function GetHostCwd():Promise<string>;
 
 export function GetHostMetrics():Promise<host.Metrics>;
 
@@ -153,6 +158,8 @@ export function SelectDirectoryDialog():Promise<string>;
 export function SetAutoCheckUpdates(arg1:boolean):Promise<void>;
 
 export function SetCustomValue(arg1:string,arg2:string):Promise<void>;
+
+export function SetHostCwd(arg1:string):Promise<void>;
 
 export function SetTheme(arg1:string):Promise<void>;
 

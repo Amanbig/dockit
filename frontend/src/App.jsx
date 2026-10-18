@@ -82,10 +82,14 @@ import {
   DetectRuntimes,
   GetInstallPlan,
   InstallRuntime,
-  SelectDirectoryDialog
+  SelectDirectoryDialog,
+  ExecHostCommand,
+  GetHostCwd,
+  SetHostCwd
 } from '../wailsjs/go/main/App';
 import { WindowIsMaximised, WindowToggleMaximise } from '../wailsjs/runtime/runtime';
 import UpdateModal from './components/UpdateModal';
+import BottomTerminal from './components/BottomTerminal';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('containers');
@@ -126,6 +130,20 @@ export default function App() {
     window.addEventListener('resize', checkMaximised);
     return () => window.removeEventListener('resize', checkMaximised);
   }, [checkMaximised]);
+
+  // Bottom Host Terminal Drawer state & global hotkey (Ctrl + ` / Cmd + `)
+  const [terminalDrawerOpen, setTerminalDrawerOpen] = useState(false);
+
+  useEffect(() => {
+    const handleGlobalKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === '`' || e.code === 'Backquote')) {
+        e.preventDefault();
+        setTerminalDrawerOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
 
   const handleToggleMaximise = useCallback(() => {
     if (typeof WindowToggleMaximise === 'function') {
@@ -1065,6 +1083,16 @@ export default function App() {
             )}
           </main>
         </ErrorBoundary>
+
+        {/* VS Code Style Host Terminal Drawer */}
+        <BottomTerminal
+          isOpen={terminalDrawerOpen}
+          onToggle={() => setTerminalDrawerOpen((prev) => !prev)}
+          onClose={() => setTerminalDrawerOpen(false)}
+          onExecHostCommand={ExecHostCommand}
+          onGetHostCwd={GetHostCwd}
+          onSetHostCwd={SetHostCwd}
+        />
       </div>
 
       {/* Floating Modal Portals */}

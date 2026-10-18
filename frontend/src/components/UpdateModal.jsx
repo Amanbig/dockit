@@ -10,7 +10,6 @@ import {
   AlertCircle,
   RefreshCw,
   RotateCcw,
-  ShieldCheck,
   Check
 } from 'lucide-react';
 import { BrowserOpenURL } from '../../wailsjs/runtime/runtime';
@@ -338,12 +337,6 @@ export default function UpdateModal({
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
-                  {updateInfo.needsElevation && (
-                    <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1" title="Requires desktop authorization prompt">
-                      <ShieldCheck className="w-3 h-3" />
-                      Polkit / Root
-                    </span>
-                  )}
                   <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-mono">
                     {selectedAsset?.type ? `.${selectedAsset.type}` : updateInfo.platform}
                   </span>

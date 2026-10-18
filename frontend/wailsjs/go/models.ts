@@ -980,6 +980,27 @@ export namespace runtime {
 
 }
 
+export namespace terminal {
+	
+	export class Result {
+	    output: string;
+	    cwd: string;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Result(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.output = source["output"];
+	        this.cwd = source["cwd"];
+	        this.error = source["error"];
+	    }
+	}
+
+}
+
 export namespace types {
 	
 	export class RuntimeStatus {
