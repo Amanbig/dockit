@@ -85,7 +85,9 @@ import {
   SelectDirectoryDialog,
   ExecHostCommand,
   GetHostCwd,
-  SetHostCwd
+  SetHostCwd,
+  CancelHostCommand,
+  GetHostHomeDir
 } from '../wailsjs/go/main/App';
 import { WindowIsMaximised, WindowToggleMaximise } from '../wailsjs/runtime/runtime';
 import UpdateModal from './components/UpdateModal';
@@ -1092,6 +1094,8 @@ export default function App() {
           onExecHostCommand={ExecHostCommand}
           onGetHostCwd={GetHostCwd}
           onSetHostCwd={SetHostCwd}
+          onCancelHostCommand={CancelHostCommand}
+          onGetHostHomeDir={GetHostHomeDir}
         />
       </div>
 

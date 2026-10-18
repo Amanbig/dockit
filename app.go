@@ -996,3 +996,19 @@ func (a *App) SetHostCwd(dir string) error {
 	}
 	return a.terminalSvc.SetCwd(dir)
 }
+
+// CancelHostCommand terminates the currently running host shell command if active.
+func (a *App) CancelHostCommand() bool {
+	if a.terminalSvc == nil {
+		return false
+	}
+	return a.terminalSvc.Cancel()
+}
+
+// GetHostHomeDir returns the user's home directory.
+func (a *App) GetHostHomeDir() string {
+	if a.terminalSvc == nil {
+		a.terminalSvc = terminal.NewService()
+	}
+	return a.terminalSvc.GetHomeDir()
+}

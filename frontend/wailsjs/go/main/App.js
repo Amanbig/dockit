@@ -6,6 +6,10 @@ export function AddFavorite(arg1) {
   return window['go']['main']['App']['AddFavorite'](arg1);
 }
 
+export function CancelHostCommand() {
+  return window['go']['main']['App']['CancelHostCommand']();
+}
+
 export function CheckForAppUpdate() {
   return window['go']['main']['App']['CheckForAppUpdate']();
 }
@@ -152,6 +156,10 @@ export function GetFavorites() {
 
 export function GetHostCwd() {
   return window['go']['main']['App']['GetHostCwd']();
+}
+
+export function GetHostHomeDir() {
+  return window['go']['main']['App']['GetHostHomeDir']();
 }
 
 export function GetHostMetrics() {

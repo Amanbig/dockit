@@ -15,6 +15,8 @@ import {registry} from '../models';
 
 export function AddFavorite(arg1:string):Promise<void>;
 
+export function CancelHostCommand():Promise<boolean>;
+
 export function CheckForAppUpdate():Promise<updater.UpdateInfo>;
 
 export function ComposeApplyChanges(arg1:string):Promise<void>;
@@ -88,6 +90,8 @@ export function GetDiskUsage():Promise<runtime.DiskUsage>;
 export function GetFavorites():Promise<Array<string>>;
 
 export function GetHostCwd():Promise<string>;
+
+export function GetHostHomeDir():Promise<string>;
 
 export function GetHostMetrics():Promise<host.Metrics>;
 
