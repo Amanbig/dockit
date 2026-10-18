@@ -30,7 +30,7 @@ export default function BottomTerminal({
   const [history, setHistory] = useState([
     {
       type: 'system',
-      text: 'Dockit Host Terminal (bash/zsh) — VS Code Style Drawer\nType any host commands (docker, git, curl, etc.) or "clear" to clear screen.'
+      text: 'Dockit Host Terminal\nType any command or "clear" to clear screen.'
     }
   ]);
   const [commandInput, setCommandInput] = useState('');
@@ -381,7 +381,7 @@ export default function BottomTerminal({
         </div>
       )}
 
-      {/* Persistent Docked Bottom Bar (VS Code Status Bar Style) */}
+      {/* Persistent Docked Bottom Bar */}
       <div className="h-7 px-4 border-t border-slate-800 bg-slate-950 flex items-center justify-between text-xs select-none">
         <div className="flex items-center gap-3">
           <button

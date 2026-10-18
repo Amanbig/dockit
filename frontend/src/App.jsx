@@ -1086,7 +1086,7 @@ export default function App() {
           </main>
         </ErrorBoundary>
 
-        {/* VS Code Style Host Terminal Drawer */}
+        {/* Bottom Host Terminal Drawer */}
         <BottomTerminal
           isOpen={terminalDrawerOpen}
           onToggle={() => setTerminalDrawerOpen((prev) => !prev)}
