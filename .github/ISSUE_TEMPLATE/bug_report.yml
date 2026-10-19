@@ -1,0 +1,104 @@
+name: Bug report
+description: Something in Dockit isn't working as expected
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Please search [existing issues](https://github.com/Amanbig/dockit/issues) first.
+        **Don't paste secrets** (registry tokens, `.env` contents). For security problems, see our [security policy](https://github.com/Amanbig/dockit/security/policy).
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: A clear description of the bug, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Switch engine to Podman
+        2. Open Containers
+        3. Click ...
+        4. See error
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Containers / exec terminal / logs
+        - Images
+        - Volumes / Networks
+        - Compose Studio
+        - Registry Hub
+        - Host terminal
+        - Cleanup / disk usage
+        - Runtime detection / installer
+        - Auto-update
+        - UI / themes
+        - Packaging / install
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: engine
+    attributes:
+      label: Container engine
+      options:
+        - Docker Engine
+        - Docker Desktop
+        - Podman (rootless)
+        - Podman (rootful)
+        - Not installed / other
+    validations:
+      required: true
+  - type: input
+    id: engine-version
+    attributes:
+      label: Engine version
+      description: Output of `docker version` or `podman version`.
+  - type: input
+    id: version
+    attributes:
+      label: Dockit version
+      description: Shown in Settings, or on the Releases page.
+      placeholder: "0.8.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Linux
+        - Windows
+        - macOS
+    validations:
+      required: true
+  - type: input
+    id: os-version
+    attributes:
+      label: OS version / distro
+      placeholder: "Ubuntu 24.04, Windows 11 23H2, macOS 14.5"
+  - type: dropdown
+    id: install-method
+    attributes:
+      label: How did you install it?
+      options:
+        - .deb
+        - .rpm
+        - .tar.gz / portable
+        - Windows installer
+        - Windows zip
+        - macOS dmg / zip
+        - Built from source
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error message, logs, or screenshots
+      description: Paste the error text from the app or terminal, or drag in a screenshot.
+      render: shell
