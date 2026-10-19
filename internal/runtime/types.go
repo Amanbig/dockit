@@ -73,16 +73,16 @@ type ContainerListOptions struct {
 
 // ContainerCreateOptions provides parameters to create a new container.
 type ContainerCreateOptions struct {
-	Name          string                           `json:"name,omitempty"`
-	Image         string                           `json:"image"`
-	Command       []string                         `json:"command,omitempty"`
-	Env           []string                         `json:"env,omitempty"`
+	Name          string                            `json:"name,omitempty"`
+	Image         string                            `json:"image"`
+	Command       []string                          `json:"command,omitempty"`
+	Env           []string                          `json:"env,omitempty"`
 	Ports         map[string][]ContainerPortBinding `json:"ports,omitempty"`
-	PortMappings  []string                         `json:"portMappings,omitempty"` // format: "8080:80/tcp" or "8080:80"
-	Volumes       []string                         `json:"volumes,omitempty"`      // format: "host_path:container_path:ro" or "vol_name:dest"
-	Networks      []string                         `json:"networks,omitempty"`
-	RestartPolicy string                           `json:"restartPolicy,omitempty"` // "no", "always", "unless-stopped", "on-failure"
-	Labels        map[string]string                `json:"labels,omitempty"`
+	PortMappings  []string                          `json:"portMappings,omitempty"` // format: "8080:80/tcp" or "8080:80"
+	Volumes       []string                          `json:"volumes,omitempty"`      // format: "host_path:container_path:ro" or "vol_name:dest"
+	Networks      []string                          `json:"networks,omitempty"`
+	RestartPolicy string                            `json:"restartPolicy,omitempty"` // "no", "always", "unless-stopped", "on-failure"
+	Labels        map[string]string                 `json:"labels,omitempty"`
 }
 
 // ContainerRemoveOptions specifies options for container deletion.
@@ -128,10 +128,10 @@ type MountPoint struct {
 
 // NetworkSettings holds network configuration and assigned addresses.
 type NetworkSettings struct {
-	IPAddress   string            `json:"ipAddress"`
-	Gateway     string            `json:"gateway"`
-	MacAddress  string            `json:"macAddress"`
-	Networks    map[string]string `json:"networks"` // network name -> IP
+	IPAddress  string            `json:"ipAddress"`
+	Gateway    string            `json:"gateway"`
+	MacAddress string            `json:"macAddress"`
+	Networks   map[string]string `json:"networks"` // network name -> IP
 }
 
 // ContainerInspect represents full detailed inspection data for a container.

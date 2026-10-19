@@ -21,19 +21,19 @@ type Result struct {
 }
 
 var interactiveCommands = map[string]string{
-	"vim":    "text editor",
-	"vi":     "text editor",
-	"nvim":   "text editor",
-	"nano":   "text editor",
-	"pico":   "text editor",
-	"emacs":  "text editor",
-	"top":    "interactive process monitor",
-	"htop":   "interactive process monitor",
-	"btop":   "interactive process monitor",
-	"less":   "interactive pager",
-	"more":   "interactive pager",
-	"man":    "interactive manual pager",
-	"watch":  "interactive display monitor",
+	"vim":   "text editor",
+	"vi":    "text editor",
+	"nvim":  "text editor",
+	"nano":  "text editor",
+	"pico":  "text editor",
+	"emacs": "text editor",
+	"top":   "interactive process monitor",
+	"htop":  "interactive process monitor",
+	"btop":  "interactive process monitor",
+	"less":  "interactive pager",
+	"more":  "interactive pager",
+	"man":   "interactive manual pager",
+	"watch": "interactive display monitor",
 }
 
 // Service provides host shell command execution with stateful working directory management.

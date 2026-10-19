@@ -514,4 +514,3 @@ func (m *Manager) DeleteEnv(projectID string) error {
 	m.mu.Unlock()
 	return nil
 }
-

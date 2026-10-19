@@ -47,9 +47,9 @@ type rawDockerStats struct {
 		Usage uint64 `json:"usage"`
 		Limit uint64 `json:"limit"`
 		Stats struct {
-			InactiveFile uint64 `json:"inactive_file"`
+			InactiveFile      uint64 `json:"inactive_file"`
 			TotalInactiveFile uint64 `json:"total_inactive_file"`
-			Cache uint64 `json:"cache"`
+			Cache             uint64 `json:"cache"`
 		} `json:"stats"`
 	} `json:"memory_stats"`
 	Networks map[string]struct {

@@ -11,16 +11,16 @@ type ComposeFile struct {
 
 // ServiceConfig represents a single service within a compose file.
 type ServiceConfig struct {
-	Image         string            `yaml:"image,omitempty" json:"image,omitempty"`
-	Build         interface{}       `yaml:"build,omitempty" json:"build,omitempty"`
-	ContainerName string            `yaml:"container_name,omitempty" json:"containerName,omitempty"`
-	Command       interface{}       `yaml:"command,omitempty" json:"command,omitempty"`
-	Ports         []interface{}     `yaml:"ports,omitempty" json:"ports,omitempty"`
-	Environment   interface{}       `yaml:"environment,omitempty" json:"environment,omitempty"`
-	Volumes       []interface{}     `yaml:"volumes,omitempty" json:"volumes,omitempty"`
-	Networks      []interface{}     `yaml:"networks,omitempty" json:"networks,omitempty"`
-	Restart       string            `yaml:"restart,omitempty" json:"restart,omitempty"`
-	DependsOn     interface{}       `yaml:"depends_on,omitempty" json:"dependsOn,omitempty"`
+	Image         string        `yaml:"image,omitempty" json:"image,omitempty"`
+	Build         interface{}   `yaml:"build,omitempty" json:"build,omitempty"`
+	ContainerName string        `yaml:"container_name,omitempty" json:"containerName,omitempty"`
+	Command       interface{}   `yaml:"command,omitempty" json:"command,omitempty"`
+	Ports         []interface{} `yaml:"ports,omitempty" json:"ports,omitempty"`
+	Environment   interface{}   `yaml:"environment,omitempty" json:"environment,omitempty"`
+	Volumes       []interface{} `yaml:"volumes,omitempty" json:"volumes,omitempty"`
+	Networks      []interface{} `yaml:"networks,omitempty" json:"networks,omitempty"`
+	Restart       string        `yaml:"restart,omitempty" json:"restart,omitempty"`
+	DependsOn     interface{}   `yaml:"depends_on,omitempty" json:"dependsOn,omitempty"`
 }
 
 // ServiceInfo represents parsed service status and metadata for UI display.

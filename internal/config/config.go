@@ -23,7 +23,7 @@ type RuntimeConfig struct {
 
 // UIConfig stores display and user interface preferences.
 type UIConfig struct {
-	Theme            string `json:"theme"` // "dark", "light", or "system"
+	Theme            string `json:"theme"`           // "dark", "light", or "system"
 	RefreshInterval  int    `json:"refreshInterval"` // in seconds, default 5
 	Notifications    bool   `json:"notifications"`
 	CompactView      bool   `json:"compactView"`

@@ -210,11 +210,11 @@ func (c *Client) GetMetadata(ctx context.Context, repository string) (*registry.
 
 	if resp.StatusCode == http.StatusOK {
 		var data struct {
-			Name        string `json:"name"`
-			CreatedAt   string `json:"created_at"`
-			UpdatedAt   string `json:"updated_at"`
-			HTMLURL     string `json:"html_url"`
-			Repository  struct {
+			Name       string `json:"name"`
+			CreatedAt  string `json:"created_at"`
+			UpdatedAt  string `json:"updated_at"`
+			HTMLURL    string `json:"html_url"`
+			Repository struct {
 				Description string `json:"description"`
 				Stargazers  int    `json:"stargazers_count"`
 			} `json:"repository"`
