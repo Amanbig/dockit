@@ -12,7 +12,8 @@ import {
   Check, 
   Folder,
   Square,
-  ClipboardPaste
+  ClipboardPaste,
+  Plus
 } from 'lucide-react';
 
 const MAX_HISTORY = 150;
@@ -43,82 +44,136 @@ const getClipboardText = async () => {
   return '';
 };
 
+function createInitialTab(id = 'term-1', title = 'Terminal 1', initialCwd = '~') {
+  return {
+    id,
+    title,
+    cwd: initialCwd,
+    history: [
+      {
+        type: 'system',
+        text: 'Dockit Host Terminal\nType any command or "clear" to clear screen.'
+      }
+    ],
+    commandInput: '',
+    executing: false,
+    cmdHistory: [],
+    historyIndex: -1
+  };
+}
+
 export default function BottomTerminal({
   isOpen,
   onToggle,
   onClose,
   onExecHostCommand,
+  onExecHostCommandSession,
   onGetHostCwd,
+  onGetHostCwdSession,
   onSetHostCwd,
+  onSetHostCwdSession,
   onCancelHostCommand,
+  onCancelHostCommandSession,
+  onCloseHostTerminalSession,
   onGetHostHomeDir,
   activeComposeDir = null
 }) {
-  const [cwd, setCwd] = useState('~');
   const [homeDir, setHomeDir] = useState('');
-  const [history, setHistory] = useState([
-    {
-      type: 'system',
-      text: 'Dockit Host Terminal\nType any command or "clear" to clear screen.'
-    }
-  ]);
-  const [commandInput, setCommandInput] = useState('');
-  const [executing, setExecuting] = useState(false);
-  const [cmdHistory, setCmdHistory] = useState([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
+  const [tabs, setTabs] = useState([createInitialTab('term-1', 'Terminal 1', '~')]);
+  const [activeTabId, setActiveTabId] = useState('term-1');
   const [isMaximized, setIsMaximized] = useState(false);
   const [copied, setCopied] = useState(false);
-
-  const appendHistory = useCallback((entry) => {
-    setHistory((prev) => {
-      const next = [...prev, entry];
-      return next.length > MAX_HISTORY ? next.slice(-MAX_HISTORY) : next;
-    });
-  }, []);
-
-  const appendCmdHistory = useCallback((cmd) => {
-    setCmdHistory((prev) => {
-      const next = [...prev, cmd];
-      return next.length > MAX_CMD_HISTORY ? next.slice(-MAX_CMD_HISTORY) : next;
-    });
-  }, []);
 
   const terminalScrollRef = useRef(null);
   const inputRef = useRef(null);
   const drawerRef = useRef(null);
 
-  // Fetch initial cwd and home directory on mount or open
+  // Active Tab object helper
+  const activeTab = tabs.find((t) => t.id === activeTabId) || tabs[0] || createInitialTab('term-1');
+
+  const updateTab = useCallback((tabId, updater) => {
+    setTabs((prevTabs) =>
+      prevTabs.map((t) => {
+        if (t.id !== tabId) return t;
+        const updates = typeof updater === 'function' ? updater(t) : updater;
+        return { ...t, ...updates };
+      })
+    );
+  }, []);
+
+  const appendTabHistory = useCallback((tabId, entry) => {
+    setTabs((prevTabs) =>
+      prevTabs.map((t) => {
+        if (t.id !== tabId) return t;
+        const next = [...t.history, entry];
+        return {
+          ...t,
+          history: next.length > MAX_HISTORY ? next.slice(-MAX_HISTORY) : next
+        };
+      })
+    );
+  }, []);
+
+  const appendTabCmdHistory = useCallback((tabId, cmd) => {
+    setTabs((prevTabs) =>
+      prevTabs.map((t) => {
+        if (t.id !== tabId) return t;
+        const next = [...t.cmdHistory, cmd];
+        return {
+          ...t,
+          cmdHistory: next.length > MAX_CMD_HISTORY ? next.slice(-MAX_CMD_HISTORY) : next
+        };
+      })
+    );
+  }, []);
+
+  // Fetch initial home directory and initial cwd on mount or open
   useEffect(() => {
     if (onGetHostHomeDir) {
       onGetHostHomeDir()
         .then((home) => {
-          if (home) setHomeDir(home);
+          if (home) {
+            setHomeDir(home);
+            setTabs((prevTabs) =>
+              prevTabs.map((t, idx) => (idx === 0 && t.cwd === '~' ? { ...t, cwd: home } : t))
+            );
+          }
         })
         .catch(() => {});
     }
 
-    if (onGetHostCwd) {
+    if (onGetHostCwdSession) {
+      onGetHostCwdSession('term-1')
+        .then((dir) => {
+          if (dir) {
+            updateTab('term-1', { cwd: dir });
+          }
+        })
+        .catch(() => {});
+    } else if (onGetHostCwd) {
       onGetHostCwd()
         .then((dir) => {
-          if (dir) setCwd(dir);
+          if (dir) {
+            updateTab('term-1', { cwd: dir });
+          }
         })
         .catch(() => {});
     }
-  }, [isOpen, onGetHostCwd, onGetHostHomeDir]);
+  }, [isOpen, onGetHostHomeDir, onGetHostCwd, onGetHostCwdSession, updateTab]);
 
-  // Auto-scroll inside terminal when new output arrives
+  // Auto-scroll terminal scroll area when active tab's history updates or tab changes
   useEffect(() => {
     if (isOpen && terminalScrollRef.current) {
       terminalScrollRef.current.scrollTop = terminalScrollRef.current.scrollHeight;
     }
-  }, [history, executing, isOpen]);
+  }, [activeTab.history, activeTab.executing, isOpen, activeTabId]);
 
-  // Auto-focus input when terminal drawer opens
+  // Auto-focus input when terminal drawer opens or active tab switches
   useEffect(() => {
-    if (isOpen && !executing) {
-      setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 80);
+    if (isOpen && !activeTab.executing) {
+      setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 50);
     }
-  }, [isOpen, executing]);
+  }, [isOpen, activeTabId, activeTab.executing]);
 
   const shortenPath = useCallback((path) => {
     if (!path) return '~';
@@ -134,50 +189,128 @@ export default function BottomTerminal({
     return p;
   }, [homeDir]);
 
-  const handleCancelCommand = useCallback(async () => {
+  // Add a new terminal tab
+  const handleNewTab = useCallback(() => {
+    const newId = `term-${Date.now()}`;
+    const newIndex = tabs.length + 1;
+    const initialCwd = activeTab.cwd || homeDir || '~';
+    const newTab = createInitialTab(newId, `Terminal ${newIndex}`, initialCwd);
+
+    setTabs((prev) => [...prev, newTab]);
+    setActiveTabId(newId);
+
+    if (onSetHostCwdSession) {
+      onSetHostCwdSession(newId, initialCwd).catch(() => {});
+    }
+
+    setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 60);
+  }, [tabs.length, activeTab.cwd, homeDir, onSetHostCwdSession]);
+
+  // Close a specific terminal tab
+  const handleCloseTab = useCallback((tabIdToClose, e) => {
+    if (e) e.stopPropagation();
+
+    if (tabs.length <= 1) {
+      // If closing the only tab, clear its screen and reset
+      updateTab(tabIdToClose, {
+        history: [
+          {
+            type: 'system',
+            text: 'Dockit Host Terminal\nType any command or "clear" to clear screen.'
+          }
+        ],
+        commandInput: '',
+        historyIndex: -1
+      });
+      return;
+    }
+
+    // Terminate session on backend
+    if (onCloseHostTerminalSession) {
+      onCloseHostTerminalSession(tabIdToClose);
+    } else if (onCancelHostCommandSession) {
+      onCancelHostCommandSession(tabIdToClose);
+    }
+
+    setTabs((prevTabs) => {
+      const nextTabs = prevTabs.filter((t) => t.id !== tabIdToClose);
+      if (activeTabId === tabIdToClose) {
+        const closedIdx = prevTabs.findIndex((t) => t.id === tabIdToClose);
+        const nextActive = nextTabs[Math.max(0, closedIdx - 1)] || nextTabs[0];
+        if (nextActive) setActiveTabId(nextActive.id);
+      }
+      return nextTabs;
+    });
+
+    setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 50);
+  }, [tabs.length, activeTabId, onCloseHostTerminalSession, onCancelHostCommandSession, updateTab]);
+
+  // Cancel currently running command in the active or specified tab
+  const handleCancelCommand = useCallback(async (tabId = activeTab.id) => {
     try {
-      if (onCancelHostCommand) {
+      if (onCancelHostCommandSession) {
+        await onCancelHostCommandSession(tabId);
+      } else if (onCancelHostCommand) {
         await onCancelHostCommand();
       }
-      appendHistory({ type: 'err', text: '^C (command canceled)' });
+      appendTabHistory(tabId, { type: 'err', text: '^C (command canceled)' });
     } catch (_) {}
-    setExecuting(false);
+    updateTab(tabId, { executing: false });
     setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 40);
-  }, [onCancelHostCommand, appendHistory]);
+  }, [activeTab.id, onCancelHostCommandSession, onCancelHostCommand, appendTabHistory, updateTab]);
 
+  // Paste handler into active tab command input
   const handlePasteToInput = useCallback(async () => {
     const text = await getClipboardText();
     if (!text) return;
+    const currentTabId = activeTab.id;
 
     if (inputRef.current) {
       inputRef.current.focus({ preventScroll: true });
       const el = inputRef.current;
-      const start = el.selectionStart ?? commandInput.length;
-      const end = el.selectionEnd ?? commandInput.length;
-      const updated = commandInput.slice(0, start) + text + commandInput.slice(end);
-      setCommandInput(updated);
+      const start = el.selectionStart ?? activeTab.commandInput.length;
+      const end = el.selectionEnd ?? activeTab.commandInput.length;
+      const updated = activeTab.commandInput.slice(0, start) + text + activeTab.commandInput.slice(end);
+      updateTab(currentTabId, { commandInput: updated });
       setTimeout(() => {
         el.setSelectionRange(start + text.length, start + text.length);
         el.focus({ preventScroll: true });
       }, 10);
     } else {
-      setCommandInput((prev) => prev + text);
+      updateTab(currentTabId, (prev) => ({ commandInput: prev.commandInput + text }));
       setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 30);
     }
-  }, [commandInput]);
+  }, [activeTab.id, activeTab.commandInput, updateTab]);
 
-  // Window-level Ctrl+C and Ctrl+V / Ctrl+Shift+V handling ensuring clipboard operations always work
+  // Global keyboard shortcuts: Ctrl+C, Ctrl+V, Ctrl+Shift+V, Ctrl+Shift+`, Alt+[1-9]
   useEffect(() => {
     if (!isOpen) return;
 
     const handleKeyDownGlobal = (e) => {
+      // Hotkey: Ctrl+Shift+` to create a new tab
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === '`' || e.key === '~')) {
+        e.preventDefault();
+        handleNewTab();
+        return;
+      }
+
+      // Hotkey: Alt+[1-9] to switch between tabs
+      if (e.altKey && e.key >= '1' && e.key <= '9') {
+        const targetIdx = parseInt(e.key, 10) - 1;
+        if (tabs[targetIdx]) {
+          e.preventDefault();
+          setActiveTabId(tabs[targetIdx].id);
+          setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 40);
+          return;
+        }
+      }
+
       // Ctrl+V or Ctrl+Shift+V handling
       if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V')) {
         if (
           drawerRef.current?.contains(document.activeElement) ||
           document.activeElement === inputRef.current
         ) {
-          // If Shift is pressed (Linux terminal standard) OR input is not currently focused, handle paste programmatically
           if (e.shiftKey || document.activeElement !== inputRef.current) {
             e.preventDefault();
             handlePasteToInput();
@@ -186,31 +319,33 @@ export default function BottomTerminal({
         }
       }
 
+      // Ctrl+C handling
       if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C')) {
-        // If user highlighted text to copy, let native copy work
         const selection = window.getSelection()?.toString();
         if (selection && selection.length > 0) {
           return;
         }
 
-        // If command is currently executing, cancel it immediately
-        if (executing) {
+        if (activeTab.executing) {
           e.preventDefault();
-          handleCancelCommand();
+          handleCancelCommand(activeTab.id);
           return;
         }
 
-        // If drawer has focus or is active, cancel current prompt line with ^C
         if (
           drawerRef.current?.contains(document.activeElement) ||
           document.activeElement === inputRef.current
         ) {
           e.preventDefault();
-          if (commandInput) {
-            appendHistory({ type: 'cmd', text: `${commandInput}^C`, cwd });
-            setCommandInput('');
+          if (activeTab.commandInput) {
+            appendTabHistory(activeTab.id, {
+              type: 'cmd',
+              text: `${activeTab.commandInput}^C`,
+              cwd: activeTab.cwd
+            });
+            updateTab(activeTab.id, { commandInput: '' });
           } else {
-            appendHistory({ type: 'cmd', text: '^C', cwd });
+            appendTabHistory(activeTab.id, { type: 'cmd', text: '^C', cwd: activeTab.cwd });
           }
           setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 30);
         }
@@ -219,50 +354,77 @@ export default function BottomTerminal({
 
     window.addEventListener('keydown', handleKeyDownGlobal);
     return () => window.removeEventListener('keydown', handleKeyDownGlobal);
-  }, [isOpen, executing, commandInput, cwd, handleCancelCommand, appendHistory, handlePasteToInput]);
+  }, [
+    isOpen,
+    tabs,
+    activeTab.id,
+    activeTab.executing,
+    activeTab.commandInput,
+    activeTab.cwd,
+    handleCancelCommand,
+    handlePasteToInput,
+    handleNewTab,
+    appendTabHistory,
+    updateTab
+  ]);
 
   const handleRunCommand = async (e) => {
     if (e) e.preventDefault();
-    const cmdStr = commandInput.trim();
-    if (!cmdStr || executing) return;
+    const currentTabId = activeTab.id;
+    const cmdStr = activeTab.commandInput.trim();
+    if (!cmdStr || activeTab.executing) return;
 
     if (cmdStr.toLowerCase() === 'clear') {
-      setHistory([]);
-      setCommandInput('');
-      appendCmdHistory('clear');
-      setHistoryIndex(-1);
+      updateTab(currentTabId, {
+        history: [],
+        commandInput: '',
+        historyIndex: -1
+      });
+      appendTabCmdHistory(currentTabId, 'clear');
       return;
     }
 
-    setExecuting(true);
-    appendHistory({ type: 'cmd', text: cmdStr, cwd });
-    appendCmdHistory(cmdStr);
-    setHistoryIndex(-1);
-    setCommandInput('');
+    updateTab(currentTabId, {
+      executing: true,
+      commandInput: '',
+      historyIndex: -1
+    });
+    appendTabHistory(currentTabId, { type: 'cmd', text: cmdStr, cwd: activeTab.cwd });
+    appendTabCmdHistory(currentTabId, cmdStr);
 
     try {
-      if (onExecHostCommand) {
-        const res = await onExecHostCommand(cmdStr);
-        if (res) {
-          if (res.cwd) setCwd(res.cwd);
-          if (res.output) {
-            appendHistory({ type: 'out', text: truncateText(res.output) });
-          }
-          if (res.error) {
-            appendHistory({ type: 'err', text: truncateText(res.error) });
-          }
+      let res = null;
+      if (onExecHostCommandSession) {
+        res = await onExecHostCommandSession(currentTabId, cmdStr);
+      } else if (onExecHostCommand) {
+        res = await onExecHostCommand(cmdStr);
+      }
+
+      if (res) {
+        if (res.cwd) {
+          updateTab(currentTabId, { cwd: res.cwd });
+        }
+        if (res.output) {
+          appendTabHistory(currentTabId, { type: 'out', text: truncateText(res.output) });
+        }
+        if (res.error) {
+          appendTabHistory(currentTabId, { type: 'err', text: truncateText(res.error) });
         }
       }
     } catch (err) {
-      appendHistory({ type: 'err', text: `Execution failed: ${err}` });
+      appendTabHistory(currentTabId, { type: 'err', text: `Execution failed: ${err}` });
     } finally {
-      setExecuting(false);
-      setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 40);
+      updateTab(currentTabId, { executing: false });
+      setTimeout(() => {
+        if (activeTabId === currentTabId) {
+          inputRef.current?.focus({ preventScroll: true });
+        }
+      }, 40);
     }
   };
 
   const handleKeyDown = (e) => {
-    // Ctrl + Shift + V handling on input element
+    // Ctrl + Shift + V on input element
     if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V')) {
       if (e.shiftKey) {
         e.preventDefault();
@@ -271,42 +433,56 @@ export default function BottomTerminal({
       }
     }
 
-    // Ctrl + C handling
+    // Ctrl + C on input element
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
       e.preventDefault();
-      if (executing) {
-        handleCancelCommand();
+      if (activeTab.executing) {
+        handleCancelCommand(activeTab.id);
       } else {
-        if (commandInput) {
-          appendHistory({ type: 'cmd', text: `${commandInput}^C`, cwd });
-          setCommandInput('');
+        if (activeTab.commandInput) {
+          appendTabHistory(activeTab.id, {
+            type: 'cmd',
+            text: `${activeTab.commandInput}^C`,
+            cwd: activeTab.cwd
+          });
+          updateTab(activeTab.id, { commandInput: '' });
         }
       }
       return;
     }
 
+    // Arrow Up / Down command history
     if (e.key === 'ArrowUp') {
       e.preventDefault();
-      if (cmdHistory.length === 0) return;
-      const nextIdx = historyIndex === -1 ? cmdHistory.length - 1 : Math.max(0, historyIndex - 1);
-      setHistoryIndex(nextIdx);
-      setCommandInput(cmdHistory[nextIdx] || '');
+      if (activeTab.cmdHistory.length === 0) return;
+      const nextIdx =
+        activeTab.historyIndex === -1
+          ? activeTab.cmdHistory.length - 1
+          : Math.max(0, activeTab.historyIndex - 1);
+      updateTab(activeTab.id, {
+        historyIndex: nextIdx,
+        commandInput: activeTab.cmdHistory[nextIdx] || ''
+      });
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
-      if (historyIndex === -1) return;
-      const nextIdx = historyIndex + 1;
-      if (nextIdx >= cmdHistory.length) {
-        setHistoryIndex(-1);
-        setCommandInput('');
+      if (activeTab.historyIndex === -1) return;
+      const nextIdx = activeTab.historyIndex + 1;
+      if (nextIdx >= activeTab.cmdHistory.length) {
+        updateTab(activeTab.id, {
+          historyIndex: -1,
+          commandInput: ''
+        });
       } else {
-        setHistoryIndex(nextIdx);
-        setCommandInput(cmdHistory[nextIdx] || '');
+        updateTab(activeTab.id, {
+          historyIndex: nextIdx,
+          commandInput: activeTab.cmdHistory[nextIdx] || ''
+        });
       }
     }
   };
 
   const handleCopyHistory = () => {
-    const text = history
+    const text = activeTab.history
       .map((item) => (item.type === 'cmd' ? `$ ${item.text}` : item.text))
       .join('\n');
     navigator.clipboard.writeText(text);
@@ -315,14 +491,22 @@ export default function BottomTerminal({
   };
 
   const handleCdToCompose = async () => {
-    if (!activeComposeDir || !onSetHostCwd) return;
+    if (!activeComposeDir) return;
+    const currentTabId = activeTab.id;
     try {
-      await onSetHostCwd(activeComposeDir);
-      setCwd(activeComposeDir);
-      appendHistory({ type: 'system', text: `Switched working directory to: ${activeComposeDir}` });
+      if (onSetHostCwdSession) {
+        await onSetHostCwdSession(currentTabId, activeComposeDir);
+      } else if (onSetHostCwd) {
+        await onSetHostCwd(activeComposeDir);
+      }
+      updateTab(currentTabId, { cwd: activeComposeDir });
+      appendTabHistory(currentTabId, {
+        type: 'system',
+        text: `Switched working directory to: ${activeComposeDir}`
+      });
       setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 40);
     } catch (err) {
-      appendHistory({ type: 'err', text: `Failed to cd: ${err}` });
+      appendTabHistory(currentTabId, { type: 'err', text: `Failed to cd: ${err}` });
     }
   };
 
@@ -335,30 +519,65 @@ export default function BottomTerminal({
           className={`terminal-window border-t border-slate-800 bg-[#0c1017] flex flex-col transition-all duration-200 overflow-hidden shadow-2xl font-mono ${
             isMaximized ? 'h-[65vh]' : 'h-72'
           }`}
-          onClick={() => {
-            if (!executing) inputRef.current?.focus({ preventScroll: true });
-          }}
         >
-          {/* Drawer Header Toolbar */}
-          <div className="terminal-titlebar px-4 py-2 bg-[#161b22] border-b border-slate-800 flex items-center justify-between text-xs shrink-0">
-            <div className="flex items-center gap-2.5">
-              <span className="terminal-dot-red w-2.5 h-2.5 rounded-full bg-rose-500/80 inline-block"></span>
-              <span className="terminal-dot-yellow w-2.5 h-2.5 rounded-full bg-amber-500/80 inline-block"></span>
-              <span className="terminal-dot-green w-2.5 h-2.5 rounded-full bg-emerald-500/80 inline-block"></span>
+          {/* Drawer Titlebar & Tab Bar */}
+          <div className="terminal-titlebar px-3 py-1.5 bg-[#161b22] border-b border-slate-800 flex items-center justify-between text-xs select-none shrink-0 gap-3">
+            {/* Tabs Strip with Add Tab Button */}
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 max-w-[65%] min-w-0">
+              {tabs.map((tab, idx) => {
+                const isActive = tab.id === activeTab.id;
+                return (
+                  <div
+                    key={tab.id}
+                    onClick={() => {
+                      setActiveTabId(tab.id);
+                      setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 40);
+                    }}
+                    className={`group flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition cursor-pointer select-none shrink-0 ${
+                      isActive
+                        ? 'bg-slate-800 text-slate-100 border border-slate-700 shadow-xs'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 border border-transparent'
+                    }`}
+                    title={`Tab ${idx + 1} (${tab.title}): ${tab.cwd}`}
+                  >
+                    <Terminal className={`w-3 h-3 shrink-0 ${isActive ? 'text-cyan-400' : 'text-slate-500'}`} />
+                    <span className="font-mono text-[11px] font-semibold">{tab.title}</span>
+                    <span className="text-slate-600 text-[10px]">•</span>
+                    <span className="font-mono text-[10px] text-slate-400 max-w-[90px] truncate">
+                      {shortenPath(tab.cwd)}
+                    </span>
+                    {tab.executing && (
+                      <RefreshCw className="w-2.5 h-2.5 animate-spin text-amber-400 ml-0.5 shrink-0" />
+                    )}
+                    {tabs.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={(e) => handleCloseTab(tab.id, e)}
+                        className="p-0.5 ml-0.5 rounded hover:bg-slate-700 hover:text-rose-400 text-slate-500 opacity-60 group-hover:opacity-100 transition cursor-pointer shrink-0"
+                        title="Close Tab"
+                      >
+                        <X className="w-2.5 h-2.5" />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
 
-              <div className="flex items-center gap-2 ml-1 text-slate-300 font-semibold text-[11px]">
-                <Terminal className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Host Terminal</span>
-                <span className="text-slate-500">•</span>
-                <span 
-                  className="text-slate-400 font-mono text-[10px] px-2 py-0.5 rounded bg-slate-800/60 border border-slate-700/60 max-w-xs truncate cursor-help"
-                  title={`Working Directory: ${cwd}`}
-                >
-                  {shortenPath(cwd)}
-                </span>
-              </div>
+              {/* New Tab Button */}
+              <button
+                type="button"
+                onClick={handleNewTab}
+                className="p-1 rounded-md hover:bg-slate-800 text-slate-400 hover:text-cyan-300 transition cursor-pointer flex items-center gap-1 shrink-0 text-[11px] px-1.5 border border-dashed border-slate-700/60 hover:border-cyan-500/50"
+                title="New Terminal Tab (Ctrl+Shift+`)"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline text-[10px] font-mono">New Tab</span>
+              </button>
+            </div>
 
-              {activeComposeDir && activeComposeDir !== cwd && (
+            {/* Titlebar Action Buttons */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              {activeComposeDir && activeComposeDir !== activeTab.cwd && (
                 <button
                   type="button"
                   onClick={(e) => {
@@ -366,21 +585,19 @@ export default function BottomTerminal({
                     handleCdToCompose();
                   }}
                   className="text-[10px] px-2 py-0.5 rounded bg-cyan-950/70 hover:bg-cyan-900 text-cyan-300 border border-cyan-700/50 flex items-center gap-1 transition cursor-pointer"
-                  title={`Jump terminal directory to ${activeComposeDir}`}
+                  title={`Jump active terminal directory to ${activeComposeDir}`}
                 >
                   <Folder className="w-3 h-3 text-cyan-400" />
-                  <span>cd to Compose Dir</span>
+                  <span className="hidden md:inline">cd to Compose Dir</span>
                 </button>
               )}
-            </div>
 
-            <div className="flex items-center gap-1.5">
-              {executing ? (
+              {activeTab.executing ? (
                 <button
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleCancelCommand();
+                    handleCancelCommand(activeTab.id);
                   }}
                   className="px-2 py-0.5 rounded bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-[10px] font-semibold transition cursor-pointer flex items-center gap-1 shadow-xs mr-1"
                   title="Stop command (Ctrl+C)"
@@ -423,7 +640,7 @@ export default function BottomTerminal({
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setHistory([]);
+                  updateTab(activeTab.id, { history: [] });
                 }}
                 className="terminal-clear-btn text-[10px] px-2 py-0.5 rounded bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition cursor-pointer"
                 title="Clear screen (or type 'clear')"
@@ -457,23 +674,23 @@ export default function BottomTerminal({
             </div>
           </div>
 
-          {/* Drawer Output Scroll Body */}
+          {/* Drawer Output Scroll Body for Active Tab */}
           <div
             ref={terminalScrollRef}
             onClick={() => {
               const selection = window.getSelection()?.toString();
-              if (!selection && !executing) {
+              if (!selection && !activeTab.executing) {
                 inputRef.current?.focus({ preventScroll: true });
               }
             }}
             className="flex-1 p-3.5 overflow-y-auto text-xs space-y-1.5 select-text leading-relaxed cursor-text"
           >
-            {history.map((item, idx) => (
+            {activeTab.history.map((item, idx) => (
               <div key={idx} className="whitespace-pre-wrap break-all">
                 {item.type === 'cmd' ? (
                   <div className="flex items-center gap-2 text-slate-200 font-bold mt-1">
                     <span className="text-emerald-400 font-bold text-xs">
-                      host:{shortenPath(item.cwd || cwd)}$
+                      host:{shortenPath(item.cwd || activeTab.cwd)}$
                     </span>
                     <span>{item.text}</span>
                   </div>
@@ -487,16 +704,16 @@ export default function BottomTerminal({
               </div>
             ))}
 
-            {/* In-Flight Execution State or Active Shell Prompt */}
-            {executing ? (
+            {/* In-Flight Execution State or Active Shell Prompt for Active Tab */}
+            {activeTab.executing ? (
               <div className="flex items-center gap-3 py-2 text-slate-300 text-xs font-mono">
                 <span className="flex items-center gap-2 text-amber-400">
                   <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  <span>Executing command...</span>
+                  <span>Executing command in {activeTab.title}...</span>
                 </span>
                 <button
                   type="button"
-                  onClick={handleCancelCommand}
+                  onClick={() => handleCancelCommand(activeTab.id)}
                   className="px-2.5 py-0.5 rounded bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-[11px] font-semibold transition cursor-pointer flex items-center gap-1 shadow-xs"
                   title="Stop command execution (Ctrl+C)"
                 >
@@ -507,13 +724,13 @@ export default function BottomTerminal({
             ) : (
               <form onSubmit={handleRunCommand} className="flex items-center gap-2 pt-1">
                 <span className="text-emerald-400 font-bold text-xs shrink-0 select-none">
-                  host:{shortenPath(cwd)}$
+                  host:{shortenPath(activeTab.cwd)}$
                 </span>
                 <input
                   ref={inputRef}
                   type="text"
-                  value={commandInput}
-                  onChange={(e) => setCommandInput(e.target.value)}
+                  value={activeTab.commandInput}
+                  onChange={(e) => updateTab(activeTab.id, { commandInput: e.target.value })}
                   onKeyDown={handleKeyDown}
                   className="terminal-prompt-input flex-1 bg-transparent text-xs text-slate-100 font-mono border-none outline-none focus:ring-0 p-0 shadow-none ring-0 focus:outline-none"
                   placeholder="type host command..."
@@ -541,17 +758,22 @@ export default function BottomTerminal({
           >
             <Terminal className="w-3 h-3 text-cyan-400" />
             <span>Terminal</span>
-            <span className={`w-1.5 h-1.5 rounded-full ${executing ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'}`}></span>
+            {tabs.length > 1 && (
+              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-800 text-cyan-300 border border-slate-700 font-mono">
+                {tabs.length}
+              </span>
+            )}
+            <span className={`w-1.5 h-1.5 rounded-full ${activeTab.executing ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'}`}></span>
           </button>
 
           <span className="text-slate-600">|</span>
 
           <span 
             className="text-[11px] text-slate-500 font-mono flex items-center gap-1 truncate max-w-sm cursor-help"
-            title={`Current Shell Directory: ${cwd}`}
+            title={`Active Terminal (${activeTab.title}): ${activeTab.cwd}`}
           >
             <Folder className="w-3 h-3 text-slate-500" />
-            <span>{shortenPath(cwd)}</span>
+            <span>{shortenPath(activeTab.cwd)}</span>
           </span>
         </div>
 

@@ -36,13 +36,19 @@ var interactiveCommands = map[string]string{
 	"watch": "interactive display monitor",
 }
 
-// Service provides host shell command execution with stateful working directory management.
-type Service struct {
+// Session represents a single terminal tab session with isolated working directory and execution state.
+type Session struct {
 	mu            sync.Mutex
 	cwd           string
-	homeDir       string
 	currentCancel context.CancelFunc
 	currentCmd    *exec.Cmd
+}
+
+// Service provides host shell command execution with multi-tab stateful working directory management.
+type Service struct {
+	mu       sync.Mutex
+	homeDir  string
+	sessions map[string]*Session
 }
 
 // NewService initializes a new terminal service starting in user home directory.
@@ -52,8 +58,8 @@ func NewService() *Service {
 		home, _ = os.Getwd()
 	}
 	return &Service{
-		cwd:     home,
-		homeDir: home,
+		homeDir:  home,
+		sessions: make(map[string]*Session),
 	}
 }
 
@@ -62,17 +68,33 @@ func (s *Service) GetHomeDir() string {
 	return s.homeDir
 }
 
-// GetCwd returns current working directory.
-func (s *Service) GetCwd() string {
+func (s *Service) getSession(id string) *Session {
+	if id == "" {
+		id = "default"
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.cwd
+	sess, exists := s.sessions[id]
+	if !exists {
+		sess = &Session{cwd: s.homeDir}
+		s.sessions[id] = sess
+	}
+	return sess
 }
 
-// SetCwd changes the working directory.
-func (s *Service) SetCwd(dir string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+// GetCwdSession returns current working directory for a given session.
+func (s *Service) GetCwdSession(id string) string {
+	sess := s.getSession(id)
+	sess.mu.Lock()
+	defer sess.mu.Unlock()
+	return sess.cwd
+}
+
+// SetCwdSession changes the working directory for a given session.
+func (s *Service) SetCwdSession(id string, dir string) error {
+	sess := s.getSession(id)
+	sess.mu.Lock()
+	defer sess.mu.Unlock()
 
 	target := strings.TrimSpace(dir)
 	if target == "~" || strings.HasPrefix(target, "~/") {
@@ -83,7 +105,7 @@ func (s *Service) SetCwd(dir string) error {
 			target = filepath.Join(home, strings.TrimPrefix(target, "~/"))
 		}
 	} else if !filepath.IsAbs(target) {
-		target = filepath.Join(s.cwd, target)
+		target = filepath.Join(sess.cwd, target)
 	}
 
 	clean := filepath.Clean(target)
@@ -91,46 +113,75 @@ func (s *Service) SetCwd(dir string) error {
 	if err != nil || !fi.IsDir() {
 		return fmt.Errorf("directory does not exist: %s", dir)
 	}
-	s.cwd = clean
+	sess.cwd = clean
 	return nil
 }
 
-// Cancel terminates the currently running command if one is active.
-func (s *Service) Cancel() bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.currentCancel != nil {
-		s.currentCancel()
-		if s.currentCmd != nil {
-			killProcessGroup(s.currentCmd)
+// CancelSession terminates the currently running command in a given session if active.
+func (s *Service) CancelSession(id string) bool {
+	sess := s.getSession(id)
+	sess.mu.Lock()
+	defer sess.mu.Unlock()
+	if sess.currentCancel != nil {
+		sess.currentCancel()
+		if sess.currentCmd != nil {
+			killProcessGroup(sess.currentCmd)
 		}
-		s.currentCancel = nil
-		s.currentCmd = nil
+		sess.currentCancel = nil
+		sess.currentCmd = nil
 		return true
 	}
 	return false
 }
 
-// Exec executes a host shell command in the current working directory.
-func (s *Service) Exec(ctx context.Context, command string) Result {
+// CloseSession terminates any running command in the session and frees its state.
+func (s *Service) CloseSession(id string) {
+	if id == "" {
+		id = "default"
+	}
+	s.mu.Lock()
+	sess, exists := s.sessions[id]
+	if exists {
+		delete(s.sessions, id)
+	}
+	s.mu.Unlock()
+
+	if sess != nil {
+		sess.mu.Lock()
+		if sess.currentCancel != nil {
+			sess.currentCancel()
+			if sess.currentCmd != nil {
+				killProcessGroup(sess.currentCmd)
+			}
+			sess.currentCancel = nil
+			sess.currentCmd = nil
+		}
+		sess.mu.Unlock()
+	}
+}
+
+// ExecSession executes a host shell command in the specific session's working directory.
+func (s *Service) ExecSession(ctx context.Context, id string, command string) Result {
+	sess := s.getSession(id)
+
 	trimmed := strings.TrimSpace(command)
 	if trimmed == "" {
-		s.mu.Lock()
-		defer s.mu.Unlock()
-		return Result{Cwd: s.cwd}
+		sess.mu.Lock()
+		defer sess.mu.Unlock()
+		return Result{Cwd: sess.cwd}
 	}
 
-	s.mu.Lock()
-	currentCwd := s.cwd
+	sess.mu.Lock()
+	currentCwd := sess.cwd
 	homeDir := s.homeDir
-	s.mu.Unlock()
+	sess.mu.Unlock()
 
 	// Internal handling for 'cd' commands to maintain stateful directory navigation
 	if trimmed == "cd" {
-		s.mu.Lock()
-		s.cwd = homeDir
-		newCwd := s.cwd
-		s.mu.Unlock()
+		sess.mu.Lock()
+		sess.cwd = homeDir
+		newCwd := sess.cwd
+		sess.mu.Unlock()
 		return Result{Cwd: newCwd}
 	}
 
@@ -154,10 +205,10 @@ func (s *Service) Exec(ctx context.Context, command string) Result {
 				Error: fmt.Sprintf("cd: no such file or directory: %s", target),
 			}
 		}
-		s.mu.Lock()
-		s.cwd = clean
-		newCwd := s.cwd
-		s.mu.Unlock()
+		sess.mu.Lock()
+		sess.cwd = clean
+		newCwd := sess.cwd
+		sess.mu.Unlock()
 		return Result{Cwd: newCwd}
 	}
 
@@ -224,28 +275,28 @@ func (s *Service) Exec(ctx context.Context, command string) Result {
 	cmd.Stdout = &combined
 	cmd.Stderr = &combined
 
-	s.mu.Lock()
-	s.currentCancel = cancel
-	s.currentCmd = cmd
-	s.mu.Unlock()
+	sess.mu.Lock()
+	sess.currentCancel = cancel
+	sess.currentCmd = cmd
+	sess.mu.Unlock()
 
 	defer func() {
-		s.mu.Lock()
-		if execCtx.Err() != nil && s.currentCmd != nil {
-			killProcessGroup(s.currentCmd)
+		sess.mu.Lock()
+		if execCtx.Err() != nil && sess.currentCmd != nil {
+			killProcessGroup(sess.currentCmd)
 		}
-		s.currentCancel = nil
-		s.currentCmd = nil
-		s.mu.Unlock()
+		sess.currentCancel = nil
+		sess.currentCmd = nil
+		sess.mu.Unlock()
 		cancel()
 	}()
 
 	err := cmd.Run()
 	outStr := combined.String()
 
-	s.mu.Lock()
-	finalCwd := s.cwd
-	s.mu.Unlock()
+	sess.mu.Lock()
+	finalCwd := sess.cwd
+	sess.mu.Unlock()
 
 	res := Result{
 		Output: outStr,
@@ -260,4 +311,24 @@ func (s *Service) Exec(ctx context.Context, command string) Result {
 		res.Error = err.Error()
 	}
 	return res
+}
+
+// GetCwd returns current working directory for the default session.
+func (s *Service) GetCwd() string {
+	return s.GetCwdSession("default")
+}
+
+// SetCwd changes the working directory for the default session.
+func (s *Service) SetCwd(dir string) error {
+	return s.SetCwdSession("default", dir)
+}
+
+// Cancel terminates the currently running command in the default session if active.
+func (s *Service) Cancel() bool {
+	return s.CancelSession("default")
+}
+
+// Exec executes a host shell command in the default session.
+func (s *Service) Exec(ctx context.Context, command string) Result {
+	return s.ExecSession(ctx, "default", command)
 }

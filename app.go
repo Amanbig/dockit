@@ -971,8 +971,13 @@ func (a *App) PruneSystem(opts runtime.PruneOptions) (*runtime.PruneResult, erro
 // Host Terminal Methods
 // ==========================================
 
-// ExecHostCommand runs a command on the host shell and returns the output and current directory.
+// ExecHostCommand runs a command on the host shell in the default session.
 func (a *App) ExecHostCommand(command string) terminal.Result {
+	return a.ExecHostCommandSession("default", command)
+}
+
+// ExecHostCommandSession runs a command on the host shell in a specific session.
+func (a *App) ExecHostCommandSession(sessionID string, command string) terminal.Result {
 	if a.terminalSvc == nil {
 		a.terminalSvc = terminal.NewService()
 	}
@@ -980,31 +985,54 @@ func (a *App) ExecHostCommand(command string) terminal.Result {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	return a.terminalSvc.Exec(ctx, command)
+	return a.terminalSvc.ExecSession(ctx, sessionID, command)
 }
 
-// GetHostCwd returns the current host terminal working directory.
+// GetHostCwd returns the current host terminal working directory for the default session.
 func (a *App) GetHostCwd() string {
+	return a.GetHostCwdSession("default")
+}
+
+// GetHostCwdSession returns the current host terminal working directory for a session.
+func (a *App) GetHostCwdSession(sessionID string) string {
 	if a.terminalSvc == nil {
 		a.terminalSvc = terminal.NewService()
 	}
-	return a.terminalSvc.GetCwd()
+	return a.terminalSvc.GetCwdSession(sessionID)
 }
 
-// SetHostCwd sets the current host terminal working directory.
+// SetHostCwd sets the current host terminal working directory for the default session.
 func (a *App) SetHostCwd(dir string) error {
+	return a.SetHostCwdSession("default", dir)
+}
+
+// SetHostCwdSession sets the current host terminal working directory for a session.
+func (a *App) SetHostCwdSession(sessionID string, dir string) error {
 	if a.terminalSvc == nil {
 		a.terminalSvc = terminal.NewService()
 	}
-	return a.terminalSvc.SetCwd(dir)
+	return a.terminalSvc.SetCwdSession(sessionID, dir)
 }
 
-// CancelHostCommand terminates the currently running host shell command if active.
+// CancelHostCommand terminates the currently running host shell command in the default session if active.
 func (a *App) CancelHostCommand() bool {
+	return a.CancelHostCommandSession("default")
+}
+
+// CancelHostCommandSession terminates the currently running host shell command in a specific session.
+func (a *App) CancelHostCommandSession(sessionID string) bool {
 	if a.terminalSvc == nil {
 		return false
 	}
-	return a.terminalSvc.Cancel()
+	return a.terminalSvc.CancelSession(sessionID)
+}
+
+// CloseHostTerminalSession terminates and removes a terminal session.
+func (a *App) CloseHostTerminalSession(sessionID string) {
+	if a.terminalSvc == nil {
+		return
+	}
+	a.terminalSvc.CloseSession(sessionID)
 }
 
 // GetHostHomeDir returns the user's home directory.

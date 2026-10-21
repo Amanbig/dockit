@@ -10,8 +10,16 @@ export function CancelHostCommand() {
   return window['go']['main']['App']['CancelHostCommand']();
 }
 
+export function CancelHostCommandSession(arg1) {
+  return window['go']['main']['App']['CancelHostCommandSession'](arg1);
+}
+
 export function CheckForAppUpdate() {
   return window['go']['main']['App']['CheckForAppUpdate']();
+}
+
+export function CloseHostTerminalSession(arg1) {
+  return window['go']['main']['App']['CloseHostTerminalSession'](arg1);
 }
 
 export function ComposeApplyChanges(arg1) {
@@ -114,6 +122,10 @@ export function ExecHostCommand(arg1) {
   return window['go']['main']['App']['ExecHostCommand'](arg1);
 }
 
+export function ExecHostCommandSession(arg1, arg2) {
+  return window['go']['main']['App']['ExecHostCommandSession'](arg1, arg2);
+}
+
 export function GetActiveRuntime() {
   return window['go']['main']['App']['GetActiveRuntime']();
 }
@@ -156,6 +168,10 @@ export function GetFavorites() {
 
 export function GetHostCwd() {
   return window['go']['main']['App']['GetHostCwd']();
+}
+
+export function GetHostCwdSession(arg1) {
+  return window['go']['main']['App']['GetHostCwdSession'](arg1);
 }
 
 export function GetHostHomeDir() {
@@ -304,6 +320,10 @@ export function SetCustomValue(arg1, arg2) {
 
 export function SetHostCwd(arg1) {
   return window['go']['main']['App']['SetHostCwd'](arg1);
+}
+
+export function SetHostCwdSession(arg1, arg2) {
+  return window['go']['main']['App']['SetHostCwdSession'](arg1, arg2);
 }
 
 export function SetTheme(arg1) {

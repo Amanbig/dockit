@@ -2,6 +2,7 @@ package terminal
 
 import (
 	"context"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -71,4 +72,40 @@ func TestService_Cancel(t *testing.T) {
 	if !strings.Contains(res.Error, "canceled") {
 		t.Fatalf("expected canceled error in result, got: %s", res.Error)
 	}
+}
+
+func TestService_MultiSession(t *testing.T) {
+	svc := NewService()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Session 1 and Session 2 should have independent CWD and execution
+	res1 := svc.ExecSession(ctx, "tab-1", "echo 'session-1'")
+	if !strings.Contains(res1.Output, "session-1") {
+		t.Fatalf("expected session-1 output, got: %s", res1.Output)
+	}
+
+	res2 := svc.ExecSession(ctx, "tab-2", "echo 'session-2'")
+	if !strings.Contains(res2.Output, "session-2") {
+		t.Fatalf("expected session-2 output, got: %s", res2.Output)
+	}
+
+	// Change cwd in session 1 only
+	tmpDir := os.TempDir()
+	err := svc.SetCwdSession("tab-1", tmpDir)
+	if err != nil {
+		t.Fatalf("failed to set cwd in tab-1: %v", err)
+	}
+
+	if svc.GetCwdSession("tab-1") != tmpDir {
+		t.Fatalf("expected tab-1 cwd %s, got %s", tmpDir, svc.GetCwdSession("tab-1"))
+	}
+
+	// Tab-2 should still be at home directory
+	if svc.GetCwdSession("tab-2") != svc.GetHomeDir() {
+		t.Fatalf("expected tab-2 cwd to be home dir %s, got %s", svc.GetHomeDir(), svc.GetCwdSession("tab-2"))
+	}
+
+	// Close tab 1
+	svc.CloseSession("tab-1")
 }

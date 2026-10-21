@@ -17,7 +17,11 @@ export function AddFavorite(arg1:string):Promise<void>;
 
 export function CancelHostCommand():Promise<boolean>;
 
+export function CancelHostCommandSession(arg1:string):Promise<boolean>;
+
 export function CheckForAppUpdate():Promise<updater.UpdateInfo>;
+
+export function CloseHostTerminalSession(arg1:string):Promise<void>;
 
 export function ComposeApplyChanges(arg1:string):Promise<void>;
 
@@ -69,6 +73,8 @@ export function ExecContainer(arg1:string,arg2:Array<string>):Promise<string>;
 
 export function ExecHostCommand(arg1:string):Promise<terminal.Result>;
 
+export function ExecHostCommandSession(arg1:string,arg2:string):Promise<terminal.Result>;
+
 export function GetActiveRuntime():Promise<string>;
 
 export function GetAppVersion():Promise<string>;
@@ -90,6 +96,8 @@ export function GetDiskUsage():Promise<runtime.DiskUsage>;
 export function GetFavorites():Promise<Array<string>>;
 
 export function GetHostCwd():Promise<string>;
+
+export function GetHostCwdSession(arg1:string):Promise<string>;
 
 export function GetHostHomeDir():Promise<string>;
 
@@ -164,6 +172,8 @@ export function SetAutoCheckUpdates(arg1:boolean):Promise<void>;
 export function SetCustomValue(arg1:string,arg2:string):Promise<void>;
 
 export function SetHostCwd(arg1:string):Promise<void>;
+
+export function SetHostCwdSession(arg1:string,arg2:string):Promise<void>;
 
 export function SetTheme(arg1:string):Promise<void>;
 
