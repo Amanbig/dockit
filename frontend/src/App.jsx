@@ -84,9 +84,14 @@ import {
   InstallRuntime,
   SelectDirectoryDialog,
   ExecHostCommand,
+  ExecHostCommandSession,
   GetHostCwd,
+  GetHostCwdSession,
   SetHostCwd,
+  SetHostCwdSession,
   CancelHostCommand,
+  CancelHostCommandSession,
+  CloseHostTerminalSession,
   GetHostHomeDir
 } from '../wailsjs/go/main/App';
 import { WindowIsMaximised, WindowToggleMaximise } from '../wailsjs/runtime/runtime';
@@ -119,6 +124,7 @@ export default function App() {
   const [appConfig, setAppConfig] = useState(null);
   const [theme, setTheme] = useState('dark');
   const [appVersion, setAppVersion] = useState(packageJson?.version || '0.8.0');
+  const [activeComposeDir, setActiveComposeDir] = useState(null);
 
   // Track whether the frameless window is currently maximized
   const [isMaximised, setIsMaximised] = useState(false);
@@ -1076,6 +1082,7 @@ export default function App() {
                   onDeleteEnv={ComposeDeleteEnv}
                   onToast={addToast}
                   onConfirm={requestConfirmation}
+                  onActiveProjectChange={setActiveComposeDir}
                 />
               </div>
             )}
@@ -1127,10 +1134,16 @@ export default function App() {
           onToggle={() => setTerminalDrawerOpen((prev) => !prev)}
           onClose={() => setTerminalDrawerOpen(false)}
           onExecHostCommand={ExecHostCommand}
+          onExecHostCommandSession={ExecHostCommandSession}
           onGetHostCwd={GetHostCwd}
+          onGetHostCwdSession={GetHostCwdSession}
           onSetHostCwd={SetHostCwd}
+          onSetHostCwdSession={SetHostCwdSession}
           onCancelHostCommand={CancelHostCommand}
+          onCancelHostCommandSession={CancelHostCommandSession}
+          onCloseHostTerminalSession={CloseHostTerminalSession}
           onGetHostHomeDir={GetHostHomeDir}
+          activeComposeDir={activeComposeDir}
         />
       </div>
 

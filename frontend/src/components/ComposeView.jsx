@@ -49,7 +49,8 @@ export default function ComposeView({
   onSaveEnv,
   onDeleteEnv,
   onToast,
-  onConfirm
+  onConfirm,
+  onActiveProjectChange
 }) {
   const notify = (msg, type = 'info', title = null) => {
     if (onToast) {
@@ -61,6 +62,12 @@ export default function ComposeView({
   };
 
   const [project, setProject] = useState(null);
+
+  useEffect(() => {
+    if (onActiveProjectChange) {
+      onActiveProjectChange(project?.workingDir || project?.directory || null);
+    }
+  }, [project, onActiveProjectChange]);
   const [recentProjects, setRecentProjects] = useState([]);
   const [localPathInput, setLocalPathInput] = useState('');
   const [urlInput, setUrlInput] = useState('');
