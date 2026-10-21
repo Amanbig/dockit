@@ -1,42 +1,24 @@
-# Dockit v0.8.0 🚀
+# Dockit v0.8.1 🚀
 
-Dockit **v0.8.0** is a major feature and performance release introducing the **VS Code-Style Global Bottom Host Terminal Drawer** (<kbd>Ctrl + `</kbd>) with stateful directory navigation and 1-click Compose directory synchronization, **Comprehensive Clipboard & Paste Integration** (native <kbd>Ctrl + V</kbd>, Linux standard <kbd>Ctrl + Shift + V</kbd>, and titlebar Paste buttons), **Process Group Isolation & Interruption** (<kbd>Ctrl + C</kbd>), **Conditional Compose `.env` File Management**, **Responsive Full-Height Terminal Stretch**, and significant **Resource Optimization & Daemon Offline Throttling**.
+Dockit **v0.8.1** introduces **Multi-Tab Terminal Sessions** in the global bottom host terminal drawer with concurrent session isolation, tab status indicators, and keyboard shortcuts, alongside comprehensive **Open-Source Community Health & Governance** standards (automated GitHub Actions CI, Dependabot, issue/PR templates, and contributor guidelines).
 
 ---
 
 ### ✨ What's New & Highlights
 
-#### 💻 VS Code-Style Global Bottom Host Terminal Drawer (<kbd>Ctrl + `</kbd>)
-- **Global Slide-Up Terminal**: Press <kbd>Ctrl + `</kbd> (or click the bottom status bar) anywhere in the application to summon an integrated host terminal without leaving Dockit.
-- **Stateful Directory Navigation**: Persists your current working directory (`cd`) across commands, starting at user home (`~`) with clean path shortening (`~/projects/...`).
-- **1-Click Compose Directory Sync**: When working in Compose Studio, a titlebar quick-nav button allows switching the terminal's working directory directly to the active project folder in one click.
-- **Clean Titlebar Controls**: Maximize/restore drawer height (<kbd>65vh</kbd> / <kbd>h-72</kbd>), clear screen button, and session copy.
+#### 📑 Multi-Tab Host Terminal Drawer
+- **Concurrent Shell Tabs**: Spawn multiple independent terminal tabs directly in the bottom drawer. Each tab runs its own isolated backend session with independent working directory (`cwd`), execution queue, and process context.
+- **Titlebar Tab Strip**: Integrated tab strip in the terminal drawer header showing tab titles, active command progress spinners, working directory path chips, and tab close buttons (`×`).
+- **1-Click & Keyboard Add Tab**: Create new terminal tabs via the `+ New Tab` button in the header or via keyboard shortcut (<kbd>Ctrl + Shift + `</kbd>).
+- **Fast Tab Navigation**: Switch between tabs instantly using <kbd>Alt + [1-9]</kbd> or by clicking the tab headers.
+- **Persistent Tab Counter Badge**: The bottom status bar toggle button now displays the active tab count (e.g., `Terminal (2)`), keeping you aware of running sessions even when the drawer is minimized.
+- **Isolated Cancellation & Output**: Cancelling a command (<kbd>Ctrl + C</kbd>) in one tab does not interrupt jobs running in other tabs. Each tab preserves its own command history and scrollback buffer.
+- **Automatic Compose Directory Sync**: Seamlessly sync the terminal's working directory to the currently active Docker Compose project with one click across any open tab.
 
-#### 📋 Comprehensive Clipboard & Paste Integration
-- **Linux Terminal Convention (<kbd>Ctrl + Shift + V</kbd>)**: Standard HTML inputs ignore Shift when pasting. Dockit now explicitly intercepts <kbd>Ctrl + Shift + V</kbd> across both the Host Terminal drawer and Container Exec terminal to paste instantly.
-- **Unfocused Terminal Paste (<kbd>Ctrl + V</kbd>)**: Clicking on output lines or history previously caused the input to lose focus. Pressing <kbd>Ctrl + V</kbd> or <kbd>Ctrl + Shift + V</kbd> anywhere within the terminal window now automatically routes clipboard contents directly into the prompt.
-- **Click-to-Focus Prompt**: Simply clicking anywhere in the terminal scroll area immediately returns focus to the command input.
-- **1-Click Titlebar Paste Button**: Added dedicated **Paste** buttons (`ClipboardPaste` icon) in the titlebar of both host and container terminals.
-- **Native OS Clipboard Engine**: Utilizes Wails native OS clipboard (`window.runtime.ClipboardGetText()`) with graceful browser fallback.
-
-#### 🛑 Command Interruption & Process Group Isolation
-- **Global <kbd>Ctrl + C</kbd> Cancellation**: Pressing <kbd>Ctrl + C</kbd> cancels active host commands, halts container exec sessions, or clears the current prompt line.
-- **Process Group Termination (`Setpgid`)**: Executed commands run within dedicated process groups on Unix. Canceling or timing out terminates both the shell and any child processes (such as background scripts, `sleep`, or `ping`), preventing orphaned zombie processes.
-- **Interactive TTY Interceptor**: Detects full-screen interactive programs (`vim`, `nano`, `top`, `htop`, `less`, `more`) before execution, explaining that interactive TTYs cannot run inside inline subshells and offering convenient non-interactive alternatives.
-
-#### 🌿 Conditional Compose `.env` Environment Management
-- **Dynamic `.env` Tab**: The environment variable tab in Compose Studio is now conditionally displayed only when the project actually contains an `.env` file, decluttering projects that define variables directly in `docker-compose.yml`.
-- **Inline Create & Delete**: Added a 1-click **+ Add .env** action when no file is present, and a **Delete .env** option with confirmation dialog.
-
-#### 📐 Responsive Full-Height Terminal & Log Views
-- **Large Screen Expansion**: In Container Details, the Terminal, Live Logs, and Raw JSON inspection panels expand responsively to fill the full height of larger desktop monitors instead of being locked to a fixed 400px box.
-- **Theme Consistency**: Terminal consoles maintain an authentic true-dark visual style (`#0c1017`) across both Dark and Light application modes.
-
-#### ⚡ Resource Optimization & Daemon Offline Throttling
-- **Smart Engine Offline Backoff**: When Docker or Podman daemon is stopped, background container polling automatically backs off to eliminate socket churn and CPU load, while host hardware metrics continue updating smoothly. Once the daemon is started, full polling resumes automatically.
-- **Subtab Fetching Efficiency**: Switching subtabs in Container Details only fetches logs when the Logs tab is active, eliminating redundant 500KB network transfers on every tab click.
-- **Bounded In-Memory Buffers**: Terminal history arrays are capped to 150 entries, and single command outputs exceeding 100,000 characters are safely truncated to preserve browser DOM responsiveness and RAM.
-- **Goroutine Leak Protection**: Added a 120-second execution context timeout to container exec operations to prevent hanging goroutines.
+#### 🛡️ Open-Source Governance & CI Automation
+- **GitHub Actions Continuous Integration**: Automated CI pipeline verifying code formatting (`gofmt`), Go static analysis and tests (`go vet`, `go test`), and frontend production build (`npm run build`) on every push and pull request.
+- **Automated Dependency Updates**: Configured Dependabot for automated Go modules and npm package vulnerability detection and updates.
+- **Contributor Guidelines & Templates**: Standardized open-source workflow with comprehensive `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, and issue/PR templates for bug reports and feature proposals.
 
 ---
 
@@ -48,5 +30,3 @@ Dockit **v0.8.0** is a major feature and performance release introducing the **V
 - **Windows**:
   - `dockit-windows-amd64.exe` (Standalone Windows executable)
   - `dockit-windows-amd64.zip` (Portable Windows archive)
-- **macOS**:
-  - `dockit-darwin-universal.zip` (Universal binary for Intel & Apple Silicon)
