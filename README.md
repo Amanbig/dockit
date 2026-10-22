@@ -23,10 +23,8 @@
   <a href="https://github.com/Amanbig/dockit/issues/new/choose">Report a bug</a>
 </p>
 
-<!--
-  TODO: add a screenshot or short GIF here, e.g.
-  <p align="center"><img src="docs/screenshot.png" alt="Dockit screenshot" width="800" /></p>
--->
+
+  <p align="center"><img src="docs/dockit-thumbnail.png" alt="Dockit screenshot" width="800" /></p>
 
 ## Why Dockit?
 
