@@ -104,7 +104,11 @@ export default function RegistryView({
   onAddFavorite,
   onRemoveFavorite,
   favorites = [],
-  onToast
+  onToast,
+  navigationStyle = 'sidebar',
+  activeSubTab: controlledSubTab,
+  onSubTabChange,
+  onSelectedImageChange
 }) {
   const [query, setQuery] = useState('');
   const [selectedRegistry, setSelectedRegistry] = useState('all'); // 'all' | 'dockerhub' | 'ghcr'
@@ -113,7 +117,13 @@ export default function RegistryView({
   const [selectedImage, setSelectedImage] = useState(null);
   
   // Right panel detail view tabs
-  const [detailTab, setDetailTab] = useState('overview'); // 'overview' | 'tags'
+  const [internalDetailTab, setInternalDetailTab] = useState('overview');
+  const detailTab = controlledSubTab !== undefined ? controlledSubTab : internalDetailTab;
+  const setDetailTab = (tab) => {
+    if (onSubTabChange) onSubTabChange(tab);
+    setInternalDetailTab(tab);
+  };
+
   const [metadata, setMetadata] = useState(null);
   const [loadingMetadata, setLoadingMetadata] = useState(false);
   
@@ -123,6 +133,22 @@ export default function RegistryView({
   const [tagFilter, setTagFilter] = useState('');
   const [copiedTag, setCopiedTag] = useState(null);
   const [copiedReadme, setCopiedReadme] = useState(false);
+
+  useEffect(() => {
+    if (onSelectedImageChange) {
+      if (selectedImage) {
+        onSelectedImageChange({
+          name: selectedImage.name,
+          registry: selectedImage.registry,
+          isOfficial: selectedImage.isOfficial,
+          tagCount: tags.length,
+          onClose: () => setSelectedImage(null)
+        });
+      } else {
+        onSelectedImageChange(null);
+      }
+    }
+  }, [selectedImage, tags.length, onSelectedImageChange]);
 
   const handleSearch = async (e) => {
     if (e) e.preventDefault();
@@ -475,32 +501,34 @@ export default function RegistryView({
                   </button>
                 </div>
 
-                {/* Sub-Tabs: Overview vs Tags */}
-                <div className="flex items-center gap-2 mt-4 pt-3 border-t border-slate-800">
-                  <button
-                    onClick={() => setDetailTab('overview')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
-                      detailTab === 'overview'
-                        ? 'bg-slate-800 text-cyan-400 shadow-sm border border-slate-700'
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    <FileText className="w-3.5 h-3.5" />
-                    <span>Overview & Docs</span>
-                  </button>
+                {/* Sub-Tabs: Overview vs Tags (shown when horizontal tabs layout is selected) */}
+                {navigationStyle === 'tabs' && (
+                  <div className="flex items-center gap-2 mt-4 pt-3 border-t border-slate-800">
+                    <button
+                      onClick={() => setDetailTab('overview')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
+                        detailTab === 'overview'
+                          ? 'bg-slate-800 text-cyan-400 shadow-sm border border-slate-700'
+                          : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                      <span>Overview & Docs</span>
+                    </button>
 
-                  <button
-                    onClick={() => setDetailTab('tags')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
-                      detailTab === 'tags'
-                        ? 'bg-slate-800 text-cyan-400 shadow-sm border border-slate-700'
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    <Tag className="w-3.5 h-3.5" />
-                    <span>Tags & Architectures ({tags.length})</span>
-                  </button>
-                </div>
+                    <button
+                      onClick={() => setDetailTab('tags')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
+                        detailTab === 'tags'
+                          ? 'bg-slate-800 text-cyan-400 shadow-sm border border-slate-700'
+                          : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      <Tag className="w-3.5 h-3.5" />
+                      <span>Tags & Architectures ({tags.length})</span>
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Tab 1: Overview & Documentation */}

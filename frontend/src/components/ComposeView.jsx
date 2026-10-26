@@ -50,7 +50,11 @@ export default function ComposeView({
   onDeleteEnv,
   onToast,
   onConfirm,
-  onActiveProjectChange
+  onActiveProjectChange,
+  navigationStyle = 'sidebar',
+  activeSubTab: controlledSubTab,
+  onSubTabChange,
+  onProjectChange
 }) {
   const notify = (msg, type = 'info', title = null) => {
     if (onToast) {
@@ -62,20 +66,46 @@ export default function ComposeView({
   };
 
   const [project, setProject] = useState(null);
+  const [internalTab, setInternalTab] = useState('services');
+  const activeTab = controlledSubTab !== undefined ? controlledSubTab : internalTab;
+  const setActiveTab = (tab) => {
+    if (onSubTabChange) onSubTabChange(tab);
+    setInternalTab(tab);
+  };
 
   useEffect(() => {
     if (onActiveProjectChange) {
       onActiveProjectChange(project?.workingDir || project?.directory || null);
     }
   }, [project, onActiveProjectChange]);
+
   const [recentProjects, setRecentProjects] = useState([]);
   const [localPathInput, setLocalPathInput] = useState('');
   const [urlInput, setUrlInput] = useState('');
-  const [activeTab, setActiveTab] = useState('services'); // 'services' | 'editor' | 'env' | 'snapshots' | 'output'
   const [editorYaml, setEditorYaml] = useState('');
   const [envContent, setEnvContent] = useState('');
   const [originalEnv, setOriginalEnv] = useState('');
   const [hasEnv, setHasEnv] = useState(false);
+
+  useEffect(() => {
+    if (onProjectChange) {
+      if (project) {
+        onProjectChange({
+          name: project.name,
+          dir: project.workingDir || project.directory || '',
+          serviceCount: Array.isArray(project.services) ? project.services.length : Object.keys(project.services || {}).length,
+          hasEnv,
+          snapshotCount: project.snapshots?.length || 0,
+          onClose: () => {
+            setProject(null);
+            if (onActiveProjectChange) onActiveProjectChange(null);
+          }
+        });
+      } else {
+        onProjectChange(null);
+      }
+    }
+  }, [project, hasEnv, onProjectChange, onActiveProjectChange]);
   const [isSavingEnv, setIsSavingEnv] = useState(false);
   const [isDeletingEnv, setIsDeletingEnv] = useState(false);
   const [envSavedSuccess, setEnvSavedSuccess] = useState(false);
@@ -700,81 +730,89 @@ SECRET_KEY=dockit_super_secret_key
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Subheader Toolbar */}
           <div className="px-6 py-3 border-b border-slate-800 bg-slate-950/40 flex flex-wrap items-center justify-between gap-3">
-            {/* View tabs */}
-            <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded-lg p-1">
-              <button
-                onClick={() => setActiveTab('services')}
-                className={`px-3 py-1 rounded-md text-xs font-medium transition-all cursor-pointer ${
-                  activeTab === 'services'
-                    ? 'bg-slate-800 text-cyan-400 font-semibold shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                Services ({Array.isArray(project.services) ? project.services.length : Object.keys(project.services || {}).length})
-              </button>
-              <button
-                onClick={() => setActiveTab('editor')}
-                className={`px-3 py-1 rounded-md text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
-                  activeTab === 'editor'
-                    ? 'bg-slate-800 text-cyan-400 font-semibold shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <Code className="w-3.5 h-3.5 text-cyan-400" />
-                <span>YAML Testing Studio</span>
-              </button>
-              {hasEnv ? (
+            {/* View tabs (shown when horizontal tabs layout is active) */}
+            {navigationStyle === 'tabs' ? (
+              <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded-lg p-1">
                 <button
-                  onClick={() => setActiveTab('env')}
-                  className={`px-3 py-1 rounded-md text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
-                    activeTab === 'env'
+                  onClick={() => setActiveTab('services')}
+                  className={`px-3 py-1 rounded-md text-xs font-medium transition-all cursor-pointer ${
+                    activeTab === 'services'
                       ? 'bg-slate-800 text-cyan-400 font-semibold shadow-sm'
                       : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
-                  <FileText className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Environment (.env)</span>
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50"></span>
+                  Services ({Array.isArray(project.services) ? project.services.length : Object.keys(project.services || {}).length})
                 </button>
-              ) : (
                 <button
-                  onClick={() => {
-                    setHasEnv(true);
-                    setActiveTab('env');
-                  }}
-                  className="px-2.5 py-1 rounded-md text-xs font-medium flex items-center gap-1 text-slate-400 hover:text-cyan-400 hover:bg-slate-800/60 transition-all cursor-pointer"
-                  title="Create a .env file for this Compose project"
+                  onClick={() => setActiveTab('editor')}
+                  className={`px-3 py-1 rounded-md text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
+                    activeTab === 'editor'
+                      ? 'bg-slate-800 text-cyan-400 font-semibold shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
                 >
-                  <Plus className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Add .env</span>
+                  <Code className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>YAML Testing Studio</span>
                 </button>
-              )}
-              <button
-                onClick={() => setActiveTab('snapshots')}
-                className={`px-3 py-1 rounded-md text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
-                  activeTab === 'snapshots'
-                    ? 'bg-slate-800 text-cyan-400 font-semibold shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <GitCommit className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Git Snapshots ({project.snapshots?.length || 0})</span>
-              </button>
-              <button
-                onClick={() => setActiveTab('output')}
-                className={`px-3 py-1 rounded-md text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
-                  activeTab === 'output'
-                    ? 'bg-slate-800 text-cyan-400 font-semibold shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <Terminal className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Terminal Output</span>
-              </button>
-            </div>
+                {hasEnv ? (
+                  <button
+                    onClick={() => setActiveTab('env')}
+                    className={`px-3 py-1 rounded-md text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
+                      activeTab === 'env'
+                        ? 'bg-slate-800 text-cyan-400 font-semibold shadow-sm'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    <FileText className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Environment (.env)</span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50"></span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setHasEnv(true);
+                      setActiveTab('env');
+                    }}
+                    className="px-2.5 py-1 rounded-md text-xs font-medium flex items-center gap-1 text-slate-400 hover:text-cyan-400 hover:bg-slate-800/60 transition-all cursor-pointer"
+                    title="Create a .env file for this Compose project"
+                  >
+                    <Plus className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Add .env</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => setActiveTab('snapshots')}
+                  className={`px-3 py-1 rounded-md text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
+                    activeTab === 'snapshots'
+                      ? 'bg-slate-800 text-cyan-400 font-semibold shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <GitCommit className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Git Snapshots ({project.snapshots?.length || 0})</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('output')}
+                  className={`px-3 py-1 rounded-md text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
+                    activeTab === 'output'
+                      ? 'bg-slate-800 text-cyan-400 font-semibold shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <Terminal className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Terminal Output</span>
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-slate-200">
+                  {activeTab === 'editor' ? 'YAML Testing Studio' : activeTab === 'env' ? 'Environment (.env)' : activeTab === 'snapshots' ? 'Git Snapshots' : activeTab === 'output' ? 'Terminal Output' : 'Services Overview'}
+                </span>
+              </div>
+            )}
 
             {/* Quick Action buttons */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 ml-auto">
               {(() => {
                 const isStackActive = project.status === 'running' || project.status === 'partial' || (project.services || []).some(s => (s.status || '').toLowerCase() === 'running');
                 return isStackActive ? (

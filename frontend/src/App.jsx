@@ -18,7 +18,21 @@ import CommandPalette from './components/CommandPalette';
 import ConfirmModal from './components/ConfirmModal';
 import ErrorBoundary from './components/ErrorBoundary';
 import { ToastContainer, formatEngineError } from './components/Toast';
-import { Sparkles, ArrowRight, X, AlertCircle } from 'lucide-react';
+import { 
+  Sparkles, 
+  ArrowRight, 
+  X, 
+  AlertCircle,
+  Sliders,
+  Terminal,
+  Clock,
+  FileText,
+  HardDrive,
+  Code,
+  Layers,
+  GitCommit,
+  Tag
+} from 'lucide-react';
 import packageJson from '../package.json';
 
 // Wails Go Bridge API bindings
@@ -126,6 +140,29 @@ export default function App() {
   const [appVersion, setAppVersion] = useState(packageJson?.version || '0.8.1');
   const [activeComposeDir, setActiveComposeDir] = useState(null);
 
+  // Navigation layout style: 'sidebar' (contextual drilldown) vs 'tabs' (horizontal subtabs)
+  const [navigationStyle, setNavigationStyle] = useState(() => {
+    try {
+      const saved = localStorage.getItem('dockit:nav_style');
+      if (saved === 'tabs' || saved === 'sidebar') return saved;
+    } catch (_) {}
+    return 'sidebar';
+  });
+
+  const handleSetNavigationStyle = useCallback((style) => {
+    setNavigationStyle(style);
+    try {
+      localStorage.setItem('dockit:nav_style', style);
+    } catch (_) {}
+  }, []);
+
+  // Contextual subtab states for drill-down views
+  const [containerSubTab, setContainerSubTab] = useState('overview');
+  const [composeSubTab, setComposeSubTab] = useState('services');
+  const [composeProjectInfo, setComposeProjectInfo] = useState(null);
+  const [registryDetailTab, setRegistryDetailTab] = useState('overview');
+  const [registryImageInfo, setRegistryImageInfo] = useState(null);
+
   // Track whether the frameless window is currently maximized
   const [isMaximised, setIsMaximised] = useState(false);
 
@@ -165,6 +202,102 @@ export default function App() {
     }
     setTimeout(checkMaximised, 120);
   }, [checkMaximised]);
+
+  // Compute active contextual drill-down navigation for the sidebar
+  const contextualNav = React.useMemo(() => {
+    if (navigationStyle !== 'sidebar') return null;
+
+    // 1. Container Details Sub-Navigation
+    if (activeTab === 'containers' && selectedContainerId) {
+      const c = containers.find((item) => item.id === selectedContainerId);
+      const name = c?.name?.replace(/^\//, '') || selectedContainerId.slice(0, 12);
+      const isRunning = c?.state === 'running';
+      const isPaused = c?.state === 'paused';
+      const statusText = isRunning ? 'Running' : isPaused ? 'Paused' : 'Stopped';
+      const badgeColor = isRunning
+        ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+        : isPaused
+        ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+        : 'bg-slate-800 text-slate-400 border-slate-700';
+
+      return {
+        type: 'container',
+        backLabel: 'Containers',
+        title: name,
+        subtitle: c?.image || selectedContainerId.slice(0, 12),
+        badge: { text: statusText, color: badgeColor },
+        onBack: () => setSelectedContainerId(null),
+        activeSubTab: containerSubTab,
+        onSelectSubTab: setContainerSubTab,
+        subTabs: [
+          { id: 'overview', label: 'Overview & Health', icon: Sliders },
+          { id: 'terminal', label: 'Terminal Exec', icon: Terminal },
+          { id: 'logs', label: 'Live Logs', icon: Clock },
+          { id: 'env', label: 'Environment', icon: FileText },
+          { id: 'mounts', label: 'Volumes & Mounts', icon: HardDrive },
+          { id: 'raw', label: 'Inspect JSON', icon: Code }
+        ]
+      };
+    }
+
+    // 2. Compose Studio Project Sub-Navigation
+    if (activeTab === 'compose' && composeProjectInfo) {
+      const subTabs = [
+        { id: 'services', label: `Services (${composeProjectInfo.serviceCount ?? 0})`, icon: Layers },
+        { id: 'editor', label: 'YAML Testing Studio', icon: Code }
+      ];
+      if (composeProjectInfo.hasEnv) {
+        subTabs.push({ id: 'env', label: 'Environment (.env)', icon: FileText });
+      }
+      subTabs.push({ id: 'snapshots', label: `Git Snapshots (${composeProjectInfo.snapshotCount ?? 0})`, icon: GitCommit });
+      subTabs.push({ id: 'output', label: 'Terminal Output', icon: Terminal });
+
+      return {
+        type: 'compose',
+        backLabel: 'Projects',
+        title: composeProjectInfo.name || 'Compose Project',
+        subtitle: composeProjectInfo.dir,
+        onBack: () => {
+          if (composeProjectInfo.onClose) composeProjectInfo.onClose();
+        },
+        activeSubTab: composeSubTab,
+        onSelectSubTab: setComposeSubTab,
+        subTabs
+      };
+    }
+
+    // 3. Registry Image Details Sub-Navigation
+    if (activeTab === 'registry' && registryImageInfo) {
+      return {
+        type: 'registry',
+        backLabel: 'Search Results',
+        title: registryImageInfo.name,
+        subtitle: registryImageInfo.registry?.toUpperCase(),
+        badge: registryImageInfo.isOfficial ? { text: 'Official', color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' } : null,
+        onBack: () => {
+          if (registryImageInfo.onClose) registryImageInfo.onClose();
+        },
+        activeSubTab: registryDetailTab,
+        onSelectSubTab: setRegistryDetailTab,
+        subTabs: [
+          { id: 'overview', label: 'Overview & Docs', icon: FileText },
+          { id: 'tags', label: `Tags (${registryImageInfo.tagCount ?? 0})`, icon: Tag }
+        ]
+      };
+    }
+
+    return null;
+  }, [
+    navigationStyle,
+    activeTab,
+    selectedContainerId,
+    containers,
+    containerSubTab,
+    composeProjectInfo,
+    composeSubTab,
+    registryImageInfo,
+    registryDetailTab
+  ]);
 
   // Immediately query app version from Go backend on mount
   useEffect(() => {
@@ -900,6 +1033,8 @@ export default function App() {
           appVersion={appVersion}
           updateAvailable={Boolean(updateInfo?.available)}
           onOpenUpdateModal={() => setUpdateModalOpen(true)}
+          navigationStyle={navigationStyle}
+          contextualNav={contextualNav}
         />
 
         {/* Main Content Area */}
@@ -966,6 +1101,9 @@ export default function App() {
                     onToast={addToast}
                     onConfirm={requestConfirmation}
                     onOpenLogs={(id, name) => setLogsModal({ open: true, id, name })}
+                    navigationStyle={navigationStyle}
+                    activeSubTab={containerSubTab}
+                    onSubTabChange={setContainerSubTab}
                   />
                 ) : (
                   <ContainersView
@@ -983,7 +1121,10 @@ export default function App() {
                     onCreate={handleCreateContainer}
                     onOpenLogs={(id, name) => setLogsModal({ open: true, id, name })}
                     onInspect={handleInspectContainer}
-                    onSelectContainer={(id) => setSelectedContainerId(id)}
+                    onSelectContainer={(id) => {
+                      setContainerSubTab('overview');
+                      setSelectedContainerId(id);
+                    }}
                     onBatchStart={handleBatchStartContainers}
                     onBatchStop={handleBatchStopContainers}
                     onBatchRestart={handleBatchRestartContainers}
@@ -1083,6 +1224,10 @@ export default function App() {
                   onToast={addToast}
                   onConfirm={requestConfirmation}
                   onActiveProjectChange={setActiveComposeDir}
+                  navigationStyle={navigationStyle}
+                  activeSubTab={composeSubTab}
+                  onSubTabChange={setComposeSubTab}
+                  onProjectChange={setComposeProjectInfo}
                 />
               </div>
             )}
@@ -1102,6 +1247,10 @@ export default function App() {
                   onRemoveFavorite={handleRemoveFavorite}
                   favorites={favorites}
                   onToast={addToast}
+                  navigationStyle={navigationStyle}
+                  activeSubTab={registryDetailTab}
+                  onSubTabChange={setRegistryDetailTab}
+                  onSelectedImageChange={setRegistryImageInfo}
                 />
               </div>
             )}
@@ -1118,6 +1267,8 @@ export default function App() {
                   onOpenInstaller={() => setShowInstaller(true)}
                   theme={theme}
                   onSetTheme={handleSetTheme}
+                  navigationStyle={navigationStyle}
+                  onSetNavigationStyle={handleSetNavigationStyle}
                   appVersion={appVersion}
                   onCheckForUpdates={() => handleCheckForUpdates(true)}
                   isCheckingUpdates={isCheckingUpdate}

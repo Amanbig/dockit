@@ -83,14 +83,30 @@ export function formatDateTime(dateStr) {
   }
 }
 
-export default function ContainerDetailsView({ containerId, isTabActive = true, onBack, onRefreshList, onToast, onConfirm, onOpenLogs }) {
+export default function ContainerDetailsView({ 
+  containerId, 
+  isTabActive = true, 
+  onBack, 
+  onRefreshList, 
+  onToast, 
+  onConfirm, 
+  onOpenLogs,
+  navigationStyle = 'sidebar',
+  activeSubTab: controlledSubTab,
+  onSubTabChange
+}) {
   const [details, setDetails] = useState(null);
   const [logs, setLogs] = useState('');
   const [localLogsModalOpen, setLocalLogsModalOpen] = useState(false);
   const [showExecutionModal, setShowExecutionModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [logsLoading, setLogsLoading] = useState(false);
-  const [activeSubTab, setActiveSubTab] = useState('overview'); // 'overview' | 'terminal' | 'logs' | 'env' | 'mounts' | 'raw'
+  const [internalSubTab, setInternalSubTab] = useState('overview');
+  const activeSubTab = controlledSubTab !== undefined ? controlledSubTab : internalSubTab;
+  const setActiveSubTab = (tab) => {
+    if (onSubTabChange) onSubTabChange(tab);
+    setInternalSubTab(tab);
+  };
   const [copiedKey, setCopiedKey] = useState(null);
   const [actionInProgress, setActionInProgress] = useState(false);
   const [resourceStats, setResourceStats] = useState(null);
@@ -616,34 +632,36 @@ export default function ContainerDetailsView({ containerId, isTabActive = true, 
         </div>
       </div>
 
-      {/* Sub Tabs Bar */}
-      <div className="px-6 py-2.5 border-b border-slate-800 bg-slate-950/20 flex items-center gap-1 overflow-x-auto select-none shrink-0">
-        {[
-          { id: 'overview', label: 'Overview & Health', icon: Sliders },
-          { id: 'terminal', label: 'Terminal Exec', icon: Terminal },
-          { id: 'logs', label: 'Live Logs', icon: Clock },
-          { id: 'env', label: 'Environment Variables', icon: Sliders },
-          { id: 'mounts', label: 'Volumes & Mounts', icon: HardDrive },
-          { id: 'raw', label: 'Raw JSON Inspect', icon: Code },
-        ].map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeSubTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveSubTab(tab.id)}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition whitespace-nowrap ${
-                isActive
-                  ? 'bg-slate-800 text-cyan-400 font-semibold shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
-              }`}
-            >
-              <Icon className="w-3.5 h-3.5" />
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
-      </div>
+      {/* Sub Tabs Bar (only shown when horizontal tabs layout is selected) */}
+      {navigationStyle === 'tabs' && (
+        <div className="px-6 py-2.5 border-b border-slate-800 bg-slate-950/20 flex items-center gap-1 overflow-x-auto select-none shrink-0">
+          {[
+            { id: 'overview', label: 'Overview & Health', icon: Sliders },
+            { id: 'terminal', label: 'Terminal Exec', icon: Terminal },
+            { id: 'logs', label: 'Live Logs', icon: Clock },
+            { id: 'env', label: 'Environment Variables', icon: Sliders },
+            { id: 'mounts', label: 'Volumes & Mounts', icon: HardDrive },
+            { id: 'raw', label: 'Raw JSON Inspect', icon: Code },
+          ].map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeSubTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveSubTab(tab.id)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition whitespace-nowrap ${
+                  isActive
+                    ? 'bg-slate-800 text-cyan-400 font-semibold shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Main Tab View Content */}
       <div className={`flex-1 min-h-0 p-4 md:p-6 ${

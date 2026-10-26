@@ -13,7 +13,10 @@ import {
   Moon,
   Monitor,
   Scale,
-  ExternalLink
+  ExternalLink,
+  LayoutGrid,
+  PanelLeft,
+  Layers
 } from 'lucide-react';
 import { BrowserOpenURL } from '../../wailsjs/runtime/runtime';
 
@@ -36,9 +39,12 @@ export default function SettingsView({
   appVersion = '0.8.1',
   onCheckForUpdates,
   isCheckingUpdates = false,
-  onToast
+  onToast,
+  navigationStyle = 'sidebar',
+  onSetNavigationStyle
 }) {
   const [selectedTheme, setSelectedTheme] = useState(theme || config?.ui?.theme || 'dark');
+  const [selectedNavStyle, setSelectedNavStyle] = useState(navigationStyle);
   const [defaultRuntime, setDefaultRuntime] = useState(activeRuntime || 'docker');
   const [dockerSocket, setDockerSocket] = useState(config?.runtime?.dockerSocket || '');
   const [podmanSocket, setPodmanSocket] = useState(config?.runtime?.podmanSocket || '');
@@ -76,6 +82,19 @@ export default function SettingsView({
       setSelectedTheme(theme);
     }
   }, [theme]);
+
+  useEffect(() => {
+    if (navigationStyle) {
+      setSelectedNavStyle(navigationStyle);
+    }
+  }, [navigationStyle]);
+
+  const handleNavStyleChange = (style) => {
+    setSelectedNavStyle(style);
+    if (onSetNavigationStyle) {
+      onSetNavigationStyle(style);
+    }
+  };
 
   // Instant Theme Switcher
   const handleThemeChange = async (t) => {
@@ -201,6 +220,69 @@ export default function SettingsView({
               >
                 <Monitor className="w-3.5 h-3.5" />
                 <span>System</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Detail Navigation Style: Instant Switch */}
+          <div className="p-5 rounded-xl border border-slate-800 bg-slate-950/70 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-bold text-slate-200 flex items-center gap-2">
+                  <LayoutGrid className="w-4 h-4 text-cyan-400" />
+                  Detail Navigation Layout
+                </h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Choose how subtabs are displayed when drilling down into containers, compose projects, or registry images.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => handleNavStyleChange('sidebar')}
+                className={`p-3 rounded-lg border text-left transition-all cursor-pointer flex flex-col gap-1.5 ${
+                  selectedNavStyle === 'sidebar'
+                    ? 'bg-cyan-500/15 border-cyan-500/40 text-cyan-300 shadow-sm'
+                    : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-slate-200 hover:border-slate-700'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-xs text-slate-100 flex items-center gap-1.5">
+                    <PanelLeft className="w-3.5 h-3.5 text-cyan-400" />
+                    Contextual Sidebar
+                  </span>
+                  <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-400 border border-cyan-800/80">
+                    Recommended
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  Swaps the left sidebar to show container and project subtabs. Maximizes vertical workspace for live logs and terminals.
+                </p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleNavStyleChange('tabs')}
+                className={`p-3 rounded-lg border text-left transition-all cursor-pointer flex flex-col gap-1.5 ${
+                  selectedNavStyle === 'tabs'
+                    ? 'bg-cyan-500/15 border-cyan-500/40 text-cyan-300 shadow-sm'
+                    : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-slate-200 hover:border-slate-700'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-xs text-slate-100 flex items-center gap-1.5">
+                    <Layers className="w-3.5 h-3.5 text-cyan-400" />
+                    Horizontal Tabs
+                  </span>
+                  <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
+                    Classic
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  Keeps traditional horizontal subtabs across the top of detail views. Sidebar stays fixed on primary views.
+                </p>
               </button>
             </div>
           </div>
