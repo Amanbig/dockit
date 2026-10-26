@@ -19,6 +19,8 @@ import {
 const MAX_HISTORY = 150;
 const MAX_CMD_HISTORY = 100;
 const MAX_OUTPUT_CHARS = 100000;
+const DEFAULT_HEIGHT = 288;
+const MIN_HEIGHT = 140;
 
 function truncateText(str, max = MAX_OUTPUT_CHARS) {
   if (!str || typeof str !== 'string') return '';
@@ -83,10 +85,99 @@ export default function BottomTerminal({
   const [activeTabId, setActiveTabId] = useState('term-1');
   const [isMaximized, setIsMaximized] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [drawerHeight, setDrawerHeight] = useState(() => {
+    try {
+      const saved = localStorage.getItem('dockit:terminal_height');
+      if (saved) {
+        const parsed = parseInt(saved, 10);
+        if (!isNaN(parsed) && parsed >= MIN_HEIGHT && parsed <= 1600) {
+          return parsed;
+        }
+      }
+    } catch (_) {}
+    return DEFAULT_HEIGHT;
+  });
+  const [isDragging, setIsDragging] = useState(false);
+  const isDraggingRef = useRef(false);
 
   const terminalScrollRef = useRef(null);
   const inputRef = useRef(null);
   const drawerRef = useRef(null);
+
+  // Resize sash pointer handlers
+  const handleResizeStart = useCallback((e) => {
+    if (e.button !== undefined && e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    isDraggingRef.current = true;
+    setIsDragging(true);
+
+    if (drawerRef.current) {
+      const currentRect = drawerRef.current.getBoundingClientRect();
+      setDrawerHeight(currentRect.height);
+    }
+    setIsMaximized(false);
+
+    document.body.style.cursor = 'ns-resize';
+    document.body.style.userSelect = 'none';
+  }, []);
+
+  const handleDoubleClickSash = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (isMaximized) {
+      setIsMaximized(false);
+    } else if (drawerHeight !== DEFAULT_HEIGHT) {
+      setDrawerHeight(DEFAULT_HEIGHT);
+    } else {
+      setIsMaximized(true);
+    }
+  }, [isMaximized, drawerHeight]);
+
+  // Window listeners for responsive dragging across the viewport
+  useEffect(() => {
+    const handlePointerMove = (e) => {
+      if (!isDraggingRef.current || !drawerRef.current) return;
+      const clientY = e.clientY ?? (e.touches && e.touches[0]?.clientY);
+      if (clientY === undefined) return;
+
+      const drawerRect = drawerRef.current.getBoundingClientRect();
+      const newHeight = drawerRect.bottom - clientY;
+      const maxHeight = Math.max(MIN_HEIGHT, Math.floor(window.innerHeight * 0.85));
+      const clamped = Math.min(Math.max(newHeight, MIN_HEIGHT), maxHeight);
+
+      setDrawerHeight(clamped);
+    };
+
+    const handlePointerUp = () => {
+      if (!isDraggingRef.current) return;
+      isDraggingRef.current = false;
+      setIsDragging(false);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerUp);
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, []);
+
+  // Persist user preferred height to localStorage when dragging settles
+  useEffect(() => {
+    if (!isDragging && drawerHeight) {
+      try {
+        localStorage.setItem('dockit:terminal_height', drawerHeight.toString());
+      } catch (_) {}
+    }
+  }, [drawerHeight, isDragging]);
 
   // Active Tab object helper
   const activeTab = tabs.find((t) => t.id === activeTabId) || tabs[0] || createInitialTab('term-1');
@@ -516,10 +607,36 @@ export default function BottomTerminal({
       {isOpen && (
         <div
           ref={drawerRef}
-          className={`terminal-window border-t border-slate-800 bg-[#0c1017] flex flex-col transition-all duration-200 overflow-hidden shadow-2xl font-mono ${
-            isMaximized ? 'h-[65vh]' : 'h-72'
+          style={{
+            height: isMaximized ? '65vh' : `${drawerHeight}px`
+          }}
+          className={`terminal-window border-t border-slate-800 bg-[#0c1017] flex flex-col relative overflow-hidden shadow-2xl font-mono ${
+            isDragging ? 'transition-none select-none' : 'transition-[height] duration-200'
           }`}
         >
+          {/* VS Code-Style Top Resize Sash */}
+          <div
+            onPointerDown={handleResizeStart}
+            onDoubleClick={handleDoubleClickSash}
+            className={`terminal-resize-sash group/sash relative w-full h-1.5 cursor-ns-resize z-40 shrink-0 select-none flex items-center justify-center transition-colors ${
+              isDragging
+                ? 'bg-cyan-500 shadow-sm shadow-cyan-500/60'
+                : 'bg-slate-800/90 hover:bg-cyan-500/80'
+            }`}
+            title="Drag to resize terminal (Double-click to reset / toggle maximize)"
+          >
+            {/* Expanded invisible hit area (12px tall) for effortless grabbing */}
+            <div className="absolute -top-1.5 -bottom-1.5 inset-x-0 cursor-ns-resize" />
+            {/* Centered subtle grab pill indicator */}
+            <div
+              className={`h-0.5 rounded-full transition-all duration-150 ${
+                isDragging
+                  ? 'w-16 bg-white shadow-xs'
+                  : 'w-8 bg-slate-600/70 group-hover/sash:w-12 group-hover/sash:bg-cyan-200'
+              }`}
+            />
+          </div>
+
           {/* Drawer Titlebar & Tab Bar */}
           <div className="terminal-titlebar px-3 py-1.5 bg-[#161b22] border-b border-slate-800 flex items-center justify-between text-xs select-none shrink-0 gap-3">
             {/* Tabs Strip with Add Tab Button */}
