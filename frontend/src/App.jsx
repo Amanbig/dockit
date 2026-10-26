@@ -31,7 +31,13 @@ import {
   Code,
   Layers,
   GitCommit,
-  Tag
+  Tag,
+  Play,
+  Square,
+  RotateCw,
+  Pause,
+  Trash2,
+  DownloadCloud
 } from 'lucide-react';
 import packageJson from '../package.json';
 
@@ -919,15 +925,64 @@ export default function App() {
         ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
         : 'bg-slate-800 text-slate-400 border-slate-700';
 
+      const containerActions = [];
+      if (isRunning) {
+        containerActions.push({
+          label: 'Stop',
+          icon: Square,
+          variant: 'warning',
+          onClick: () => handleStopContainer(selectedContainerId)
+        });
+        containerActions.push({
+          label: 'Pause',
+          icon: Pause,
+          variant: 'default',
+          onClick: () => handlePauseContainer(selectedContainerId)
+        });
+      } else if (isPaused) {
+        containerActions.push({
+          label: 'Unpause',
+          icon: Play,
+          variant: 'success',
+          onClick: () => handleUnpauseContainer(selectedContainerId)
+        });
+      } else {
+        containerActions.push({
+          label: 'Start',
+          icon: Play,
+          variant: 'success',
+          onClick: () => handleStartContainer(selectedContainerId)
+        });
+      }
+
+      containerActions.push({
+        label: 'Restart',
+        icon: RotateCw,
+        variant: 'default',
+        onClick: () => handleRestartContainer(selectedContainerId)
+      });
+
+      containerActions.push({
+        icon: Trash2,
+        variant: 'danger',
+        title: 'Delete Container',
+        onClick: async () => {
+          await handleRemoveContainer(selectedContainerId, true);
+          setSelectedContainerId(null);
+        }
+      });
+
       return {
         type: 'container',
         backLabel: 'Containers',
         title: name,
-        subtitle: c?.image || selectedContainerId.slice(0, 12),
+        subtitle: `ID: ${selectedContainerId.slice(0, 12)} • ${c?.image || 'Container'}`,
+        copyText: selectedContainerId,
         badge: { text: statusText, color: badgeColor },
         onBack: () => setSelectedContainerId(null),
         activeSubTab: containerSubTab,
         onSelectSubTab: setContainerSubTab,
+        actions: containerActions,
         subTabs: [
           { id: 'overview', label: 'Overview & Health', icon: Sliders },
           { id: 'terminal', label: 'Terminal Exec', icon: Terminal },
@@ -951,33 +1006,83 @@ export default function App() {
       subTabs.push({ id: 'snapshots', label: `Git Snapshots (${composeProjectInfo.snapshotCount ?? 0})`, icon: GitCommit });
       subTabs.push({ id: 'output', label: 'Terminal Output', icon: Terminal });
 
+      const composeActions = [];
+      const isStackActive = composeProjectInfo.status === 'running' || composeProjectInfo.status === 'partial';
+      if (isStackActive) {
+        if (composeProjectInfo.onDown) {
+          composeActions.push({
+            label: 'Down',
+            icon: Square,
+            variant: 'danger',
+            onClick: composeProjectInfo.onDown
+          });
+        }
+      } else {
+        if (composeProjectInfo.onUp) {
+          composeActions.push({
+            label: 'Up',
+            icon: Play,
+            variant: 'success',
+            onClick: composeProjectInfo.onUp
+          });
+        }
+      }
+      if (composeProjectInfo.onRestart) {
+        composeActions.push({
+          label: 'Restart',
+          icon: RotateCw,
+          variant: 'default',
+          onClick: composeProjectInfo.onRestart
+        });
+      }
+
       return {
         type: 'compose',
         backLabel: 'Projects',
         title: composeProjectInfo.name || 'Compose Project',
         subtitle: composeProjectInfo.dir,
+        copyText: composeProjectInfo.dir,
+        badge: {
+          text: composeProjectInfo.status || 'Active',
+          color: composeProjectInfo.status === 'running'
+            ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+            : 'bg-slate-800 text-slate-400 border-slate-700'
+        },
         onBack: () => {
           if (composeProjectInfo.onClose) composeProjectInfo.onClose();
         },
         activeSubTab: composeSubTab,
         onSelectSubTab: setComposeSubTab,
+        actions: composeActions,
         subTabs
       };
     }
 
     // 3. Registry Image Details Sub-Navigation
     if (activeTab === 'registry' && registryImageInfo) {
+      const registryActions = [];
+      if (registryImageInfo.onPull) {
+        registryActions.push({
+          label: 'Pull :latest',
+          icon: DownloadCloud,
+          variant: 'success',
+          onClick: registryImageInfo.onPull
+        });
+      }
+
       return {
         type: 'registry',
         backLabel: 'Search Results',
         title: registryImageInfo.name,
         subtitle: registryImageInfo.registry?.toUpperCase(),
+        copyText: registryImageInfo.name,
         badge: registryImageInfo.isOfficial ? { text: 'Official', color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' } : null,
         onBack: () => {
           if (registryImageInfo.onClose) registryImageInfo.onClose();
         },
         activeSubTab: registryDetailTab,
         onSelectSubTab: setRegistryDetailTab,
+        actions: registryActions,
         subTabs: [
           { id: 'overview', label: 'Overview & Docs', icon: FileText },
           { id: 'tags', label: `Tags (${registryImageInfo.tagCount ?? 0})`, icon: Tag }

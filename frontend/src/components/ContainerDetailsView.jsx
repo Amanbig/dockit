@@ -530,10 +530,10 @@ export default function ContainerDetailsView({
 
   return (
     <div className="flex-1 flex flex-col h-full bg-slate-900/60 overflow-hidden">
-      {/* Top Navigation & Action Header */}
-      <div className="p-4 md:p-6 border-b border-slate-800 flex flex-wrap items-center justify-between gap-4 bg-slate-950/40 shrink-0 min-w-0">
-        <div className="flex items-center gap-3 min-w-0">
-          {navigationStyle === 'tabs' && (
+      {/* Top Navigation & Action Header (only shown when horizontal tabs layout is active) */}
+      {navigationStyle === 'tabs' && (
+        <div className="p-4 md:p-6 border-b border-slate-800 flex flex-wrap items-center justify-between gap-4 bg-slate-950/40 shrink-0 min-w-0">
+          <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={onBack}
               className="p-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition cursor-pointer shrink-0"
@@ -541,98 +541,98 @@ export default function ContainerDetailsView({
             >
               <ArrowLeft className="w-4 h-4" />
             </button>
-          )}
-          <div className="min-w-0">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <h1 className="text-lg font-bold text-slate-100 flex items-center gap-2 truncate" title={containerName}>
-                <span className="truncate">{containerName}</span>
-              </h1>
-              <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold shrink-0 ${
-                isRunning 
-                  ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
-                  : isPaused
-                    ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
-                    : 'bg-slate-800 text-slate-400 border border-slate-700'
-              }`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${isRunning ? 'bg-emerald-400 animate-pulse' : isPaused ? 'bg-amber-400' : 'bg-slate-500'}`}></span>
-                <span className="capitalize">{stateStatus}</span>
-              </span>
-            </div>
-            <div className="flex items-center gap-2 text-xs text-slate-500 font-mono mt-0.5 min-w-0">
-              <span className="shrink-0">ID: {containerId.slice(0, 12)}</span>
-              <button 
-                onClick={() => copyText(containerId, 'id')}
-                className="hover:text-slate-300 shrink-0"
-                title="Copy full ID"
-              >
-                {copiedKey === 'id' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-              </button>
-              <span className="shrink-0">•</span>
-              <span className="text-slate-400 truncate max-w-xs md:max-w-md" title={details?.image}>{details?.image}</span>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <h1 className="text-lg font-bold text-slate-100 flex items-center gap-2 truncate" title={containerName}>
+                  <span className="truncate">{containerName}</span>
+                </h1>
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold shrink-0 ${
+                  isRunning 
+                    ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                    : isPaused
+                      ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                      : 'bg-slate-800 text-slate-400 border border-slate-700'
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${isRunning ? 'bg-emerald-400 animate-pulse' : isPaused ? 'bg-amber-400' : 'bg-slate-500'}`}></span>
+                  <span className="capitalize">{stateStatus}</span>
+                </span>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-slate-500 font-mono mt-0.5 min-w-0">
+                <span className="shrink-0">ID: {containerId.slice(0, 12)}</span>
+                <button 
+                  onClick={() => copyText(containerId, 'id')}
+                  className="hover:text-slate-300 shrink-0"
+                  title="Copy full ID"
+                >
+                  {copiedKey === 'id' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                </button>
+                <span className="shrink-0">•</span>
+                <span className="text-slate-400 truncate max-w-xs md:max-w-md" title={details?.image}>{details?.image}</span>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Action Controls */}
-        <div className="flex items-center gap-2">
-          {isRunning ? (
-            <>
+          {/* Action Controls */}
+          <div className="flex items-center gap-2">
+            {isRunning ? (
+              <>
+                <button
+                  onClick={handleStop}
+                  disabled={actionInProgress}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border border-amber-500/30 text-xs font-semibold transition disabled:opacity-50"
+                >
+                  <Square className="w-3.5 h-3.5" />
+                  <span>Stop</span>
+                </button>
+                <button
+                  onClick={handlePause}
+                  disabled={actionInProgress}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-300 border border-slate-700 text-xs font-semibold transition disabled:opacity-50"
+                >
+                  <Pause className="w-3.5 h-3.5" />
+                  <span>Pause</span>
+                </button>
+              </>
+            ) : isPaused ? (
               <button
-                onClick={handleStop}
+                onClick={handleUnpause}
                 disabled={actionInProgress}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border border-amber-500/30 text-xs font-semibold transition disabled:opacity-50"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 text-xs font-semibold transition disabled:opacity-50"
               >
-                <Square className="w-3.5 h-3.5" />
-                <span>Stop</span>
+                <Play className="w-3.5 h-3.5" />
+                <span>Unpause</span>
               </button>
+            ) : (
               <button
-                onClick={handlePause}
+                onClick={handleStart}
                 disabled={actionInProgress}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-300 border border-slate-700 text-xs font-semibold transition disabled:opacity-50"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 text-xs font-semibold transition disabled:opacity-50"
               >
-                <Pause className="w-3.5 h-3.5" />
-                <span>Pause</span>
+                <Play className="w-3.5 h-3.5" />
+                <span>Start</span>
               </button>
-            </>
-          ) : isPaused ? (
-            <button
-              onClick={handleUnpause}
-              disabled={actionInProgress}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 text-xs font-semibold transition disabled:opacity-50"
-            >
-              <Play className="w-3.5 h-3.5" />
-              <span>Unpause</span>
-            </button>
-          ) : (
-            <button
-              onClick={handleStart}
-              disabled={actionInProgress}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 text-xs font-semibold transition disabled:opacity-50"
-            >
-              <Play className="w-3.5 h-3.5" />
-              <span>Start</span>
-            </button>
-          )}
+            )}
 
-          <button
-            onClick={handleRestart}
-            disabled={actionInProgress}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-300 border border-slate-700 text-xs font-semibold transition disabled:opacity-50"
-          >
-            <RotateCw className="w-3.5 h-3.5" />
-            <span>Restart</span>
-          </button>
+            <button
+              onClick={handleRestart}
+              disabled={actionInProgress}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-300 border border-slate-700 text-xs font-semibold transition disabled:opacity-50"
+            >
+              <RotateCw className="w-3.5 h-3.5" />
+              <span>Restart</span>
+            </button>
 
-          <button
-            onClick={handleRemove}
-            disabled={actionInProgress}
-            className="p-1.5 text-rose-400 hover:bg-rose-400/10 rounded-lg border border-slate-800 transition"
-            title="Delete Container"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
+            <button
+              onClick={handleRemove}
+              disabled={actionInProgress}
+              className="p-1.5 text-rose-400 hover:bg-rose-400/10 rounded-lg border border-slate-800 transition"
+              title="Delete Container"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Sub Tabs Bar (only shown when horizontal tabs layout is selected) */}
       {navigationStyle === 'tabs' && (

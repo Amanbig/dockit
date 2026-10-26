@@ -473,16 +473,18 @@ export default function RegistryView({
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      onClick={() => handlePullImageTag(selectedImage.name, 'latest')}
-                      disabled={pullingTag === 'latest'}
-                      className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold shadow-md shadow-cyan-500/20 transition-all cursor-pointer whitespace-nowrap"
-                    >
-                      <DownloadCloud className="w-3.5 h-3.5" />
-                      <span>{pullingTag === 'latest' ? 'Pulling :latest...' : 'Pull :latest'}</span>
-                    </button>
-                  </div>
+                  {navigationStyle === 'tabs' && (
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => handlePullImageTag(selectedImage.name, 'latest')}
+                        disabled={pullingTag === 'latest'}
+                        className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold shadow-md shadow-cyan-500/20 transition-all cursor-pointer whitespace-nowrap"
+                      >
+                        <DownloadCloud className="w-3.5 h-3.5" />
+                        <span>{pullingTag === 'latest' ? 'Pulling :latest...' : 'Pull :latest'}</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <p className="text-xs text-slate-400 line-clamp-2 mb-3">

@@ -514,75 +514,77 @@ SECRET_KEY=dockit_super_secret_key
 
   return (
     <div className="flex-1 flex flex-col h-full bg-slate-900/60 overflow-hidden">
-      {/* Top Header Bar */}
-      <div className="p-6 border-b border-slate-800 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 min-w-0">
-            {project && navigationStyle === 'tabs' && (
-              <button
-                onClick={() => setProject(null)}
-                className="text-cyan-400 hover:text-cyan-300 font-semibold text-xs flex items-center gap-1 transition-colors cursor-pointer mr-1 shrink-0"
-                title="Return to Compose Projects list"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                <span>All Projects</span>
-              </button>
-            )}
-            <h1 className="text-xl font-bold text-slate-100 flex items-center gap-2 truncate">
-              <span className="truncate max-w-md" title={project?.name}>{project ? project.name : 'Docker Compose Studio'}</span>
-              {project?.hasStagedChanges && (
-                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30 flex items-center gap-1 shrink-0">
-                  <FlaskConical className="w-3 h-3" />
-                  Staged Testing Active
-                </span>
+      {/* Top Header Bar (hidden in contextual sidebar drilldown when project is active) */}
+      {(!project || navigationStyle === 'tabs') && (
+        <div className="p-6 border-b border-slate-800 flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 min-w-0">
+              {project && navigationStyle === 'tabs' && (
+                <button
+                  onClick={() => setProject(null)}
+                  className="text-cyan-400 hover:text-cyan-300 font-semibold text-xs flex items-center gap-1 transition-colors cursor-pointer mr-1 shrink-0"
+                  title="Return to Compose Projects list"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>All Projects</span>
+                </button>
               )}
-            </h1>
+              <h1 className="text-xl font-bold text-slate-100 flex items-center gap-2 truncate">
+                <span className="truncate max-w-md" title={project?.name}>{project ? project.name : 'Docker Compose Studio'}</span>
+                {project?.hasStagedChanges && (
+                  <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30 flex items-center gap-1 shrink-0">
+                    <FlaskConical className="w-3 h-3" />
+                    Staged Testing Active
+                  </span>
+                )}
+              </h1>
+            </div>
+            <p className="text-xs text-slate-400 mt-0.5 truncate max-w-xl" title={project ? project.workingDir : ''}>
+              {project 
+                ? `Workspace: ${project.workingDir}`
+                : 'Open multi-container projects, test YAML non-destructively with Git-style blob hashing, and manage services.'}
+            </p>
           </div>
-          <p className="text-xs text-slate-400 mt-0.5 truncate max-w-xl" title={project ? project.workingDir : ''}>
-            {project 
-              ? `Workspace: ${project.workingDir}`
-              : 'Open multi-container projects, test YAML non-destructively with Git-style blob hashing, and manage services.'}
-          </p>
+
+          {/* Directory Loader: Only shown in All Projects view */}
+          {!project && (
+            <div className="flex items-center gap-3">
+              <form onSubmit={handleOpenLocal} className="flex items-center gap-2">
+                <input
+                  type="text"
+                  placeholder="/path/to/project folder"
+                  value={localPathInput}
+                  onChange={(e) => setLocalPathInput(e.target.value)}
+                  className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 w-56 md:w-72 font-mono transition-colors"
+                />
+                <button
+                  type="button"
+                  onClick={handleBrowseDir}
+                  className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-semibold border border-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer"
+                  title="Open native file explorer to select folder"
+                >
+                  <FolderOpen className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Browse</span>
+                </button>
+                <button
+                  type="submit"
+                  className="px-3.5 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold transition-all cursor-pointer"
+                >
+                  <span>Load</span>
+                </button>
+              </form>
+
+              <button
+                onClick={() => setShowUrlDialog(true)}
+                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-300 text-xs font-semibold border border-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <LinkIcon className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Git URL</span>
+              </button>
+            </div>
+          )}
         </div>
-
-        {/* Directory Loader: Only shown in All Projects view */}
-        {!project && (
-          <div className="flex items-center gap-3">
-            <form onSubmit={handleOpenLocal} className="flex items-center gap-2">
-              <input
-                type="text"
-                placeholder="/path/to/project folder"
-                value={localPathInput}
-                onChange={(e) => setLocalPathInput(e.target.value)}
-                className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 w-56 md:w-72 font-mono transition-colors"
-              />
-              <button
-                type="button"
-                onClick={handleBrowseDir}
-                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-semibold border border-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer"
-                title="Open native file explorer to select folder"
-              >
-                <FolderOpen className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Browse</span>
-              </button>
-              <button
-                type="submit"
-                className="px-3.5 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold transition-all cursor-pointer"
-              >
-                <span>Load</span>
-              </button>
-            </form>
-
-            <button
-              onClick={() => setShowUrlDialog(true)}
-              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-300 text-xs font-semibold border border-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <LinkIcon className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Git URL</span>
-            </button>
-          </div>
-        )}
-      </div>
+      )}
 
       {/* VIEW 1: Projects Library (when no project is open) */}
       {!project ? (
@@ -813,7 +815,7 @@ SECRET_KEY=dockit_super_secret_key
 
             {/* Quick Action buttons */}
             <div className="flex items-center gap-2 ml-auto">
-              {(() => {
+              {navigationStyle === 'tabs' && (() => {
                 const isStackActive = project.status === 'running' || project.status === 'partial' || (project.services || []).some(s => (s.status || '').toLowerCase() === 'running');
                 return isStackActive ? (
                   <>

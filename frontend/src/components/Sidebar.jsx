@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Box, 
   Layers, 
@@ -15,7 +15,9 @@ import {
   AlertCircle,
   DownloadCloud,
   Sparkles,
-  ArrowLeft
+  ArrowLeft,
+  Copy,
+  Check
 } from 'lucide-react';
 import { BrowserOpenURL, WindowToggleMaximise } from '../../wailsjs/runtime/runtime';
 
@@ -44,6 +46,7 @@ export default function Sidebar({
   navigationStyle = 'sidebar',
   contextualNav = null
 }) {
+  const [copied, setCopied] = useState(false);
   const navItems = [
     { 
       id: 'containers', 
@@ -194,7 +197,7 @@ export default function Sidebar({
             </button>
 
             {/* Contextual Entity Header Card */}
-            <div className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800/90 space-y-1 shadow-xs overflow-hidden">
+            <div className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800/90 space-y-2 shadow-xs overflow-hidden">
               <div className="flex items-center justify-between gap-1.5 min-w-0">
                 <span className="font-bold text-slate-100 truncate text-xs font-mono" title={contextualNav.title}>
                   {contextualNav.title}
@@ -206,8 +209,53 @@ export default function Sidebar({
                 )}
               </div>
               {contextualNav.subtitle && (
-                <div className="text-[10px] font-mono text-slate-400 truncate" title={contextualNav.subtitle}>
-                  {contextualNav.subtitle}
+                <div className="text-[10px] font-mono text-slate-400 flex items-center justify-between gap-1 min-w-0" title={contextualNav.subtitle}>
+                  <span className="truncate">{contextualNav.subtitle}</span>
+                  {contextualNav.copyText && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigator.clipboard?.writeText(contextualNav.copyText);
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 2000);
+                      }}
+                      className="p-0.5 text-slate-500 hover:text-slate-300 transition shrink-0 cursor-pointer"
+                      title="Copy"
+                    >
+                      {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Contextual Action Buttons in Sidebar Card */}
+              {contextualNav.actions && contextualNav.actions.length > 0 && (
+                <div className="pt-2 border-t border-slate-800/80 flex items-center gap-1.5 flex-wrap">
+                  {contextualNav.actions.map((act, idx) => {
+                    const ActIcon = act.icon;
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={act.onClick}
+                        disabled={act.disabled}
+                        className={`flex items-center gap-1 px-2 py-1 rounded text-[11px] font-semibold transition cursor-pointer disabled:opacity-50 ${
+                          act.variant === 'danger'
+                            ? 'bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30'
+                            : act.variant === 'warning'
+                            ? 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30'
+                            : act.variant === 'success'
+                            ? 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30'
+                            : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
+                        }`}
+                        title={act.title || act.label}
+                      >
+                        {ActIcon && <ActIcon className="w-3 h-3" />}
+                        {act.label && <span>{act.label}</span>}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
