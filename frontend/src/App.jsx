@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import ContainersView from './components/ContainersView';
@@ -202,102 +202,6 @@ export default function App() {
     }
     setTimeout(checkMaximised, 120);
   }, [checkMaximised]);
-
-  // Compute active contextual drill-down navigation for the sidebar
-  const contextualNav = React.useMemo(() => {
-    if (navigationStyle !== 'sidebar') return null;
-
-    // 1. Container Details Sub-Navigation
-    if (activeTab === 'containers' && selectedContainerId) {
-      const c = containers.find((item) => item.id === selectedContainerId);
-      const name = c?.name?.replace(/^\//, '') || selectedContainerId.slice(0, 12);
-      const isRunning = c?.state === 'running';
-      const isPaused = c?.state === 'paused';
-      const statusText = isRunning ? 'Running' : isPaused ? 'Paused' : 'Stopped';
-      const badgeColor = isRunning
-        ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
-        : isPaused
-        ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
-        : 'bg-slate-800 text-slate-400 border-slate-700';
-
-      return {
-        type: 'container',
-        backLabel: 'Containers',
-        title: name,
-        subtitle: c?.image || selectedContainerId.slice(0, 12),
-        badge: { text: statusText, color: badgeColor },
-        onBack: () => setSelectedContainerId(null),
-        activeSubTab: containerSubTab,
-        onSelectSubTab: setContainerSubTab,
-        subTabs: [
-          { id: 'overview', label: 'Overview & Health', icon: Sliders },
-          { id: 'terminal', label: 'Terminal Exec', icon: Terminal },
-          { id: 'logs', label: 'Live Logs', icon: Clock },
-          { id: 'env', label: 'Environment', icon: FileText },
-          { id: 'mounts', label: 'Volumes & Mounts', icon: HardDrive },
-          { id: 'raw', label: 'Inspect JSON', icon: Code }
-        ]
-      };
-    }
-
-    // 2. Compose Studio Project Sub-Navigation
-    if (activeTab === 'compose' && composeProjectInfo) {
-      const subTabs = [
-        { id: 'services', label: `Services (${composeProjectInfo.serviceCount ?? 0})`, icon: Layers },
-        { id: 'editor', label: 'YAML Testing Studio', icon: Code }
-      ];
-      if (composeProjectInfo.hasEnv) {
-        subTabs.push({ id: 'env', label: 'Environment (.env)', icon: FileText });
-      }
-      subTabs.push({ id: 'snapshots', label: `Git Snapshots (${composeProjectInfo.snapshotCount ?? 0})`, icon: GitCommit });
-      subTabs.push({ id: 'output', label: 'Terminal Output', icon: Terminal });
-
-      return {
-        type: 'compose',
-        backLabel: 'Projects',
-        title: composeProjectInfo.name || 'Compose Project',
-        subtitle: composeProjectInfo.dir,
-        onBack: () => {
-          if (composeProjectInfo.onClose) composeProjectInfo.onClose();
-        },
-        activeSubTab: composeSubTab,
-        onSelectSubTab: setComposeSubTab,
-        subTabs
-      };
-    }
-
-    // 3. Registry Image Details Sub-Navigation
-    if (activeTab === 'registry' && registryImageInfo) {
-      return {
-        type: 'registry',
-        backLabel: 'Search Results',
-        title: registryImageInfo.name,
-        subtitle: registryImageInfo.registry?.toUpperCase(),
-        badge: registryImageInfo.isOfficial ? { text: 'Official', color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' } : null,
-        onBack: () => {
-          if (registryImageInfo.onClose) registryImageInfo.onClose();
-        },
-        activeSubTab: registryDetailTab,
-        onSelectSubTab: setRegistryDetailTab,
-        subTabs: [
-          { id: 'overview', label: 'Overview & Docs', icon: FileText },
-          { id: 'tags', label: `Tags (${registryImageInfo.tagCount ?? 0})`, icon: Tag }
-        ]
-      };
-    }
-
-    return null;
-  }, [
-    navigationStyle,
-    activeTab,
-    selectedContainerId,
-    containers,
-    containerSubTab,
-    composeProjectInfo,
-    composeSubTab,
-    registryImageInfo,
-    registryDetailTab
-  ]);
 
   // Immediately query app version from Go backend on mount
   useEffect(() => {
@@ -997,6 +901,102 @@ export default function App() {
     const f = await GetFavorites();
     setFavorites(f || []);
   };
+
+  // Compute active contextual drill-down navigation for the sidebar
+  const contextualNav = useMemo(() => {
+    if (navigationStyle !== 'sidebar') return null;
+
+    // 1. Container Details Sub-Navigation
+    if (activeTab === 'containers' && selectedContainerId) {
+      const c = containers.find((item) => item.id === selectedContainerId);
+      const name = c?.name?.replace(/^\//, '') || selectedContainerId.slice(0, 12);
+      const isRunning = c?.state === 'running';
+      const isPaused = c?.state === 'paused';
+      const statusText = isRunning ? 'Running' : isPaused ? 'Paused' : 'Stopped';
+      const badgeColor = isRunning
+        ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+        : isPaused
+        ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+        : 'bg-slate-800 text-slate-400 border-slate-700';
+
+      return {
+        type: 'container',
+        backLabel: 'Containers',
+        title: name,
+        subtitle: c?.image || selectedContainerId.slice(0, 12),
+        badge: { text: statusText, color: badgeColor },
+        onBack: () => setSelectedContainerId(null),
+        activeSubTab: containerSubTab,
+        onSelectSubTab: setContainerSubTab,
+        subTabs: [
+          { id: 'overview', label: 'Overview & Health', icon: Sliders },
+          { id: 'terminal', label: 'Terminal Exec', icon: Terminal },
+          { id: 'logs', label: 'Live Logs', icon: Clock },
+          { id: 'env', label: 'Environment', icon: FileText },
+          { id: 'mounts', label: 'Volumes & Mounts', icon: HardDrive },
+          { id: 'raw', label: 'Inspect JSON', icon: Code }
+        ]
+      };
+    }
+
+    // 2. Compose Studio Project Sub-Navigation
+    if (activeTab === 'compose' && composeProjectInfo) {
+      const subTabs = [
+        { id: 'services', label: `Services (${composeProjectInfo.serviceCount ?? 0})`, icon: Layers },
+        { id: 'editor', label: 'YAML Testing Studio', icon: Code }
+      ];
+      if (composeProjectInfo.hasEnv) {
+        subTabs.push({ id: 'env', label: 'Environment (.env)', icon: FileText });
+      }
+      subTabs.push({ id: 'snapshots', label: `Git Snapshots (${composeProjectInfo.snapshotCount ?? 0})`, icon: GitCommit });
+      subTabs.push({ id: 'output', label: 'Terminal Output', icon: Terminal });
+
+      return {
+        type: 'compose',
+        backLabel: 'Projects',
+        title: composeProjectInfo.name || 'Compose Project',
+        subtitle: composeProjectInfo.dir,
+        onBack: () => {
+          if (composeProjectInfo.onClose) composeProjectInfo.onClose();
+        },
+        activeSubTab: composeSubTab,
+        onSelectSubTab: setComposeSubTab,
+        subTabs
+      };
+    }
+
+    // 3. Registry Image Details Sub-Navigation
+    if (activeTab === 'registry' && registryImageInfo) {
+      return {
+        type: 'registry',
+        backLabel: 'Search Results',
+        title: registryImageInfo.name,
+        subtitle: registryImageInfo.registry?.toUpperCase(),
+        badge: registryImageInfo.isOfficial ? { text: 'Official', color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' } : null,
+        onBack: () => {
+          if (registryImageInfo.onClose) registryImageInfo.onClose();
+        },
+        activeSubTab: registryDetailTab,
+        onSelectSubTab: setRegistryDetailTab,
+        subTabs: [
+          { id: 'overview', label: 'Overview & Docs', icon: FileText },
+          { id: 'tags', label: `Tags (${registryImageInfo.tagCount ?? 0})`, icon: Tag }
+        ]
+      };
+    }
+
+    return null;
+  }, [
+    navigationStyle,
+    activeTab,
+    selectedContainerId,
+    containers,
+    containerSubTab,
+    composeProjectInfo,
+    composeSubTab,
+    registryImageInfo,
+    registryDetailTab
+  ]);
 
   // Calculate container stats
   const runningContainers = containers.filter(c => c.status === 'running').length;
