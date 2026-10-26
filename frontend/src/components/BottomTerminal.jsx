@@ -618,23 +618,15 @@ export default function BottomTerminal({
           <div
             onPointerDown={handleResizeStart}
             onDoubleClick={handleDoubleClickSash}
-            className={`terminal-resize-sash group/sash relative w-full h-1.5 cursor-ns-resize z-40 shrink-0 select-none flex items-center justify-center transition-colors ${
+            className={`terminal-resize-sash group/sash relative w-full h-[2px] cursor-ns-resize z-40 shrink-0 select-none transition-colors duration-150 ${
               isDragging
-                ? 'bg-cyan-500 shadow-sm shadow-cyan-500/60'
-                : 'bg-slate-800/90 hover:bg-cyan-500/80'
+                ? 'bg-cyan-500 shadow-sm shadow-cyan-500/80'
+                : 'bg-slate-800 hover:bg-cyan-500/90'
             }`}
             title="Drag to resize terminal (Double-click to reset / toggle maximize)"
           >
-            {/* Expanded invisible hit area (12px tall) for effortless grabbing */}
-            <div className="absolute -top-1.5 -bottom-1.5 inset-x-0 cursor-ns-resize" />
-            {/* Centered subtle grab pill indicator */}
-            <div
-              className={`h-0.5 rounded-full transition-all duration-150 ${
-                isDragging
-                  ? 'w-16 bg-white shadow-xs'
-                  : 'w-8 bg-slate-600/70 group-hover/sash:w-12 group-hover/sash:bg-cyan-200'
-              }`}
-            />
+            {/* Expanded invisible hit area for effortless grabbing */}
+            <div className="absolute -top-1 -bottom-1.5 inset-x-0 cursor-ns-resize" />
           </div>
 
           {/* Drawer Titlebar & Tab Bar */}
