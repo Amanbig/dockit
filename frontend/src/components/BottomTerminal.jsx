@@ -19,6 +19,8 @@ import {
 const MAX_HISTORY = 150;
 const MAX_CMD_HISTORY = 100;
 const MAX_OUTPUT_CHARS = 100000;
+const DEFAULT_HEIGHT = 288;
+const MIN_HEIGHT = 140;
 
 function truncateText(str, max = MAX_OUTPUT_CHARS) {
   if (!str || typeof str !== 'string') return '';
@@ -83,10 +85,99 @@ export default function BottomTerminal({
   const [activeTabId, setActiveTabId] = useState('term-1');
   const [isMaximized, setIsMaximized] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [drawerHeight, setDrawerHeight] = useState(() => {
+    try {
+      const saved = localStorage.getItem('dockit:terminal_height');
+      if (saved) {
+        const parsed = parseInt(saved, 10);
+        if (!isNaN(parsed) && parsed >= MIN_HEIGHT && parsed <= 1600) {
+          return parsed;
+        }
+      }
+    } catch (_) {}
+    return DEFAULT_HEIGHT;
+  });
+  const [isDragging, setIsDragging] = useState(false);
+  const isDraggingRef = useRef(false);
 
   const terminalScrollRef = useRef(null);
   const inputRef = useRef(null);
   const drawerRef = useRef(null);
+
+  // Resize sash pointer handlers
+  const handleResizeStart = useCallback((e) => {
+    if (e.button !== undefined && e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    isDraggingRef.current = true;
+    setIsDragging(true);
+
+    if (drawerRef.current) {
+      const currentRect = drawerRef.current.getBoundingClientRect();
+      setDrawerHeight(currentRect.height);
+    }
+    setIsMaximized(false);
+
+    document.body.style.cursor = 'ns-resize';
+    document.body.style.userSelect = 'none';
+  }, []);
+
+  const handleDoubleClickSash = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (isMaximized) {
+      setIsMaximized(false);
+    } else if (drawerHeight !== DEFAULT_HEIGHT) {
+      setDrawerHeight(DEFAULT_HEIGHT);
+    } else {
+      setIsMaximized(true);
+    }
+  }, [isMaximized, drawerHeight]);
+
+  // Window listeners for responsive dragging across the viewport
+  useEffect(() => {
+    const handlePointerMove = (e) => {
+      if (!isDraggingRef.current || !drawerRef.current) return;
+      const clientY = e.clientY ?? (e.touches && e.touches[0]?.clientY);
+      if (clientY === undefined) return;
+
+      const drawerRect = drawerRef.current.getBoundingClientRect();
+      const newHeight = drawerRect.bottom - clientY;
+      const maxHeight = Math.max(MIN_HEIGHT, Math.floor(window.innerHeight * 0.85));
+      const clamped = Math.min(Math.max(newHeight, MIN_HEIGHT), maxHeight);
+
+      setDrawerHeight(clamped);
+    };
+
+    const handlePointerUp = () => {
+      if (!isDraggingRef.current) return;
+      isDraggingRef.current = false;
+      setIsDragging(false);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerUp);
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, []);
+
+  // Persist user preferred height to localStorage when dragging settles
+  useEffect(() => {
+    if (!isDragging && drawerHeight) {
+      try {
+        localStorage.setItem('dockit:terminal_height', drawerHeight.toString());
+      } catch (_) {}
+    }
+  }, [drawerHeight, isDragging]);
 
   // Active Tab object helper
   const activeTab = tabs.find((t) => t.id === activeTabId) || tabs[0] || createInitialTab('term-1');
@@ -174,6 +265,14 @@ export default function BottomTerminal({
       setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 50);
     }
   }, [isOpen, activeTabId, activeTab.executing]);
+
+  // Auto-resize input textarea to match content height up to max-height
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto';
+      inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 160)}px`;
+    }
+  }, [activeTab.commandInput, activeTabId]);
 
   const shortenPath = useCallback((path) => {
     if (!path) return '~';
@@ -435,6 +534,10 @@ export default function BottomTerminal({
 
     // Ctrl + C on input element
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
+      const selection = window.getSelection()?.toString();
+      if (selection && selection.length > 0) {
+        return;
+      }
       e.preventDefault();
       if (activeTab.executing) {
         handleCancelCommand(activeTab.id);
@@ -451,8 +554,34 @@ export default function BottomTerminal({
       return;
     }
 
-    // Arrow Up / Down command history
+    // Enter key: Execute command or insert newline (Shift+Enter or continuation backslash '\')
+    if (e.key === 'Enter') {
+      if (e.shiftKey) {
+        // Shift+Enter creates a new line in textarea naturally
+        return;
+      }
+
+      // Check if command ends with line continuation backslash '\'
+      const textBeforeCursor = activeTab.commandInput.slice(0, e.target.selectionStart || 0);
+      if (textBeforeCursor.trimEnd().endsWith('\\')) {
+        // Allow newline insertion for multi-line continuation
+        return;
+      }
+
+      // Normal Enter: execute the command
+      e.preventDefault();
+      handleRunCommand();
+      return;
+    }
+
+    // Arrow Up / Down command history navigation
     if (e.key === 'ArrowUp') {
+      // Only navigate history if cursor is on the first line
+      const textBeforeCursor = activeTab.commandInput.slice(0, e.target.selectionStart || 0);
+      if (textBeforeCursor.includes('\n')) {
+        return; // Allow moving cursor up within multi-line textarea
+      }
+
       e.preventDefault();
       if (activeTab.cmdHistory.length === 0) return;
       const nextIdx =
@@ -464,6 +593,12 @@ export default function BottomTerminal({
         commandInput: activeTab.cmdHistory[nextIdx] || ''
       });
     } else if (e.key === 'ArrowDown') {
+      // Only navigate history if cursor is on the last line
+      const textAfterCursor = activeTab.commandInput.slice(e.target.selectionEnd || 0);
+      if (textAfterCursor.includes('\n')) {
+        return; // Allow moving cursor down within multi-line textarea
+      }
+
       e.preventDefault();
       if (activeTab.historyIndex === -1) return;
       const nextIdx = activeTab.historyIndex + 1;
@@ -516,10 +651,28 @@ export default function BottomTerminal({
       {isOpen && (
         <div
           ref={drawerRef}
-          className={`terminal-window border-t border-slate-800 bg-[#0c1017] flex flex-col transition-all duration-200 overflow-hidden shadow-2xl font-mono ${
-            isMaximized ? 'h-[65vh]' : 'h-72'
+          style={{
+            height: isMaximized ? '65vh' : `${drawerHeight}px`
+          }}
+          className={`terminal-window border-t border-slate-800 bg-[#0c1017] flex flex-col relative overflow-hidden shadow-2xl font-mono ${
+            isDragging ? 'transition-none select-none' : 'transition-[height] duration-200'
           }`}
         >
+          {/* VS Code-Style Top Resize Sash */}
+          <div
+            onPointerDown={handleResizeStart}
+            onDoubleClick={handleDoubleClickSash}
+            className={`terminal-resize-sash group/sash relative w-full h-[2px] cursor-ns-resize z-40 shrink-0 select-none transition-colors duration-150 ${
+              isDragging
+                ? 'bg-cyan-500 shadow-sm shadow-cyan-500/80'
+                : 'bg-slate-800 hover:bg-cyan-500/90'
+            }`}
+            title="Drag to resize terminal (Double-click to reset / toggle maximize)"
+          >
+            {/* Expanded invisible hit area for effortless grabbing */}
+            <div className="absolute -top-1 -bottom-1.5 inset-x-0 cursor-ns-resize" />
+          </div>
+
           {/* Drawer Titlebar & Tab Bar */}
           <div className="terminal-titlebar px-3 py-1.5 bg-[#161b22] border-b border-slate-800 flex items-center justify-between text-xs select-none shrink-0 gap-3">
             {/* Tabs Strip with Add Tab Button */}
@@ -688,11 +841,11 @@ export default function BottomTerminal({
             {activeTab.history.map((item, idx) => (
               <div key={idx} className="whitespace-pre-wrap break-all">
                 {item.type === 'cmd' ? (
-                  <div className="flex items-center gap-2 text-slate-200 font-bold mt-1">
-                    <span className="text-emerald-400 font-bold text-xs">
+                  <div className="flex items-start gap-2 text-slate-200 font-bold mt-1">
+                    <span className="text-emerald-400 font-bold text-xs shrink-0 select-none pt-0.5">
                       host:{shortenPath(item.cwd || activeTab.cwd)}$
                     </span>
-                    <span>{item.text}</span>
+                    <span className="whitespace-pre-wrap break-all flex-1 font-mono leading-5">{item.text}</span>
                   </div>
                 ) : item.type === 'err' ? (
                   <div className="text-rose-400 pl-2 font-mono whitespace-pre-wrap leading-relaxed">{item.text}</div>
@@ -722,22 +875,22 @@ export default function BottomTerminal({
                 </button>
               </div>
             ) : (
-              <form onSubmit={handleRunCommand} className="flex items-center gap-2 pt-1">
-                <span className="text-emerald-400 font-bold text-xs shrink-0 select-none">
+              <div className="flex items-start gap-2 pt-1">
+                <span className="text-emerald-400 font-bold text-xs shrink-0 select-none pt-0.5">
                   host:{shortenPath(activeTab.cwd)}$
                 </span>
-                <input
+                <textarea
                   ref={inputRef}
-                  type="text"
+                  rows={1}
                   value={activeTab.commandInput}
                   onChange={(e) => updateTab(activeTab.id, { commandInput: e.target.value })}
                   onKeyDown={handleKeyDown}
-                  className="terminal-prompt-input flex-1 bg-transparent text-xs text-slate-100 font-mono border-none outline-none focus:ring-0 p-0 shadow-none ring-0 focus:outline-none"
-                  placeholder="type host command..."
+                  className="terminal-prompt-input flex-1 bg-transparent text-xs text-slate-100 font-mono border-none outline-none focus:ring-0 p-0 shadow-none ring-0 focus:outline-none resize-none leading-5 overflow-y-auto max-h-40"
+                  placeholder="type host command... (Shift+Enter for newline)"
                   spellCheck={false}
                   autoComplete="off"
                 />
-              </form>
+              </div>
             )}
           </div>
         </div>
