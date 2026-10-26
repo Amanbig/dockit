@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Box, 
   Layers, 
@@ -31,6 +31,10 @@ function GithubIcon({ className = "w-4 h-4" }) {
   );
 }
 
+const DEFAULT_SIDEBAR_WIDTH = 256;
+const MIN_SIDEBAR_WIDTH = 190;
+const MAX_SIDEBAR_WIDTH = 480;
+
 export default function Sidebar({ 
   activeTab, 
   setActiveTab, 
@@ -47,6 +51,73 @@ export default function Sidebar({
   contextualNav = null
 }) {
   const [copied, setCopied] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    try {
+      const saved = localStorage.getItem('dockit:sidebar_width');
+      if (saved) {
+        const parsed = parseInt(saved, 10);
+        if (!isNaN(parsed) && parsed >= MIN_SIDEBAR_WIDTH && parsed <= MAX_SIDEBAR_WIDTH) {
+          return parsed;
+        }
+      }
+    } catch (_) {}
+    return DEFAULT_SIDEBAR_WIDTH;
+  });
+  const [isDragging, setIsDragging] = useState(false);
+  const isDraggingRef = useRef(false);
+  const sidebarRef = useRef(null);
+
+  // Resize sash pointer handlers
+  const handleResizeStart = useCallback((e) => {
+    if (e.button !== undefined && e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    isDraggingRef.current = true;
+    setIsDragging(true);
+
+    if (sidebarRef.current) {
+      const currentRect = sidebarRef.current.getBoundingClientRect();
+      setSidebarWidth(currentRect.width);
+    }
+  }, []);
+
+  useEffect(() => {
+    const handlePointerMove = (e) => {
+      if (!isDraggingRef.current) return;
+      const newWidth = Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, e.clientX));
+      setSidebarWidth(newWidth);
+    };
+
+    const handlePointerUp = () => {
+      if (isDraggingRef.current) {
+        isDraggingRef.current = false;
+        setIsDragging(false);
+        setSidebarWidth((latestWidth) => {
+          try {
+            localStorage.setItem('dockit:sidebar_width', String(Math.round(latestWidth)));
+          } catch (_) {}
+          return latestWidth;
+        });
+      }
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerUp);
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
+    };
+  }, []);
+
+  const handleDoubleClickSash = () => {
+    setSidebarWidth(DEFAULT_SIDEBAR_WIDTH);
+    try {
+      localStorage.setItem('dockit:sidebar_width', String(DEFAULT_SIDEBAR_WIDTH));
+    } catch (_) {}
+  };
   const navItems = [
     { 
       id: 'containers', 
@@ -65,7 +136,13 @@ export default function Sidebar({
   ];
 
   return (
-    <aside className="w-64 bg-slate-950 border-r border-slate-800 flex flex-col h-full select-none">
+    <aside 
+      ref={sidebarRef}
+      style={{ width: `${sidebarWidth}px` }}
+      className={`relative shrink-0 bg-slate-950 border-r border-slate-800 flex flex-col h-full select-none ${
+        isDragging ? 'transition-none select-none' : 'transition-[width] duration-150'
+      }`}
+    >
       {/* Brand Header - Draggable */}
       <div 
         onDoubleClick={() => {
@@ -349,6 +426,21 @@ export default function Sidebar({
             <ExternalLink className="w-3 h-3 group-hover:text-cyan-400 transition-colors" />
           </div>
         </button>
+      </div>
+
+      {/* VS Code-Style Right Resize Sash */}
+      <div
+        onPointerDown={handleResizeStart}
+        onDoubleClick={handleDoubleClickSash}
+        className={`sidebar-resize-sash group/sash absolute top-0 bottom-0 -right-[2px] w-[3px] cursor-ew-resize z-40 select-none transition-colors duration-150 ${
+          isDragging
+            ? 'bg-cyan-500 shadow-sm shadow-cyan-500/80'
+            : 'bg-transparent hover:bg-cyan-500/90'
+        }`}
+        title="Drag to resize sidebar (Double-click to reset)"
+      >
+        {/* Expanded invisible hit area for effortless grabbing */}
+        <div className="absolute -left-1.5 -right-1.5 inset-y-0 cursor-ew-resize" />
       </div>
     </aside>
   );
