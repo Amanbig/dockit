@@ -1400,6 +1400,9 @@ export default function App() {
           onCloseHostTerminalSession={CloseHostTerminalSession}
           onGetHostHomeDir={GetHostHomeDir}
           activeComposeDir={activeComposeDir}
+          hostMetrics={hostMetrics}
+          systemInfo={systemInfo}
+          runningContainersCount={runningContainers}
         />
       </div>
 

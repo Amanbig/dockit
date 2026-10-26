@@ -13,7 +13,9 @@ import {
   Folder,
   Square,
   ClipboardPaste,
-  Plus
+  Plus,
+  Activity,
+  Cpu
 } from 'lucide-react';
 
 const MAX_HISTORY = 150;
@@ -78,7 +80,10 @@ export default function BottomTerminal({
   onCancelHostCommandSession,
   onCloseHostTerminalSession,
   onGetHostHomeDir,
-  activeComposeDir = null
+  activeComposeDir = null,
+  hostMetrics = null,
+  systemInfo = null,
+  runningContainersCount = 0
 }) {
   const [homeDir, setHomeDir] = useState('');
   const [tabs, setTabs] = useState([createInitialTab('term-1', 'Terminal 1', '~')]);
@@ -103,6 +108,29 @@ export default function BottomTerminal({
   const terminalScrollRef = useRef(null);
   const inputRef = useRef(null);
   const drawerRef = useRef(null);
+  const hostResourcesRef = useRef(null);
+  const [showHostResources, setShowHostResources] = useState(false);
+
+  // Close host resources popover on outside click or Escape
+  useEffect(() => {
+    if (!showHostResources) return;
+    const handleClickOutside = (e) => {
+      if (hostResourcesRef.current && !hostResourcesRef.current.contains(e.target)) {
+        setShowHostResources(false);
+      }
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setShowHostResources(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showHostResources]);
 
   // Resize sash pointer handlers
   const handleResizeStart = useCallback((e) => {
@@ -918,6 +946,118 @@ export default function BottomTerminal({
             )}
             <span className={`w-1.5 h-1.5 rounded-full ${activeTab.executing ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'}`}></span>
           </button>
+
+          <span className="text-slate-600">|</span>
+
+          {/* Host Resources Popover Trigger */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowHostResources((prev) => !prev)}
+              className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[11px] font-medium transition cursor-pointer font-mono ${
+                showHostResources
+                  ? 'bg-cyan-500/20 text-cyan-400 font-semibold border border-cyan-500/40 shadow-xs'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900 border border-transparent'
+              }`}
+              title="Host CPU & Memory Resources (Click to toggle details)"
+            >
+              <Activity className="w-3 h-3 text-cyan-400" />
+              <span>
+                {hostMetrics
+                  ? `CPU: ${Math.round(hostMetrics.cpuPercent || 0)}% • RAM: ${Math.round(hostMetrics.memoryPercent || 0)}%`
+                  : 'Host Resources'}
+              </span>
+              <ChevronUp className={`w-3 h-3 transition-transform ${showHostResources ? 'rotate-180 text-cyan-400' : 'text-slate-500'}`} />
+            </button>
+
+            {/* Host Resources Popover Flyout */}
+            {showHostResources && (
+              <div
+                ref={hostResourcesRef}
+                className="absolute bottom-9 left-0 z-50 w-72 p-3 rounded-xl bg-slate-900/95 backdrop-blur-md border border-slate-800 shadow-2xl space-y-2.5 animate-in fade-in slide-in-from-bottom-2 duration-150"
+              >
+                <div className="flex items-center justify-between text-xs pb-1 border-b border-slate-800/80">
+                  <div className="flex items-center gap-1.5 font-semibold text-slate-200">
+                    <Activity className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Host Resources</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-950 border border-slate-800 text-slate-400">
+                      {hostMetrics?.os || systemInfo?.osType || 'linux'} / {hostMetrics?.arch || systemInfo?.architecture || 'amd64'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowHostResources(false);
+                      }}
+                      className="text-slate-500 hover:text-slate-300 p-0.5 rounded cursor-pointer"
+                      title="Close"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* RAM utilization */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-[11px] font-mono">
+                    <span className="text-slate-400">RAM</span>
+                    <span className="text-slate-200">
+                      {hostMetrics?.usedMemory ? (
+                        <>
+                          <span className="text-cyan-400 font-medium">
+                            {(hostMetrics.usedMemory / (1024 * 1024 * 1024)).toFixed(1)}
+                          </span>
+                          <span className="text-slate-500"> / </span>
+                          <span>{(hostMetrics.totalMemory / (1024 * 1024 * 1024)).toFixed(1)} GB</span>
+                          <span className="text-slate-400 text-[10px] ml-1">
+                            ({Math.round(hostMetrics.memoryPercent)}%)
+                          </span>
+                        </>
+                      ) : systemInfo?.memoryTotal > 0 ? (
+                        <span>{(systemInfo.memoryTotal / (1024 * 1024 * 1024)).toFixed(1)} GB Total</span>
+                      ) : (
+                        <span className="text-slate-400">Normal</span>
+                      )}
+                    </span>
+                  </div>
+                  <div className="w-full h-1.5 bg-slate-950 rounded-full overflow-hidden border border-slate-800/60">
+                    <div
+                      className={`h-full transition-all duration-500 rounded-full ${
+                        (hostMetrics?.memoryPercent || 0) > 90
+                          ? 'bg-rose-500'
+                          : (hostMetrics?.memoryPercent || 0) > 75
+                          ? 'bg-amber-400'
+                          : 'bg-cyan-400'
+                      }`}
+                      style={{
+                        width: `${Math.min(100, Math.max(5, hostMetrics?.memoryPercent || 25))}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* CPU & Running Containers */}
+                <div className="flex items-center justify-between text-[11px] font-mono pt-0.5">
+                  <div className="flex items-center gap-1.5 text-slate-400">
+                    <Cpu className="w-3.5 h-3.5 text-slate-400" />
+                    <span>{hostMetrics?.cpus || systemInfo?.cpus || '8'} Cores</span>
+                  </div>
+                  {hostMetrics?.cpuPercent > 0 ? (
+                    <span className="text-cyan-400 text-[10px] bg-cyan-950/60 border border-cyan-800/50 px-1.5 py-0.5 rounded font-medium">
+                      {Math.round(hostMetrics.cpuPercent)}% CPU
+                    </span>
+                  ) : (
+                    <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                      <span>{runningContainersCount || 0} running</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
 
           <span className="text-slate-600">|</span>
 

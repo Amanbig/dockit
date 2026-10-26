@@ -322,77 +322,8 @@ export default function Sidebar({
         )}
       </nav>
 
-      {/* Bottom Footer: Host Resources & GitHub */}
-      <div className="p-3 border-t border-slate-800 space-y-2.5">
-        {/* Host Hardware & Resource Monitor Card */}
-        <div className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800/80 space-y-2 shadow-xs">
-          <div className="flex items-center justify-between text-xs">
-            <div className="flex items-center gap-1.5 font-medium text-slate-300">
-              <Activity className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Host Resources</span>
-            </div>
-            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-950 border border-slate-800 text-slate-400">
-              {hostMetrics?.os || systemInfo?.osType || 'linux'} / {hostMetrics?.arch || systemInfo?.architecture || 'amd64'}
-            </span>
-          </div>
-
-          {/* RAM utilization */}
-          <div className="space-y-1">
-            <div className="flex items-center justify-between text-[11px] font-mono">
-              <span className="text-slate-400">RAM</span>
-              <span className="text-slate-200">
-                {hostMetrics?.usedMemory ? (
-                  <>
-                    <span className="text-cyan-400 font-medium">
-                      {(hostMetrics.usedMemory / (1024 * 1024 * 1024)).toFixed(1)}
-                    </span>
-                    <span className="text-slate-500"> / </span>
-                    <span>{(hostMetrics.totalMemory / (1024 * 1024 * 1024)).toFixed(1)} GB</span>
-                    <span className="text-slate-400 text-[10px] ml-1">
-                      ({Math.round(hostMetrics.memoryPercent)}%)
-                    </span>
-                  </>
-                ) : systemInfo?.memoryTotal > 0 ? (
-                  <span>{(systemInfo.memoryTotal / (1024 * 1024 * 1024)).toFixed(1)} GB Total</span>
-                ) : (
-                  <span className="text-slate-400">Normal</span>
-                )}
-              </span>
-            </div>
-            <div className="w-full h-1.5 bg-slate-950 rounded-full overflow-hidden border border-slate-800/60">
-              <div
-                className={`h-full transition-all duration-500 rounded-full ${
-                  (hostMetrics?.memoryPercent || 0) > 90
-                    ? 'bg-rose-500'
-                    : (hostMetrics?.memoryPercent || 0) > 75
-                    ? 'bg-amber-400'
-                    : 'bg-cyan-400'
-                }`}
-                style={{
-                  width: `${Math.min(100, Math.max(5, hostMetrics?.memoryPercent || 25))}%`,
-                }}
-              />
-            </div>
-          </div>
-
-          {/* CPU & Running Containers */}
-          <div className="flex items-center justify-between text-[11px] font-mono pt-0.5">
-            <div className="flex items-center gap-1.5 text-slate-400">
-              <Cpu className="w-3.5 h-3.5 text-slate-400" />
-              <span>{hostMetrics?.cpus || systemInfo?.cpus || '8'} Cores</span>
-            </div>
-            {hostMetrics?.cpuPercent > 0 ? (
-              <span className="text-cyan-400 text-[10px] bg-cyan-950/60 border border-cyan-800/50 px-1.5 py-0.5 rounded font-medium">
-                {Math.round(hostMetrics.cpuPercent)}% CPU
-              </span>
-            ) : (
-              <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                <span>{stats.runningContainers} running</span>
-              </div>
-            )}
-          </div>
-        </div>
+      {/* Bottom Footer: GitHub Repository & Releases */}
+      <div className="p-3 border-t border-slate-800 space-y-2">
 
         {/* GitHub Repository & Releases */}
         <button
