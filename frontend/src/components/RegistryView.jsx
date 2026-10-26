@@ -434,30 +434,34 @@ export default function RegistryView({
       ) : (
         /* Full-Page Image Overview & Tags Workspace */
         <div className="flex-1 flex flex-col overflow-hidden min-w-0 bg-slate-950/20">
-          {/* Repository Navigation Bar */}
-          <div className="px-6 py-2.5 border-b border-slate-800 bg-slate-950/60 flex items-center justify-between gap-4">
-            <button
-              type="button"
-              onClick={() => setSelectedImage(null)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-semibold border border-slate-700/80 transition cursor-pointer hover:text-white"
-            >
-              <ArrowLeft className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Back to Search Results</span>
-            </button>
+          {/* Repository Navigation Bar (only shown when horizontal tabs layout is active) */}
+          {navigationStyle === 'tabs' && (
+            <div className="px-6 py-2.5 border-b border-slate-800 bg-slate-950/60 flex items-center justify-between gap-4 shrink-0">
+              <button
+                type="button"
+                onClick={() => setSelectedImage(null)}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-semibold border border-slate-700/80 transition cursor-pointer hover:text-white"
+              >
+                <ArrowLeft className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Back to Search Results</span>
+              </button>
 
-            <div className="text-xs text-slate-400 font-mono hidden sm:flex items-center gap-1.5">
-              <span>Registry Hub</span>
-              <span className="text-slate-600">/</span>
-              <span className="text-cyan-400 font-bold">{selectedImage.name}</span>
+              <div className="text-xs text-slate-400 font-mono hidden sm:flex items-center gap-1.5">
+                <span>Registry Hub</span>
+                <span className="text-slate-600">/</span>
+                <span className="text-cyan-400 font-bold truncate max-w-xs">{selectedImage.name}</span>
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="flex-1 flex flex-col overflow-hidden min-w-0">
               {/* Repository Header Banner */}
               <div className="p-4 md:p-6 border-b border-slate-800 bg-slate-900/60 min-w-0">
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
                   <div className="flex items-center gap-2.5 flex-wrap min-w-0">
-                    <h2 className="text-lg md:text-xl font-bold text-slate-100 font-mono truncate">{selectedImage.name}</h2>
+                    <h2 className="text-lg md:text-xl font-bold text-slate-100 font-mono truncate max-w-md" title={selectedImage.name}>
+                      {selectedImage.name}
+                    </h2>
                     {selectedImage.isOfficial && (
                       <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-semibold flex items-center gap-1 shrink-0">
                         <ShieldCheck className="w-3.5 h-3.5" />

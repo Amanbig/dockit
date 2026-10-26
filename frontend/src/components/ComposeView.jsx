@@ -517,28 +517,28 @@ SECRET_KEY=dockit_super_secret_key
       {/* Top Header Bar */}
       <div className="p-6 border-b border-slate-800 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            {project ? (
+          <div className="flex items-center gap-2 min-w-0">
+            {project && navigationStyle === 'tabs' && (
               <button
                 onClick={() => setProject(null)}
-                className="text-cyan-400 hover:text-cyan-300 font-semibold text-xs flex items-center gap-1 transition-colors cursor-pointer mr-1"
+                className="text-cyan-400 hover:text-cyan-300 font-semibold text-xs flex items-center gap-1 transition-colors cursor-pointer mr-1 shrink-0"
                 title="Return to Compose Projects list"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
                 <span>All Projects</span>
               </button>
-            ) : null}
-            <h1 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-              <span>{project ? project.name : 'Docker Compose Studio'}</span>
+            )}
+            <h1 className="text-xl font-bold text-slate-100 flex items-center gap-2 truncate">
+              <span className="truncate max-w-md" title={project?.name}>{project ? project.name : 'Docker Compose Studio'}</span>
               {project?.hasStagedChanges && (
-                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30 flex items-center gap-1">
+                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30 flex items-center gap-1 shrink-0">
                   <FlaskConical className="w-3 h-3" />
                   Staged Testing Active
                 </span>
               )}
             </h1>
           </div>
-          <p className="text-xs text-slate-400 mt-0.5">
+          <p className="text-xs text-slate-400 mt-0.5 truncate max-w-xl" title={project ? project.workingDir : ''}>
             {project 
               ? `Workspace: ${project.workingDir}`
               : 'Open multi-container projects, test YAML non-destructively with Git-style blob hashing, and manage services.'}

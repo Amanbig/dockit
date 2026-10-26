@@ -194,9 +194,9 @@ export default function Sidebar({
             </button>
 
             {/* Contextual Entity Header Card */}
-            <div className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800/90 space-y-1 shadow-xs">
+            <div className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800/90 space-y-1 shadow-xs overflow-hidden">
               <div className="flex items-center justify-between gap-1.5 min-w-0">
-                <span className="font-bold text-slate-100 truncate text-xs font-mono">
+                <span className="font-bold text-slate-100 truncate text-xs font-mono" title={contextualNav.title}>
                   {contextualNav.title}
                 </span>
                 {contextualNav.badge && (
@@ -206,7 +206,7 @@ export default function Sidebar({
                 )}
               </div>
               {contextualNav.subtitle && (
-                <div className="text-[10px] font-mono text-slate-400 truncate">
+                <div className="text-[10px] font-mono text-slate-400 truncate" title={contextualNav.subtitle}>
                   {contextualNav.subtitle}
                 </div>
               )}
