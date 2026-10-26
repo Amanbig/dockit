@@ -177,7 +177,7 @@ func (s *Service) ExecSession(ctx context.Context, id string, command string) Re
 	sess.mu.Unlock()
 
 	// Internal handling for 'cd' commands to maintain stateful directory navigation
-	if trimmed == "cd" {
+	if !strings.Contains(trimmed, "\n") && trimmed == "cd" {
 		sess.mu.Lock()
 		sess.cwd = homeDir
 		newCwd := sess.cwd
@@ -185,7 +185,7 @@ func (s *Service) ExecSession(ctx context.Context, id string, command string) Re
 		return Result{Cwd: newCwd}
 	}
 
-	if strings.HasPrefix(trimmed, "cd ") {
+	if !strings.Contains(trimmed, "\n") && strings.HasPrefix(trimmed, "cd ") {
 		target := strings.TrimSpace(strings.TrimPrefix(trimmed, "cd "))
 		target = strings.Trim(target, "\"'")
 		if target == "~" || strings.HasPrefix(target, "~/") {

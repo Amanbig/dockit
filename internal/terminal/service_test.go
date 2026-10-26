@@ -109,3 +109,18 @@ func TestService_MultiSession(t *testing.T) {
 	// Close tab 1
 	svc.CloseSession("tab-1")
 }
+
+func TestService_ExecMultiline(t *testing.T) {
+	svc := NewService()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	cmd := "echo 'line 1'\necho 'line 2'"
+	res := svc.Exec(ctx, cmd)
+	if res.Error != "" {
+		t.Fatalf("unexpected error executing multiline command: %s", res.Error)
+	}
+	if !strings.Contains(res.Output, "line 1") || !strings.Contains(res.Output, "line 2") {
+		t.Fatalf("expected multiline output with line 1 and line 2, got: %s", res.Output)
+	}
+}

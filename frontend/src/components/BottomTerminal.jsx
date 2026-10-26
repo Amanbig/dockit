@@ -266,6 +266,14 @@ export default function BottomTerminal({
     }
   }, [isOpen, activeTabId, activeTab.executing]);
 
+  // Auto-resize input textarea to match content height up to max-height
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto';
+      inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 160)}px`;
+    }
+  }, [activeTab.commandInput, activeTabId]);
+
   const shortenPath = useCallback((path) => {
     if (!path) return '~';
     let p = path;
@@ -526,6 +534,10 @@ export default function BottomTerminal({
 
     // Ctrl + C on input element
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
+      const selection = window.getSelection()?.toString();
+      if (selection && selection.length > 0) {
+        return;
+      }
       e.preventDefault();
       if (activeTab.executing) {
         handleCancelCommand(activeTab.id);
@@ -542,8 +554,34 @@ export default function BottomTerminal({
       return;
     }
 
-    // Arrow Up / Down command history
+    // Enter key: Execute command or insert newline (Shift+Enter or continuation backslash '\')
+    if (e.key === 'Enter') {
+      if (e.shiftKey) {
+        // Shift+Enter creates a new line in textarea naturally
+        return;
+      }
+
+      // Check if command ends with line continuation backslash '\'
+      const textBeforeCursor = activeTab.commandInput.slice(0, e.target.selectionStart || 0);
+      if (textBeforeCursor.trimEnd().endsWith('\\')) {
+        // Allow newline insertion for multi-line continuation
+        return;
+      }
+
+      // Normal Enter: execute the command
+      e.preventDefault();
+      handleRunCommand();
+      return;
+    }
+
+    // Arrow Up / Down command history navigation
     if (e.key === 'ArrowUp') {
+      // Only navigate history if cursor is on the first line
+      const textBeforeCursor = activeTab.commandInput.slice(0, e.target.selectionStart || 0);
+      if (textBeforeCursor.includes('\n')) {
+        return; // Allow moving cursor up within multi-line textarea
+      }
+
       e.preventDefault();
       if (activeTab.cmdHistory.length === 0) return;
       const nextIdx =
@@ -555,6 +593,12 @@ export default function BottomTerminal({
         commandInput: activeTab.cmdHistory[nextIdx] || ''
       });
     } else if (e.key === 'ArrowDown') {
+      // Only navigate history if cursor is on the last line
+      const textAfterCursor = activeTab.commandInput.slice(e.target.selectionEnd || 0);
+      if (textAfterCursor.includes('\n')) {
+        return; // Allow moving cursor down within multi-line textarea
+      }
+
       e.preventDefault();
       if (activeTab.historyIndex === -1) return;
       const nextIdx = activeTab.historyIndex + 1;
@@ -797,11 +841,11 @@ export default function BottomTerminal({
             {activeTab.history.map((item, idx) => (
               <div key={idx} className="whitespace-pre-wrap break-all">
                 {item.type === 'cmd' ? (
-                  <div className="flex items-center gap-2 text-slate-200 font-bold mt-1">
-                    <span className="text-emerald-400 font-bold text-xs">
+                  <div className="flex items-start gap-2 text-slate-200 font-bold mt-1">
+                    <span className="text-emerald-400 font-bold text-xs shrink-0 select-none pt-0.5">
                       host:{shortenPath(item.cwd || activeTab.cwd)}$
                     </span>
-                    <span>{item.text}</span>
+                    <span className="whitespace-pre-wrap break-all flex-1 font-mono leading-5">{item.text}</span>
                   </div>
                 ) : item.type === 'err' ? (
                   <div className="text-rose-400 pl-2 font-mono whitespace-pre-wrap leading-relaxed">{item.text}</div>
@@ -831,22 +875,22 @@ export default function BottomTerminal({
                 </button>
               </div>
             ) : (
-              <form onSubmit={handleRunCommand} className="flex items-center gap-2 pt-1">
-                <span className="text-emerald-400 font-bold text-xs shrink-0 select-none">
+              <div className="flex items-start gap-2 pt-1">
+                <span className="text-emerald-400 font-bold text-xs shrink-0 select-none pt-0.5">
                   host:{shortenPath(activeTab.cwd)}$
                 </span>
-                <input
+                <textarea
                   ref={inputRef}
-                  type="text"
+                  rows={1}
                   value={activeTab.commandInput}
                   onChange={(e) => updateTab(activeTab.id, { commandInput: e.target.value })}
                   onKeyDown={handleKeyDown}
-                  className="terminal-prompt-input flex-1 bg-transparent text-xs text-slate-100 font-mono border-none outline-none focus:ring-0 p-0 shadow-none ring-0 focus:outline-none"
-                  placeholder="type host command..."
+                  className="terminal-prompt-input flex-1 bg-transparent text-xs text-slate-100 font-mono border-none outline-none focus:ring-0 p-0 shadow-none ring-0 focus:outline-none resize-none leading-5 overflow-y-auto max-h-40"
+                  placeholder="type host command... (Shift+Enter for newline)"
                   spellCheck={false}
                   autoComplete="off"
                 />
-              </form>
+              </div>
             )}
           </div>
         </div>
