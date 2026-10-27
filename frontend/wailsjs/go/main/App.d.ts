@@ -113,6 +113,8 @@ export function GetRegistryMetadata(arg1:string,arg2:string):Promise<registry.Im
 
 export function GetRegistryTags(arg1:string,arg2:string):Promise<Array<registry.Tag>>;
 
+export function GetStartPlan(arg1:string):Promise<types.InstallPlan>;
+
 export function GetSystemInfo():Promise<runtime.SystemInfo>;
 
 export function GetSystemTheme():Promise<string>;
@@ -178,6 +180,8 @@ export function SetHostCwdSession(arg1:string,arg2:string):Promise<void>;
 export function SetTheme(arg1:string):Promise<void>;
 
 export function StartContainer(arg1:string):Promise<void>;
+
+export function StartRuntime(arg1:string):Promise<void>;
 
 export function StopContainer(arg1:string,arg2:any):Promise<void>;
 

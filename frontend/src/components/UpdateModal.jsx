@@ -330,6 +330,8 @@ export default function UpdateModal({
                       ? 'Target Package (.rpm detected):'
                       : updateInfo.installType === 'nsis'
                       ? 'Setup Wizard Installer (.exe):'
+                      : updateInfo.installType === 'snap'
+                      ? 'Managed by Snap Store:'
                       : 'Automatic Update Package:'}
                   </span>
                   <span className="font-mono text-cyan-300 font-medium truncate block mt-0.5">
@@ -375,13 +377,22 @@ export default function UpdateModal({
             </button>
 
             {hasUpdate && installState === 'idle' && (
-              <button
-                onClick={handleStartInAppUpdate}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 text-xs font-bold shadow-md shadow-cyan-500/20 hover:brightness-110 transition-all"
-              >
-                <Download className="w-4 h-4 stroke-[2.5]" />
-                <span>Update Now</span>
-              </button>
+              updateInfo?.installType === 'snap' ? (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-950/40 border border-cyan-800/60 text-xs text-cyan-300">
+                  <span>Managed by Snap Store &bull; run</span>
+                  <code className="font-mono font-semibold bg-slate-900 px-1 py-0.5 rounded border border-cyan-800/60 text-[11px] text-cyan-200">
+                    snap refresh dockit
+                  </code>
+                </div>
+              ) : (
+                <button
+                  onClick={handleStartInAppUpdate}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 text-xs font-bold shadow-md shadow-cyan-500/20 hover:brightness-110 transition-all cursor-pointer"
+                >
+                  <Download className="w-4 h-4 stroke-[2.5]" />
+                  <span>Update Now</span>
+                </button>
+              )
             )}
 
             {installState === 'ready' && (

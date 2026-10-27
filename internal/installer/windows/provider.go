@@ -143,6 +143,62 @@ func (p *Provider) Install(ctx context.Context, targetRuntime string, progressCb
 	return nil
 }
 
+// GetStartPlan constructs a service startup plan for Windows.
+func (p *Provider) GetStartPlan(targetRuntime string) (*types.InstallPlan, error) {
+	switch strings.ToLower(targetRuntime) {
+	case "docker":
+		return &types.InstallPlan{
+			Runtime:        "docker",
+			OS:             "windows",
+			PackageManager: "service",
+			IsStartOnly:    true,
+			Steps: []types.InstallStep{
+				{
+					ID:          "launch_docker_desktop",
+					Title:       "Launch Docker Desktop Executable",
+					Description: "Starts Docker Desktop background service and WSL2 subsystem.",
+					Command:     `powershell -Command "Start-Process 'C:\Program Files\Docker\Docker\Docker Desktop.exe'"`,
+					Privileged:  false,
+				},
+			},
+		}, nil
+
+	case "podman":
+		return &types.InstallPlan{
+			Runtime:        "podman",
+			OS:             "windows",
+			PackageManager: "wsl2",
+			IsStartOnly:    true,
+			Steps: []types.InstallStep{
+				{
+					ID:          "start_podman_machine",
+					Title:       "Start Podman Machine WSL2",
+					Description: "Launches the Podman WSL2 machine backend.",
+					Command:     "podman machine start",
+					Privileged:  false,
+				},
+			},
+		}, nil
+
+	default:
+		return nil, fmt.Errorf("unsupported runtime %q for Windows", targetRuntime)
+	}
+}
+
+// StartEngine launches Docker Desktop or starts Podman machine on Windows.
+func (p *Provider) StartEngine(ctx context.Context, targetRuntime string) error {
+	switch strings.ToLower(targetRuntime) {
+	case "docker":
+		cmd := exec.CommandContext(ctx, "powershell", "-Command", "Start-Process 'C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe'")
+		return cmd.Run()
+	case "podman":
+		cmd := exec.CommandContext(ctx, "podman", "machine", "start")
+		return cmd.Run()
+	default:
+		return fmt.Errorf("unsupported runtime %q for Windows", targetRuntime)
+	}
+}
+
 func detectDocker(ctx context.Context) types.RuntimeStatus {
 	status := types.RuntimeStatus{Name: "docker"}
 

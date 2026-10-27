@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import ContainersView from './components/ContainersView';
@@ -18,7 +18,27 @@ import CommandPalette from './components/CommandPalette';
 import ConfirmModal from './components/ConfirmModal';
 import ErrorBoundary from './components/ErrorBoundary';
 import { ToastContainer, formatEngineError } from './components/Toast';
-import { Sparkles, ArrowRight, X, AlertCircle } from 'lucide-react';
+import { 
+  Sparkles, 
+  ArrowRight, 
+  X, 
+  AlertCircle,
+  Sliders,
+  Terminal,
+  Clock,
+  FileText,
+  HardDrive,
+  Code,
+  Layers,
+  GitCommit,
+  Tag,
+  Play,
+  Square,
+  RotateCw,
+  Pause,
+  Trash2,
+  DownloadCloud
+} from 'lucide-react';
 import packageJson from '../package.json';
 
 // Wails Go Bridge API bindings
@@ -81,6 +101,8 @@ import {
   GetSystemTheme,
   DetectRuntimes,
   GetInstallPlan,
+  GetStartPlan,
+  StartRuntime,
   InstallRuntime,
   SelectDirectoryDialog,
   ExecHostCommand,
@@ -123,8 +145,31 @@ export default function App() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [appConfig, setAppConfig] = useState(null);
   const [theme, setTheme] = useState('dark');
-  const [appVersion, setAppVersion] = useState(packageJson?.version || '0.8.1');
+  const [appVersion, setAppVersion] = useState(packageJson?.version || '0.9.0');
   const [activeComposeDir, setActiveComposeDir] = useState(null);
+
+  // Navigation layout style: 'sidebar' (contextual drilldown) vs 'tabs' (horizontal subtabs)
+  const [navigationStyle, setNavigationStyle] = useState(() => {
+    try {
+      const saved = localStorage.getItem('dockit:nav_style');
+      if (saved === 'tabs' || saved === 'sidebar') return saved;
+    } catch (_) {}
+    return 'sidebar';
+  });
+
+  const handleSetNavigationStyle = useCallback((style) => {
+    setNavigationStyle(style);
+    try {
+      localStorage.setItem('dockit:nav_style', style);
+    } catch (_) {}
+  }, []);
+
+  // Contextual subtab states for drill-down views
+  const [containerSubTab, setContainerSubTab] = useState('overview');
+  const [composeSubTab, setComposeSubTab] = useState('services');
+  const [composeProjectInfo, setComposeProjectInfo] = useState(null);
+  const [registryDetailTab, setRegistryDetailTab] = useState('overview');
+  const [registryImageInfo, setRegistryImageInfo] = useState(null);
 
   // Track whether the frameless window is currently maximized
   const [isMaximised, setIsMaximised] = useState(false);
@@ -148,9 +193,26 @@ export default function App() {
 
   useEffect(() => {
     const handleGlobalKeyDown = (e) => {
+      // Toggle bottom host terminal drawer
       if ((e.ctrlKey || e.metaKey) && (e.key === '`' || e.code === 'Backquote')) {
         e.preventDefault();
         setTerminalDrawerOpen((prev) => !prev);
+        return;
+      }
+
+      // Quick filter focus with '/' key when not already inside an input/textarea
+      if (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const activeTag = document.activeElement?.tagName?.toLowerCase();
+        if (activeTag === 'input' || activeTag === 'textarea' || document.activeElement?.isContentEditable) return;
+        
+        const searchInput = document.querySelector(
+          'main input[type="text"]:not([disabled]), main input[type="search"]:not([disabled])'
+        );
+        if (searchInput) {
+          e.preventDefault();
+          searchInput.focus();
+          searchInput.select?.();
+        }
       }
     };
     window.addEventListener('keydown', handleGlobalKeyDown);
@@ -184,6 +246,7 @@ export default function App() {
   const [logsModal, setLogsModal] = useState({ open: false, id: '', name: '' });
   const [inspectModal, setInspectModal] = useState({ open: false, title: '', data: null });
   const [showInstaller, setShowInstaller] = useState(false);
+  const [isStartingEngine, setIsStartingEngine] = useState(false);
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
   const [showUpdateToast, setShowUpdateToast] = useState(false);
   const [updateInfo, setUpdateInfo] = useState(null);
@@ -486,6 +549,20 @@ export default function App() {
       setActiveRuntime(target);
       addToast(formatEngineError(err), 'error', `Failed to Switch to ${target}`);
       await refreshAll();
+    }
+  };
+
+  const handleStartActiveEngine = async () => {
+    setIsStartingEngine(true);
+    try {
+      await StartRuntime(activeRuntime);
+      addToast(`${activeRuntime === 'podman' ? 'Podman' : 'Docker'} engine started successfully!`, 'success');
+      await refreshAll();
+    } catch (err) {
+      addToast(`Failed to start engine: ${err?.message || err}`, 'error');
+      setShowInstaller(true);
+    } finally {
+      setIsStartingEngine(false);
     }
   };
 
@@ -865,6 +942,201 @@ export default function App() {
     setFavorites(f || []);
   };
 
+  // Compute active contextual drill-down navigation for the sidebar
+  const contextualNav = useMemo(() => {
+    if (navigationStyle !== 'sidebar') return null;
+
+    // 1. Container Details Sub-Navigation
+    if (activeTab === 'containers' && selectedContainerId) {
+      const c = containers.find((item) => item.id === selectedContainerId);
+      const name = c?.name?.replace(/^\//, '') || selectedContainerId.slice(0, 12);
+      const isRunning = c?.state === 'running';
+      const isPaused = c?.state === 'paused';
+      const statusText = isRunning ? 'Running' : isPaused ? 'Paused' : 'Stopped';
+      const badgeColor = isRunning
+        ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+        : isPaused
+        ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+        : 'bg-slate-800 text-slate-400 border-slate-700';
+
+      const containerActions = [];
+      if (isRunning) {
+        containerActions.push({
+          label: 'Stop',
+          icon: Square,
+          variant: 'warning',
+          onClick: () => handleStopContainer(selectedContainerId)
+        });
+        containerActions.push({
+          label: 'Pause',
+          icon: Pause,
+          variant: 'default',
+          onClick: () => handlePauseContainer(selectedContainerId)
+        });
+      } else if (isPaused) {
+        containerActions.push({
+          label: 'Unpause',
+          icon: Play,
+          variant: 'success',
+          onClick: () => handleUnpauseContainer(selectedContainerId)
+        });
+      } else {
+        containerActions.push({
+          label: 'Start',
+          icon: Play,
+          variant: 'success',
+          onClick: () => handleStartContainer(selectedContainerId)
+        });
+      }
+
+      containerActions.push({
+        label: 'Restart',
+        icon: RotateCw,
+        variant: 'default',
+        onClick: () => handleRestartContainer(selectedContainerId)
+      });
+
+      containerActions.push({
+        icon: Trash2,
+        variant: 'danger',
+        title: 'Delete Container',
+        onClick: async () => {
+          await handleRemoveContainer(selectedContainerId, true);
+          setSelectedContainerId(null);
+        }
+      });
+
+      return {
+        type: 'container',
+        backLabel: 'Containers',
+        title: name,
+        subtitle: `ID: ${selectedContainerId.slice(0, 12)} • ${c?.image || 'Container'}`,
+        copyText: selectedContainerId,
+        badge: { text: statusText, color: badgeColor },
+        onBack: () => setSelectedContainerId(null),
+        activeSubTab: containerSubTab,
+        onSelectSubTab: setContainerSubTab,
+        actions: containerActions,
+        subTabs: [
+          { id: 'overview', label: 'Overview & Health', icon: Sliders },
+          { id: 'terminal', label: 'Terminal Exec', icon: Terminal },
+          { id: 'logs', label: 'Live Logs', icon: Clock },
+          { id: 'env', label: 'Environment', icon: FileText },
+          { id: 'mounts', label: 'Volumes & Mounts', icon: HardDrive },
+          { id: 'raw', label: 'Inspect JSON', icon: Code }
+        ]
+      };
+    }
+
+    // 2. Compose Studio Project Sub-Navigation
+    if (activeTab === 'compose' && composeProjectInfo) {
+      const subTabs = [
+        { id: 'services', label: `Services (${composeProjectInfo.serviceCount ?? 0})`, icon: Layers },
+        { id: 'editor', label: 'YAML Testing Studio', icon: Code }
+      ];
+      if (composeProjectInfo.hasEnv) {
+        subTabs.push({ id: 'env', label: 'Environment (.env)', icon: FileText });
+      }
+      subTabs.push({ id: 'snapshots', label: `Git Snapshots (${composeProjectInfo.snapshotCount ?? 0})`, icon: GitCommit });
+      subTabs.push({ id: 'output', label: 'Terminal Output', icon: Terminal });
+
+      const composeActions = [];
+      const isStackActive = composeProjectInfo.status === 'running' || composeProjectInfo.status === 'partial';
+      if (isStackActive) {
+        if (composeProjectInfo.onDown) {
+          composeActions.push({
+            label: 'Down',
+            icon: Square,
+            variant: 'danger',
+            onClick: composeProjectInfo.onDown
+          });
+        }
+      } else {
+        if (composeProjectInfo.onUp) {
+          composeActions.push({
+            label: 'Up',
+            icon: Play,
+            variant: 'success',
+            onClick: composeProjectInfo.onUp
+          });
+        }
+      }
+      if (composeProjectInfo.onRestart) {
+        composeActions.push({
+          label: 'Restart',
+          icon: RotateCw,
+          variant: 'default',
+          onClick: composeProjectInfo.onRestart
+        });
+      }
+
+      return {
+        type: 'compose',
+        backLabel: 'Projects',
+        title: composeProjectInfo.name || 'Compose Project',
+        subtitle: composeProjectInfo.dir,
+        copyText: composeProjectInfo.dir,
+        badge: {
+          text: composeProjectInfo.status || 'Active',
+          color: composeProjectInfo.status === 'running'
+            ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+            : 'bg-slate-800 text-slate-400 border-slate-700'
+        },
+        onBack: () => {
+          if (composeProjectInfo.onClose) composeProjectInfo.onClose();
+        },
+        activeSubTab: composeSubTab,
+        onSelectSubTab: setComposeSubTab,
+        actions: composeActions,
+        subTabs
+      };
+    }
+
+    // 3. Registry Image Details Sub-Navigation
+    if (activeTab === 'registry' && registryImageInfo) {
+      const registryActions = [];
+      if (registryImageInfo.onPull) {
+        registryActions.push({
+          label: 'Pull :latest',
+          icon: DownloadCloud,
+          variant: 'success',
+          onClick: registryImageInfo.onPull
+        });
+      }
+
+      return {
+        type: 'registry',
+        backLabel: 'Search Results',
+        title: registryImageInfo.name,
+        subtitle: registryImageInfo.registry?.toUpperCase(),
+        copyText: registryImageInfo.name,
+        badge: registryImageInfo.isOfficial ? { text: 'Official', color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' } : null,
+        onBack: () => {
+          if (registryImageInfo.onClose) registryImageInfo.onClose();
+        },
+        activeSubTab: registryDetailTab,
+        onSelectSubTab: setRegistryDetailTab,
+        actions: registryActions,
+        subTabs: [
+          { id: 'overview', label: 'Overview & Docs', icon: FileText },
+          { id: 'tags', label: `Tags (${registryImageInfo.tagCount ?? 0})`, icon: Tag }
+        ]
+      };
+    }
+
+    return null;
+  }, [
+    navigationStyle,
+    activeTab,
+    selectedContainerId,
+    containers,
+    containerSubTab,
+    composeProjectInfo,
+    composeSubTab,
+    registryImageInfo,
+    registryDetailTab
+  ]);
+
   // Calculate container stats
   const runningContainers = containers.filter(c => c.status === 'running').length;
 
@@ -900,6 +1172,8 @@ export default function App() {
           appVersion={appVersion}
           updateAvailable={Boolean(updateInfo?.available)}
           onOpenUpdateModal={() => setUpdateModalOpen(true)}
+          navigationStyle={navigationStyle}
+          contextualNav={contextualNav}
         />
 
         {/* Main Content Area */}
@@ -936,16 +1210,28 @@ export default function App() {
                   }
                 </span>
               </div>
-              <button
-                onClick={() => setShowInstaller(true)}
-                className={`px-3 py-1 rounded-md text-xs font-semibold border transition-all cursor-pointer shadow-xs ${
-                  !runtimesStatus[activeRuntime].installed
-                    ? 'bg-rose-600 hover:bg-rose-700 text-white border-rose-700 dark:bg-rose-900/70 dark:hover:bg-rose-800 dark:border-rose-700 dark:text-rose-100'
-                    : 'bg-amber-500 hover:bg-amber-600 text-slate-950 border-amber-600 dark:bg-amber-900/70 dark:hover:bg-amber-800 dark:border-amber-700 dark:text-amber-100'
-                }`}
-              >
-                {!runtimesStatus[activeRuntime].installed ? 'Install Engine' : 'Setup & Start Daemon'}
-              </button>
+              <div className="flex items-center gap-2">
+                {runtimesStatus[activeRuntime].installed && (
+                  <button
+                    onClick={handleStartActiveEngine}
+                    disabled={isStartingEngine}
+                    className="flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white dark:bg-emerald-600 dark:hover:bg-emerald-500 shadow-xs transition cursor-pointer disabled:opacity-50"
+                  >
+                    <Play className={`w-3.5 h-3.5 fill-current ${isStartingEngine ? 'animate-pulse' : ''}`} />
+                    {isStartingEngine ? 'Starting...' : `Start ${activeRuntime === 'podman' ? 'Podman' : 'Docker'}`}
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowInstaller(true)}
+                  className={`px-3 py-1 rounded-md text-xs font-semibold border transition-all cursor-pointer shadow-xs ${
+                    !runtimesStatus[activeRuntime].installed
+                      ? 'bg-rose-600 hover:bg-rose-700 text-white border-rose-700 dark:bg-rose-900/70 dark:hover:bg-rose-800 dark:border-rose-700 dark:text-rose-100'
+                      : 'bg-amber-500 hover:bg-amber-600 text-slate-950 border-amber-600 dark:bg-amber-900/70 dark:hover:bg-amber-800 dark:border-amber-700 dark:text-amber-100'
+                  }`}
+                >
+                  {!runtimesStatus[activeRuntime].installed ? 'Install Engine' : 'Setup & Diagnostics'}
+                </button>
+              </div>
             </div>
           )}
 
@@ -966,6 +1252,9 @@ export default function App() {
                     onToast={addToast}
                     onConfirm={requestConfirmation}
                     onOpenLogs={(id, name) => setLogsModal({ open: true, id, name })}
+                    navigationStyle={navigationStyle}
+                    activeSubTab={containerSubTab}
+                    onSubTabChange={setContainerSubTab}
                   />
                 ) : (
                   <ContainersView
@@ -983,7 +1272,10 @@ export default function App() {
                     onCreate={handleCreateContainer}
                     onOpenLogs={(id, name) => setLogsModal({ open: true, id, name })}
                     onInspect={handleInspectContainer}
-                    onSelectContainer={(id) => setSelectedContainerId(id)}
+                    onSelectContainer={(id) => {
+                      setContainerSubTab('overview');
+                      setSelectedContainerId(id);
+                    }}
                     onBatchStart={handleBatchStartContainers}
                     onBatchStop={handleBatchStopContainers}
                     onBatchRestart={handleBatchRestartContainers}
@@ -1083,6 +1375,10 @@ export default function App() {
                   onToast={addToast}
                   onConfirm={requestConfirmation}
                   onActiveProjectChange={setActiveComposeDir}
+                  navigationStyle={navigationStyle}
+                  activeSubTab={composeSubTab}
+                  onSubTabChange={setComposeSubTab}
+                  onProjectChange={setComposeProjectInfo}
                 />
               </div>
             )}
@@ -1102,6 +1398,10 @@ export default function App() {
                   onRemoveFavorite={handleRemoveFavorite}
                   favorites={favorites}
                   onToast={addToast}
+                  navigationStyle={navigationStyle}
+                  activeSubTab={registryDetailTab}
+                  onSubTabChange={setRegistryDetailTab}
+                  onSelectedImageChange={setRegistryImageInfo}
                 />
               </div>
             )}
@@ -1118,6 +1418,8 @@ export default function App() {
                   onOpenInstaller={() => setShowInstaller(true)}
                   theme={theme}
                   onSetTheme={handleSetTheme}
+                  navigationStyle={navigationStyle}
+                  onSetNavigationStyle={handleSetNavigationStyle}
                   appVersion={appVersion}
                   onCheckForUpdates={() => handleCheckForUpdates(true)}
                   isCheckingUpdates={isCheckingUpdate}
@@ -1144,6 +1446,9 @@ export default function App() {
           onCloseHostTerminalSession={CloseHostTerminalSession}
           onGetHostHomeDir={GetHostHomeDir}
           activeComposeDir={activeComposeDir}
+          hostMetrics={hostMetrics}
+          systemInfo={systemInfo}
+          runningContainersCount={runningContainers}
         />
       </div>
 
@@ -1168,7 +1473,12 @@ export default function App() {
         onClose={() => setShowInstaller(false)}
         onDetect={DetectRuntimes}
         onGetPlan={GetInstallPlan}
+        onGetStartPlan={GetStartPlan}
+        onStartEngine={StartRuntime}
         onInstall={InstallRuntime}
+        onInstalled={async () => {
+          await refreshAll();
+        }}
       />
 
       <UpdateModal

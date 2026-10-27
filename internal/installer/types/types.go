@@ -37,6 +37,7 @@ type InstallPlan struct {
 	Runtime        string        `json:"runtime"`        // "docker" or "podman"
 	OS             string        `json:"os"`             // "linux", "darwin", "windows"
 	PackageManager string        `json:"packageManager"` // e.g. "apt", "dnf", "pacman", "brew", "winget"
+	IsStartOnly    bool          `json:"isStartOnly"`    // true if engine is already installed and plan only starts the service
 	Steps          []InstallStep `json:"steps"`
 	Warning        string        `json:"warning,omitempty"`
 }
@@ -46,5 +47,7 @@ type Provider interface {
 	OS() string
 	Detect(ctx context.Context) (*DetectionResult, error)
 	GetInstallPlan(targetRuntime string) (*InstallPlan, error)
+	GetStartPlan(targetRuntime string) (*InstallPlan, error)
 	Install(ctx context.Context, targetRuntime string, progressCb func(step int, total int, message string)) error
+	StartEngine(ctx context.Context, targetRuntime string) error
 }

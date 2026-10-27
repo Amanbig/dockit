@@ -118,11 +118,17 @@ func formatSummary(c runtime.ContainerSummary) Container {
 	}
 
 	ports := make([]string, 0, len(c.Ports))
+	seenPorts := make(map[string]bool)
 	for _, p := range c.Ports {
+		var portStr string
 		if p.PublicPort > 0 {
-			ports = append(ports, fmt.Sprintf("%d:%d/%s", p.PublicPort, p.PrivatePort, p.Type))
+			portStr = fmt.Sprintf("%d:%d/%s", p.PublicPort, p.PrivatePort, p.Type)
 		} else {
-			ports = append(ports, fmt.Sprintf("%d/%s", p.PrivatePort, p.Type))
+			portStr = fmt.Sprintf("%d/%s", p.PrivatePort, p.Type)
+		}
+		if !seenPorts[portStr] {
+			seenPorts[portStr] = true
+			ports = append(ports, portStr)
 		}
 	}
 

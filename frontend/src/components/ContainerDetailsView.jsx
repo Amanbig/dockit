@@ -30,8 +30,12 @@ import {
   ChevronDown,
   Filter,
   Maximize2,
-  ClipboardPaste
+  ClipboardPaste,
+  ExternalLink,
+  Download,
+  WrapText
 } from 'lucide-react';
+import { BrowserOpenURL } from '../../wailsjs/runtime/runtime';
 
 const getClipboardText = async () => {
   try {
@@ -83,14 +87,30 @@ export function formatDateTime(dateStr) {
   }
 }
 
-export default function ContainerDetailsView({ containerId, isTabActive = true, onBack, onRefreshList, onToast, onConfirm, onOpenLogs }) {
+export default function ContainerDetailsView({ 
+  containerId, 
+  isTabActive = true, 
+  onBack, 
+  onRefreshList, 
+  onToast, 
+  onConfirm, 
+  onOpenLogs,
+  navigationStyle = 'sidebar',
+  activeSubTab: controlledSubTab,
+  onSubTabChange
+}) {
   const [details, setDetails] = useState(null);
   const [logs, setLogs] = useState('');
   const [localLogsModalOpen, setLocalLogsModalOpen] = useState(false);
   const [showExecutionModal, setShowExecutionModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [logsLoading, setLogsLoading] = useState(false);
-  const [activeSubTab, setActiveSubTab] = useState('overview'); // 'overview' | 'terminal' | 'logs' | 'env' | 'mounts' | 'raw'
+  const [internalSubTab, setInternalSubTab] = useState('overview');
+  const activeSubTab = controlledSubTab !== undefined ? controlledSubTab : internalSubTab;
+  const setActiveSubTab = (tab) => {
+    if (onSubTabChange) onSubTabChange(tab);
+    setInternalSubTab(tab);
+  };
   const [copiedKey, setCopiedKey] = useState(null);
   const [actionInProgress, setActionInProgress] = useState(false);
   const [resourceStats, setResourceStats] = useState(null);
@@ -266,7 +286,21 @@ export default function ContainerDetailsView({ containerId, isTabActive = true, 
   const [activeLogMatchIndex, setActiveLogMatchIndex] = useState(0);
   const [logFilterMode, setLogFilterMode] = useState(false); // false = highlight & navigate all lines; true = filter lines
   const [autoTail, setAutoTail] = useState(true);
+  const [wrapLogLines, setWrapLogLines] = useState(false);
   const logsScrollRef = React.useRef(null);
+
+  const handleDownloadLogs = () => {
+    if (!logs) return;
+    const blob = new Blob([logs], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${containerName || containerId.slice(0, 12)}-logs.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   const scrollToLogsBottom = (smooth = false) => {
     const scroll = () => {
@@ -514,136 +548,140 @@ export default function ContainerDetailsView({ containerId, isTabActive = true, 
 
   return (
     <div className="flex-1 flex flex-col h-full bg-slate-900/60 overflow-hidden">
-      {/* Top Navigation & Action Header */}
-      <div className="p-4 md:p-6 border-b border-slate-800 flex flex-wrap items-center justify-between gap-4 bg-slate-950/40 shrink-0">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={onBack}
-            className="p-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition"
-            title="Back to Containers List"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </button>
-          <div>
-            <div className="flex items-center gap-2.5">
-              <h1 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-                <span>{containerName}</span>
-              </h1>
-              <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                isRunning 
-                  ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
-                  : isPaused
-                    ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
-                    : 'bg-slate-800 text-slate-400 border border-slate-700'
-              }`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${isRunning ? 'bg-emerald-400 animate-pulse' : isPaused ? 'bg-amber-400' : 'bg-slate-500'}`}></span>
-                <span className="capitalize">{stateStatus}</span>
-              </span>
-            </div>
-            <div className="flex items-center gap-2 text-xs text-slate-500 font-mono mt-0.5">
-              <span>ID: {containerId.slice(0, 12)}</span>
-              <button 
-                onClick={() => copyText(containerId, 'id')}
-                className="hover:text-slate-300"
-                title="Copy full ID"
-              >
-                {copiedKey === 'id' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-              </button>
-              <span>•</span>
-              <span className="text-slate-400">{details?.image}</span>
+      {/* Top Navigation & Action Header (only shown when horizontal tabs layout is active) */}
+      {navigationStyle === 'tabs' && (
+        <div className="p-4 md:p-6 border-b border-slate-800 flex flex-wrap items-center justify-between gap-4 bg-slate-950/40 shrink-0 min-w-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <button
+              onClick={onBack}
+              className="p-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition cursor-pointer shrink-0"
+              title="Back to Containers List"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </button>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <h1 className="text-lg font-bold text-slate-100 flex items-center gap-2 truncate" title={containerName}>
+                  <span className="truncate">{containerName}</span>
+                </h1>
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold shrink-0 ${
+                  isRunning 
+                    ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                    : isPaused
+                      ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                      : 'bg-slate-800 text-slate-400 border border-slate-700'
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${isRunning ? 'bg-emerald-400 animate-pulse' : isPaused ? 'bg-amber-400' : 'bg-slate-500'}`}></span>
+                  <span className="capitalize">{stateStatus}</span>
+                </span>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-slate-500 font-mono mt-0.5 min-w-0">
+                <span className="shrink-0">ID: {containerId.slice(0, 12)}</span>
+                <button 
+                  onClick={() => copyText(containerId, 'id')}
+                  className="hover:text-slate-300 shrink-0"
+                  title="Copy full ID"
+                >
+                  {copiedKey === 'id' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                </button>
+                <span className="shrink-0">•</span>
+                <span className="text-slate-400 truncate max-w-xs md:max-w-md" title={details?.image}>{details?.image}</span>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Action Controls */}
-        <div className="flex items-center gap-2">
-          {isRunning ? (
-            <>
+          {/* Action Controls */}
+          <div className="flex items-center gap-2">
+            {isRunning ? (
+              <>
+                <button
+                  onClick={handleStop}
+                  disabled={actionInProgress}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border border-amber-500/30 text-xs font-semibold transition disabled:opacity-50"
+                >
+                  <Square className="w-3.5 h-3.5" />
+                  <span>Stop</span>
+                </button>
+                <button
+                  onClick={handlePause}
+                  disabled={actionInProgress}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-300 border border-slate-700 text-xs font-semibold transition disabled:opacity-50"
+                >
+                  <Pause className="w-3.5 h-3.5" />
+                  <span>Pause</span>
+                </button>
+              </>
+            ) : isPaused ? (
               <button
-                onClick={handleStop}
+                onClick={handleUnpause}
                 disabled={actionInProgress}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border border-amber-500/30 text-xs font-semibold transition disabled:opacity-50"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 text-xs font-semibold transition disabled:opacity-50"
               >
-                <Square className="w-3.5 h-3.5" />
-                <span>Stop</span>
+                <Play className="w-3.5 h-3.5" />
+                <span>Unpause</span>
               </button>
+            ) : (
               <button
-                onClick={handlePause}
+                onClick={handleStart}
                 disabled={actionInProgress}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-300 border border-slate-700 text-xs font-semibold transition disabled:opacity-50"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 text-xs font-semibold transition disabled:opacity-50"
               >
-                <Pause className="w-3.5 h-3.5" />
-                <span>Pause</span>
+                <Play className="w-3.5 h-3.5" />
+                <span>Start</span>
               </button>
-            </>
-          ) : isPaused ? (
-            <button
-              onClick={handleUnpause}
-              disabled={actionInProgress}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 text-xs font-semibold transition disabled:opacity-50"
-            >
-              <Play className="w-3.5 h-3.5" />
-              <span>Unpause</span>
-            </button>
-          ) : (
-            <button
-              onClick={handleStart}
-              disabled={actionInProgress}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 text-xs font-semibold transition disabled:opacity-50"
-            >
-              <Play className="w-3.5 h-3.5" />
-              <span>Start</span>
-            </button>
-          )}
+            )}
 
-          <button
-            onClick={handleRestart}
-            disabled={actionInProgress}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-300 border border-slate-700 text-xs font-semibold transition disabled:opacity-50"
-          >
-            <RotateCw className="w-3.5 h-3.5" />
-            <span>Restart</span>
-          </button>
+            <button
+              onClick={handleRestart}
+              disabled={actionInProgress}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-300 border border-slate-700 text-xs font-semibold transition disabled:opacity-50"
+            >
+              <RotateCw className="w-3.5 h-3.5" />
+              <span>Restart</span>
+            </button>
 
-          <button
-            onClick={handleRemove}
-            disabled={actionInProgress}
-            className="p-1.5 text-rose-400 hover:bg-rose-400/10 rounded-lg border border-slate-800 transition"
-            title="Delete Container"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
+            <button
+              onClick={handleRemove}
+              disabled={actionInProgress}
+              className="p-1.5 text-rose-400 hover:bg-rose-400/10 rounded-lg border border-slate-800 transition"
+              title="Delete Container"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Sub Tabs Bar */}
-      <div className="px-6 py-2.5 border-b border-slate-800 bg-slate-950/20 flex items-center gap-1 overflow-x-auto select-none shrink-0">
-        {[
-          { id: 'overview', label: 'Overview & Health', icon: Sliders },
-          { id: 'terminal', label: 'Terminal Exec', icon: Terminal },
-          { id: 'logs', label: 'Live Logs', icon: Clock },
-          { id: 'env', label: 'Environment Variables', icon: Sliders },
-          { id: 'mounts', label: 'Volumes & Mounts', icon: HardDrive },
-          { id: 'raw', label: 'Raw JSON Inspect', icon: Code },
-        ].map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeSubTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveSubTab(tab.id)}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition whitespace-nowrap ${
-                isActive
-                  ? 'bg-slate-800 text-cyan-400 font-semibold shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
-              }`}
-            >
-              <Icon className="w-3.5 h-3.5" />
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
-      </div>
+      {/* Sub Tabs Bar (only shown when horizontal tabs layout is selected) */}
+      {navigationStyle === 'tabs' && (
+        <div className="px-6 py-2.5 border-b border-slate-800 bg-slate-950/20 flex items-center gap-1 overflow-x-auto select-none shrink-0">
+          {[
+            { id: 'overview', label: 'Overview & Health', icon: Sliders },
+            { id: 'terminal', label: 'Terminal Exec', icon: Terminal },
+            { id: 'logs', label: 'Live Logs', icon: Clock },
+            { id: 'env', label: 'Environment Variables', icon: Sliders },
+            { id: 'mounts', label: 'Volumes & Mounts', icon: HardDrive },
+            { id: 'raw', label: 'Raw JSON Inspect', icon: Code },
+          ].map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeSubTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveSubTab(tab.id)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition whitespace-nowrap ${
+                  isActive
+                    ? 'bg-slate-800 text-cyan-400 font-semibold shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Main Tab View Content */}
       <div className={`flex-1 min-h-0 p-4 md:p-6 ${
@@ -840,11 +878,45 @@ export default function ContainerDetailsView({ containerId, isTabActive = true, 
                   <span className="text-slate-500 block mb-1.5 font-medium">Exposed Ports:</span>
                   {details?.ports && details.ports.length > 0 ? (
                     <div className="flex flex-wrap gap-1">
-                      {details.ports.map((p, idx) => (
-                        <span key={idx} className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 font-mono text-[11px] text-cyan-300">
-                          {p.publicPort ? `${p.publicPort}:` : ''}{p.privatePort}/{p.type}
-                        </span>
-                      ))}
+                      {(() => {
+                        const seen = new Set();
+                        const uniquePorts = [];
+                        for (const p of details.ports) {
+                          const key = `${p.publicPort || 0}:${p.privatePort}/${p.type}`;
+                          if (!seen.has(key)) {
+                            seen.add(key);
+                            uniquePorts.push(p);
+                          }
+                        }
+                        return uniquePorts.map((p, idx) => {
+                          const pubPort = p.publicPort ? Number(p.publicPort) : null;
+                          const label = `${p.publicPort ? `${p.publicPort}:` : ''}${p.privatePort}/${p.type}`;
+                          if (pubPort && isRunning) {
+                            return (
+                              <button
+                                key={idx}
+                                type="button"
+                                onClick={() => {
+                                  const url = `http://localhost:${pubPort}`;
+                                  if (typeof BrowserOpenURL === 'function') BrowserOpenURL(url);
+                                  else if (window.runtime?.BrowserOpenURL) window.runtime.BrowserOpenURL(url);
+                                  else window.open(url, '_blank');
+                                }}
+                                className="flex items-center gap-1 px-2 py-0.5 rounded bg-cyan-950/70 hover:bg-cyan-900/80 border border-cyan-800/60 hover:border-cyan-600/80 font-mono text-[11px] text-cyan-300 hover:text-cyan-200 transition cursor-pointer group/detailport"
+                                title={`Open http://localhost:${pubPort} in browser`}
+                              >
+                                <span>{label}</span>
+                                <ExternalLink className="w-2.5 h-2.5 opacity-60 group-hover/detailport:opacity-100 transition shrink-0" />
+                              </button>
+                            );
+                          }
+                          return (
+                            <span key={idx} className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 font-mono text-[11px] text-cyan-300">
+                              {label}
+                            </span>
+                          );
+                        });
+                      })()}
                     </div>
                   ) : (
                     <span className="text-slate-600 font-mono">No ports exposed</span>
@@ -1166,11 +1238,29 @@ export default function ContainerDetailsView({ containerId, isTabActive = true, 
                   </button>
 
                   <button
+                    onClick={() => setWrapLogLines(!wrapLogLines)}
+                    className={`p-1.5 rounded transition cursor-pointer ${
+                      wrapLogLines
+                        ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 shadow-xs'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                    title={wrapLogLines ? 'Word Wrap: ON (Click to disable wrap)' : 'Word Wrap: OFF (Click to wrap long lines)'}
+                  >
+                    <WrapText className="w-3.5 h-3.5" />
+                  </button>
+                  <button
                     onClick={() => copyText(logs, 'logs')}
                     className="p-1.5 text-slate-400 hover:text-slate-200 transition cursor-pointer"
                     title="Copy logs"
                   >
                     {copiedKey === 'logs' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  </button>
+                  <button
+                    onClick={handleDownloadLogs}
+                    className="p-1.5 text-slate-400 hover:text-cyan-400 hover:bg-slate-800 rounded transition cursor-pointer"
+                    title="Export / Download Logs (.txt)"
+                  >
+                    <Download className="w-3.5 h-3.5" />
                   </button>
                   <button
                     onClick={fetchLogs}
@@ -1192,7 +1282,7 @@ export default function ContainerDetailsView({ containerId, isTabActive = true, 
 
               <div 
                 ref={logsScrollRef}
-                className="flex-1 p-4 overflow-y-auto font-mono text-xs space-y-0.5 select-text leading-relaxed"
+                className={`flex-1 p-4 overflow-y-auto ${wrapLogLines ? '' : 'overflow-x-auto'} font-mono text-xs space-y-0.5 select-text leading-relaxed`}
               >
                 {logsLoading && !logs ? (
                   <div className="flex items-center justify-center py-16 text-slate-500 gap-2">
@@ -1220,7 +1310,7 @@ export default function ContainerDetailsView({ containerId, isTabActive = true, 
                     return (
                       <div 
                         key={idx} 
-                        className={`whitespace-pre-wrap break-all px-1 py-0.5 rounded hover:bg-slate-900/60 transition-colors ${
+                        className={`${wrapLogLines ? 'whitespace-pre-wrap break-all' : 'whitespace-pre'} px-1 py-0.5 rounded hover:bg-slate-900/60 transition-colors ${
                           isErr 
                             ? 'text-rose-400 bg-rose-500/5' 
                             : isWarn 

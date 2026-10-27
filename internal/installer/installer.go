@@ -50,6 +50,24 @@ func GetInstallPlan(targetRuntime string) (*InstallPlan, error) {
 	return provider.GetInstallPlan(targetRuntime)
 }
 
+// GetStartPlan returns a safe startup plan to start an already-installed runtime engine.
+func GetStartPlan(targetRuntime string) (*InstallPlan, error) {
+	provider := CurrentProvider()
+	if provider == nil {
+		return nil, fmt.Errorf("unsupported operating system: %s", goruntime.GOOS)
+	}
+	return provider.GetStartPlan(targetRuntime)
+}
+
+// StartEngine attempts to start the container engine service (daemon/socket/app) directly.
+func StartEngine(ctx context.Context, targetRuntime string) error {
+	provider := CurrentProvider()
+	if provider == nil {
+		return fmt.Errorf("unsupported operating system: %s", goruntime.GOOS)
+	}
+	return provider.StartEngine(ctx, targetRuntime)
+}
+
 // Install executes the installation plan for the specified runtime.
 func Install(ctx context.Context, targetRuntime string, progressCb func(step int, total int, message string)) error {
 	provider := CurrentProvider()

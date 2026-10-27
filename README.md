@@ -9,6 +9,7 @@
 
 <p align="center">
   <a href="https://github.com/Amanbig/dockit/releases/latest"><img src="https://img.shields.io/github/v/release/Amanbig/dockit?label=release" alt="Latest release" /></a>
+  <a href="https://snapcraft.io/dockit"><img src="https://snapcraft.io/dockit/badge.svg" alt="Snap Status" /></a>
   <a href="https://github.com/Amanbig/dockit/actions/workflows/ci.yml"><img src="https://github.com/Amanbig/dockit/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License: Apache 2.0" /></a>
   <a href="https://github.com/Amanbig/dockit/issues"><img src="https://img.shields.io/github/issues/Amanbig/dockit" alt="Open issues" /></a>
@@ -35,27 +36,44 @@ Built with [Wails v2](https://wails.io) (Go) and React 19 + Tailwind CSS v4, so 
 ## Features
 
 - **Docker and Podman**: switch engines with one click. Dockit auto-detects Docker sockets, rootless and rootful Podman sockets, and Windows named pipes, and lets you override the endpoint.
-- **Containers**: start, stop, restart, pause, delete (with batch actions), live CPU/memory/network/disk metrics, searchable log streaming, a full inspector, an interactive exec shell, and a create-container wizard (ports, env vars/`.env`, command override).
+- **Collapsible & Resizable Sidebar**: toggle between full navigation and a compact 58px mini-rail with <kbd>Ctrl+B</kbd> / <kbd>Cmd+B</kbd> or the rail toggle button. Smoothly adjust sidebar width with the VS Code-style horizontal resize sash (persisted via `localStorage`).
+- **Containers**: start, stop, restart, pause, delete (with batch actions), live CPU/memory/network/disk metrics, searchable log streaming with line-wrap toggle and raw text export, 1-click browser port launch (`localhost:<port> ↗`), full inspector, interactive exec shell, and a create-container wizard (ports, env vars/`.env`, command override).
 - **Images, volumes, networks**: list, pull, tag, inspect, create, batch delete, and prune.
 - **Compose Studio**: open or clone projects, edit `docker-compose.yml` with syntax highlighting and snapshots, manage a `.env` tab, and run Up/Down/restart with live CLI output.
 - **Registry Hub**: search Docker Hub and GitHub Container Registry, read rendered READMEs, browse tags, and pull in one click.
 - **Reclaim Storage**: see disk usage by images, containers, volumes, and build cache, then quick-clean or prune selectively.
-- **Host terminal drawer** (<kbd>Ctrl</kbd>+<kbd>`</kbd>): a VS Code-style terminal with persistent working directory, clipboard paste, and safe process-group cancellation.
-- **Runtime installer**: detects a missing Docker or Podman and walks you through installing it (APT, DNF, Pacman, Homebrew, Winget, Chocolatey), explaining why elevation is needed.
-- **Auto-update**: checks GitHub Releases and installs updates in place (`.deb`, `.rpm`, Windows installer, or portable binary).
-- **Light and dark themes**, keyboard-friendly confirmation dialogs, and polling that pauses when the window is hidden or the engine is offline.
+- **Bottom Dock Resources & Terminal Drawer** (<kbd>Ctrl</kbd>+<kbd>`</kbd>): a VS Code-style terminal drawer with multi-tab sessions, quick diagnostic chips (`docker ps`, `stats`, `system df`, `compose ps`), and bottom dock bar host metrics (RAM, CPU, cores) with rolling SVG sparklines.
+- **Smart Engine Startup & Installer**: 1-click engine service startup (`systemctl start docker`, `open -a Docker`, `Start-Process Docker Desktop.exe`) when engine is stopped, or full automated package installation (APT, DNF, Pacman, Homebrew, Winget, Chocolatey) when missing.
+- **Auto-update**: checks GitHub Releases and installs updates in place (`.deb`, `.rpm`, Windows installer, portable binary, or automated Snap Store updates).
+- **Light and dark themes**, universal filter focus with <kbd>/</kbd>, keyboard-friendly confirmation dialogs, and polling that pauses when the window is hidden or the engine is offline.
 
 ## Install
+
+### Snap Store (Linux)
+
+Install directly from the Ubuntu Snap Store:
+
+```bash
+sudo snap install dockit
+```
+
+> **Note**: For Docker socket access under Snap strict confinement, connect the `docker` interface:
+> ```bash
+> sudo snap connect dockit:docker
+> ```
+
+### GitHub Releases
 
 Download the latest build for your platform from the [Releases page](https://github.com/Amanbig/dockit/releases/latest):
 
 | Platform | Packages |
 | :--- | :--- |
-| **Linux (amd64)** | `.deb`, `.rpm`, `.tar.gz` |
+| **Linux (Snap)** | `sudo snap install dockit` |
+| **Linux (amd64)** | `.deb`, `.rpm`, `.tar.gz`, `.snap` |
 | **Windows (amd64)** | Installer `.exe`, portable `.zip` |
 | **macOS (Universal)** | `.dmg`, `.zip` |
 
-You need Docker or Podman for Dockit to manage, though it can install one for you. On Linux, Dockit needs GTK 3 and WebKitGTK 4.1 at runtime (installed automatically by the `.deb` and `.rpm` packages).
+You need Docker or Podman for Dockit to manage, though it can install one for you. On Linux, Dockit needs GTK 3 and WebKitGTK 4.1 at runtime (installed automatically by the `.deb`, `.rpm`, and `.snap` packages).
 
 ## Getting started
 

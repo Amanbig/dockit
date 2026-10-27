@@ -13,8 +13,40 @@ import {
   Folder,
   Square,
   ClipboardPaste,
-  Plus
+  Plus,
+  Activity,
+  Cpu,
+  Zap
 } from 'lucide-react';
+
+const QUICK_COMMANDS = [
+  { label: 'docker ps', cmd: 'docker ps' },
+  { label: 'stats', cmd: 'docker stats --no-stream' },
+  { label: 'system df', cmd: 'docker system df' },
+  { label: 'compose ps', cmd: 'docker compose ps' },
+  { label: 'images', cmd: 'docker images' }
+];
+
+function Sparkline({ data = [], color = '#22d3ee', height = 24 }) {
+  if (!data || data.length < 2) return null;
+  const width = 250;
+  const step = width / (data.length - 1);
+  const points = data.map((val, idx) => {
+    const clamped = Math.max(0, Math.min(100, val));
+    const x = Math.round(idx * step);
+    const y = Math.round(height - (clamped / 100) * height);
+    return `${x},${y}`;
+  }).join(' ');
+
+  const areaPoints = `0,${height} ${points} ${width},${height}`;
+
+  return (
+    <svg className="w-full overflow-hidden rounded" height={height} viewBox={`0 0 ${width} ${height}`}>
+      <polygon points={areaPoints} fill={color} fillOpacity="0.15" />
+      <polyline points={points} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
 const MAX_HISTORY = 150;
 const MAX_CMD_HISTORY = 100;
@@ -78,7 +110,10 @@ export default function BottomTerminal({
   onCancelHostCommandSession,
   onCloseHostTerminalSession,
   onGetHostHomeDir,
-  activeComposeDir = null
+  activeComposeDir = null,
+  hostMetrics = null,
+  systemInfo = null,
+  runningContainersCount = 0
 }) {
   const [homeDir, setHomeDir] = useState('');
   const [tabs, setTabs] = useState([createInitialTab('term-1', 'Terminal 1', '~')]);
@@ -103,6 +138,44 @@ export default function BottomTerminal({
   const terminalScrollRef = useRef(null);
   const inputRef = useRef(null);
   const drawerRef = useRef(null);
+  const hostResourcesRef = useRef(null);
+  const [showHostResources, setShowHostResources] = useState(false);
+  const [cpuHistory, setCpuHistory] = useState([15, 20, 25, 22, 28, 35, 41]);
+  const [memHistory, setMemHistory] = useState([50, 52, 54, 55, 58, 59, 59]);
+
+  useEffect(() => {
+    if (hostMetrics) {
+      if (typeof hostMetrics.cpuPercent === 'number') {
+        const val = Math.round(Math.max(0, Math.min(100, hostMetrics.cpuPercent)));
+        setCpuHistory((prev) => [...prev.slice(-19), val]);
+      }
+      if (typeof hostMetrics.memoryPercent === 'number') {
+        const val = Math.round(Math.max(0, Math.min(100, hostMetrics.memoryPercent)));
+        setMemHistory((prev) => [...prev.slice(-19), val]);
+      }
+    }
+  }, [hostMetrics?.cpuPercent, hostMetrics?.memoryPercent]);
+
+  // Close host resources popover on outside click or Escape
+  useEffect(() => {
+    if (!showHostResources) return;
+    const handleClickOutside = (e) => {
+      if (hostResourcesRef.current && !hostResourcesRef.current.contains(e.target)) {
+        setShowHostResources(false);
+      }
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setShowHostResources(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showHostResources]);
 
   // Resize sash pointer handlers
   const handleResizeStart = useCallback((e) => {
@@ -827,6 +900,28 @@ export default function BottomTerminal({
             </div>
           </div>
 
+          {/* Quick Diagnostics Command Chips */}
+          <div className="flex items-center gap-1.5 px-3 py-1 bg-[#10141d] border-b border-slate-800/80 overflow-x-auto no-scrollbar shrink-0 select-none">
+            <span className="text-[10px] text-slate-500 font-mono uppercase tracking-wider shrink-0 flex items-center gap-1">
+              <Zap className="w-2.5 h-2.5 text-cyan-400" />
+              Quick:
+            </span>
+            {QUICK_COMMANDS.map((qc, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => {
+                  updateTab(activeTab.id, { commandInput: qc.cmd });
+                  setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 40);
+                }}
+                className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-cyan-300 border border-slate-800 hover:border-slate-700 transition cursor-pointer whitespace-nowrap shrink-0"
+                title={`Insert "${qc.cmd}" into prompt`}
+              >
+                {qc.label}
+              </button>
+            ))}
+          </div>
+
           {/* Drawer Output Scroll Body for Active Tab */}
           <div
             ref={terminalScrollRef}
@@ -918,6 +1013,127 @@ export default function BottomTerminal({
             )}
             <span className={`w-1.5 h-1.5 rounded-full ${activeTab.executing ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'}`}></span>
           </button>
+
+          <span className="text-slate-600">|</span>
+
+          {/* Host Resources Popover Trigger */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowHostResources((prev) => !prev)}
+              className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[11px] font-medium transition cursor-pointer font-mono ${
+                showHostResources
+                  ? 'bg-cyan-500/20 text-cyan-400 font-semibold border border-cyan-500/40 shadow-xs'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900 border border-transparent'
+              }`}
+              title="Host CPU & Memory Resources (Click to toggle details)"
+            >
+              <Activity className="w-3 h-3 text-cyan-400" />
+              <span>
+                {hostMetrics
+                  ? `CPU: ${Math.round(hostMetrics.cpuPercent || 0)}% • RAM: ${Math.round(hostMetrics.memoryPercent || 0)}%`
+                  : 'Host Resources'}
+              </span>
+              <ChevronUp className={`w-3 h-3 transition-transform ${showHostResources ? 'rotate-180 text-cyan-400' : 'text-slate-500'}`} />
+            </button>
+
+            {/* Host Resources Popover Flyout */}
+            {showHostResources && (
+              <div
+                ref={hostResourcesRef}
+                className="absolute bottom-9 left-0 z-50 w-72 p-3 rounded-xl bg-slate-900/95 backdrop-blur-md border border-slate-800 shadow-2xl space-y-2.5 animate-in fade-in slide-in-from-bottom-2 duration-150"
+              >
+                <div className="flex items-center justify-between text-xs pb-1 border-b border-slate-800/80">
+                  <div className="flex items-center gap-1.5 font-semibold text-slate-200">
+                    <Activity className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Host Resources</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-950 border border-slate-800 text-slate-400">
+                      {hostMetrics?.os || systemInfo?.osType || 'linux'} / {hostMetrics?.arch || systemInfo?.architecture || 'amd64'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowHostResources(false);
+                      }}
+                      className="text-slate-500 hover:text-slate-300 p-0.5 rounded cursor-pointer"
+                      title="Close"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* RAM utilization */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-[11px] font-mono">
+                    <span className="text-slate-400">RAM</span>
+                    <span className="text-slate-200">
+                      {hostMetrics?.usedMemory ? (
+                        <>
+                          <span className="text-cyan-400 font-medium">
+                            {(hostMetrics.usedMemory / (1024 * 1024 * 1024)).toFixed(1)}
+                          </span>
+                          <span className="text-slate-500"> / </span>
+                          <span>{(hostMetrics.totalMemory / (1024 * 1024 * 1024)).toFixed(1)} GB</span>
+                          <span className="text-slate-400 text-[10px] ml-1">
+                            ({Math.round(hostMetrics.memoryPercent)}%)
+                          </span>
+                        </>
+                      ) : systemInfo?.memoryTotal > 0 ? (
+                        <span>{(systemInfo.memoryTotal / (1024 * 1024 * 1024)).toFixed(1)} GB Total</span>
+                      ) : (
+                        <span className="text-slate-400">Normal</span>
+                      )}
+                    </span>
+                  </div>
+                  <div className="w-full h-1.5 bg-slate-950 rounded-full overflow-hidden border border-slate-800/60">
+                    <div
+                      className={`h-full transition-all duration-500 rounded-full ${
+                        (hostMetrics?.memoryPercent || 0) > 90
+                          ? 'bg-rose-500'
+                          : (hostMetrics?.memoryPercent || 0) > 75
+                          ? 'bg-amber-400'
+                          : 'bg-cyan-400'
+                      }`}
+                      style={{
+                        width: `${Math.min(100, Math.max(5, hostMetrics?.memoryPercent || 25))}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* CPU & Running Containers */}
+                <div className="flex items-center justify-between text-[11px] font-mono pt-0.5">
+                  <div className="flex items-center gap-1.5 text-slate-400">
+                    <Cpu className="w-3.5 h-3.5 text-slate-400" />
+                    <span>{hostMetrics?.cpus || systemInfo?.cpus || '8'} Cores</span>
+                  </div>
+                  {hostMetrics?.cpuPercent > 0 ? (
+                    <span className="text-cyan-400 text-[10px] bg-cyan-950/60 border border-cyan-800/50 px-1.5 py-0.5 rounded font-medium">
+                      {Math.round(hostMetrics.cpuPercent)}% CPU
+                    </span>
+                  ) : (
+                    <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                      <span>{runningContainersCount || 0} running</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Rolling Activity Trend Sparkline */}
+                <div className="pt-2 border-t border-slate-800/80 space-y-1">
+                  <div className="flex items-center justify-between text-[10px] font-mono text-slate-400">
+                    <span>CPU Trend</span>
+                    <span className="text-cyan-400 font-semibold">{Math.round(hostMetrics?.cpuPercent || 0)}%</span>
+                  </div>
+                  <Sparkline data={cpuHistory} color="#22d3ee" height={26} />
+                </div>
+              </div>
+            )}
+          </div>
 
           <span className="text-slate-600">|</span>
 

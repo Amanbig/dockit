@@ -106,6 +106,11 @@ func setProgress(p DownloadProgress) {
 
 // DetectInstallationType detects how Dockit is installed on the host system.
 func DetectInstallationType() string {
+	// 0. Check if running inside a Snap environment
+	if os.Getenv("SNAP") != "" || os.Getenv("SNAP_NAME") != "" {
+		return "snap"
+	}
+
 	if runtime.GOOS == "linux" {
 		// 1. Check if dpkg manages dockit
 		if _, err := exec.LookPath("dpkg"); err == nil {

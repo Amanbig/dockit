@@ -1,0 +1,78 @@
+name: dockit
+base: core24
+adopt-info: dockit
+summary: Cross-Platform Docker & Podman Desktop Manager
+description: |
+  Dockit is a fast, lightweight, and modern cross-platform desktop management application
+  for Docker and Podman. Effortlessly manage containers, images, volumes, networks,
+  Compose projects, and remote registries through a native, responsive UI.
+  Featuring live metric sparklines, interactive terminal drawer, storage cleaner,
+  and 1-click runtime management.
+icon: gui/dockit.png
+
+grade: stable
+confinement: strict
+
+platforms:
+  amd64:
+    build-on: [amd64]
+    build-for: [amd64]
+
+apps:
+  dockit:
+    command: bin/dockit
+    desktop: gui/dockit.desktop
+    extensions: [gnome]
+    environment:
+      WEBKIT_DISABLE_DMABUF_RENDERER: "1"
+    plugs:
+      - network
+      - network-bind
+      - docker
+      - home
+      - browser-support
+      - removable-media
+      - system-observe
+
+parts:
+  dockit:
+    plugin: nil
+    source: .
+    build-snaps:
+      - go/latest/stable
+      - node/20/stable
+    build-packages:
+      - build-essential
+      - pkg-config
+      - libgtk-3-dev
+      - libwebkit2gtk-4.1-dev
+    stage-packages:
+      - libwebkit2gtk-4.1-0
+    override-build: |
+      # 1. Determine version from git tag
+      VERSION=$(git describe --tags --always 2>/dev/null | sed 's/^v//')
+      if [ -z "$VERSION" ]; then
+        VERSION="0.9.0"
+      fi
+      craftctl set version="$VERSION"
+
+      # 2. Setup Go paths outside the source directory to prevent Go from scanning GOPATH/pkg/mod
+      export GOPATH=/tmp/go
+      export GOCACHE=/tmp/gocache
+      export PATH="$GOPATH/bin:$PATH"
+      go install github.com/wailsapp/wails/v2/cmd/wails@v2.16.0
+
+      # 3. Build Wails app with WebKitGTK 4.1
+      wails build -tags webkit2_41 -platform linux/amd64 -ldflags "-X 'dockit/internal/version.Version=v$VERSION'"
+
+      # 4. Install binary
+      mkdir -p "$SNAPCRAFT_PART_INSTALL/bin"
+      cp build/bin/dockit "$SNAPCRAFT_PART_INSTALL/bin/dockit"
+
+      # 5. Install desktop entry and icons
+      mkdir -p "$SNAPCRAFT_PART_INSTALL/usr/share/applications"
+      cp snap/gui/dockit.desktop "$SNAPCRAFT_PART_INSTALL/usr/share/applications/dockit.desktop"
+      mkdir -p "$SNAPCRAFT_PART_INSTALL/usr/share/icons/hicolor/512x512/apps"
+      cp snap/gui/dockit.png "$SNAPCRAFT_PART_INSTALL/usr/share/icons/hicolor/512x512/apps/dockit.png"
+      mkdir -p "$SNAPCRAFT_PART_INSTALL/usr/share/icons/hicolor/256x256/apps"
+      cp snap/gui/dockit.png "$SNAPCRAFT_PART_INSTALL/usr/share/icons/hicolor/256x256/apps/dockit.png"

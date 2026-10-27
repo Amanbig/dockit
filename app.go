@@ -924,6 +924,20 @@ func (a *App) GetInstallPlan(targetRuntime string) (*installer.InstallPlan, erro
 	return installer.GetInstallPlan(targetRuntime)
 }
 
+// GetStartPlan returns a safe startup plan to start an already-installed runtime engine.
+func (a *App) GetStartPlan(targetRuntime string) (*installer.InstallPlan, error) {
+	return installer.GetStartPlan(targetRuntime)
+}
+
+// StartRuntime starts the already-installed Docker or Podman daemon/service.
+func (a *App) StartRuntime(targetRuntime string) error {
+	ctx := a.ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return installer.StartEngine(ctx, targetRuntime)
+}
+
 // InstallRuntime runs the installation plan for Docker or Podman.
 func (a *App) InstallRuntime(targetRuntime string) error {
 	return installer.Install(a.ctx, targetRuntime, nil)

@@ -202,6 +202,10 @@ export function GetRegistryTags(arg1, arg2) {
   return window['go']['main']['App']['GetRegistryTags'](arg1, arg2);
 }
 
+export function GetStartPlan(arg1) {
+  return window['go']['main']['App']['GetStartPlan'](arg1);
+}
+
 export function GetSystemInfo() {
   return window['go']['main']['App']['GetSystemInfo']();
 }
@@ -332,6 +336,10 @@ export function SetTheme(arg1) {
 
 export function StartContainer(arg1) {
   return window['go']['main']['App']['StartContainer'](arg1);
+}
+
+export function StartRuntime(arg1) {
+  return window['go']['main']['App']['StartRuntime'](arg1);
 }
 
 export function StopContainer(arg1, arg2) {

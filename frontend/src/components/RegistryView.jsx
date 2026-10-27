@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { marked } from 'marked';
 import { 
   Globe, 
@@ -104,7 +104,11 @@ export default function RegistryView({
   onAddFavorite,
   onRemoveFavorite,
   favorites = [],
-  onToast
+  onToast,
+  navigationStyle = 'sidebar',
+  activeSubTab: controlledSubTab,
+  onSubTabChange,
+  onSelectedImageChange
 }) {
   const [query, setQuery] = useState('');
   const [selectedRegistry, setSelectedRegistry] = useState('all'); // 'all' | 'dockerhub' | 'ghcr'
@@ -113,7 +117,13 @@ export default function RegistryView({
   const [selectedImage, setSelectedImage] = useState(null);
   
   // Right panel detail view tabs
-  const [detailTab, setDetailTab] = useState('overview'); // 'overview' | 'tags'
+  const [internalDetailTab, setInternalDetailTab] = useState('overview');
+  const detailTab = controlledSubTab !== undefined ? controlledSubTab : internalDetailTab;
+  const setDetailTab = (tab) => {
+    if (onSubTabChange) onSubTabChange(tab);
+    setInternalDetailTab(tab);
+  };
+
   const [metadata, setMetadata] = useState(null);
   const [loadingMetadata, setLoadingMetadata] = useState(false);
   
@@ -123,6 +133,22 @@ export default function RegistryView({
   const [tagFilter, setTagFilter] = useState('');
   const [copiedTag, setCopiedTag] = useState(null);
   const [copiedReadme, setCopiedReadme] = useState(false);
+
+  useEffect(() => {
+    if (onSelectedImageChange) {
+      if (selectedImage) {
+        onSelectedImageChange({
+          name: selectedImage.name,
+          registry: selectedImage.registry,
+          isOfficial: selectedImage.isOfficial,
+          tagCount: tags.length,
+          onClose: () => setSelectedImage(null)
+        });
+      } else {
+        onSelectedImageChange(null);
+      }
+    }
+  }, [selectedImage, tags.length, onSelectedImageChange]);
 
   const handleSearch = async (e) => {
     if (e) e.preventDefault();
@@ -408,30 +434,34 @@ export default function RegistryView({
       ) : (
         /* Full-Page Image Overview & Tags Workspace */
         <div className="flex-1 flex flex-col overflow-hidden min-w-0 bg-slate-950/20">
-          {/* Repository Navigation Bar */}
-          <div className="px-6 py-2.5 border-b border-slate-800 bg-slate-950/60 flex items-center justify-between gap-4">
-            <button
-              type="button"
-              onClick={() => setSelectedImage(null)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-semibold border border-slate-700/80 transition cursor-pointer hover:text-white"
-            >
-              <ArrowLeft className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Back to Search Results</span>
-            </button>
+          {/* Repository Navigation Bar (only shown when horizontal tabs layout is active) */}
+          {navigationStyle === 'tabs' && (
+            <div className="px-6 py-2.5 border-b border-slate-800 bg-slate-950/60 flex items-center justify-between gap-4 shrink-0">
+              <button
+                type="button"
+                onClick={() => setSelectedImage(null)}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-semibold border border-slate-700/80 transition cursor-pointer hover:text-white"
+              >
+                <ArrowLeft className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Back to Search Results</span>
+              </button>
 
-            <div className="text-xs text-slate-400 font-mono hidden sm:flex items-center gap-1.5">
-              <span>Registry Hub</span>
-              <span className="text-slate-600">/</span>
-              <span className="text-cyan-400 font-bold">{selectedImage.name}</span>
+              <div className="text-xs text-slate-400 font-mono hidden sm:flex items-center gap-1.5">
+                <span>Registry Hub</span>
+                <span className="text-slate-600">/</span>
+                <span className="text-cyan-400 font-bold truncate max-w-xs">{selectedImage.name}</span>
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="flex-1 flex flex-col overflow-hidden min-w-0">
               {/* Repository Header Banner */}
               <div className="p-4 md:p-6 border-b border-slate-800 bg-slate-900/60 min-w-0">
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
                   <div className="flex items-center gap-2.5 flex-wrap min-w-0">
-                    <h2 className="text-lg md:text-xl font-bold text-slate-100 font-mono truncate">{selectedImage.name}</h2>
+                    <h2 className="text-lg md:text-xl font-bold text-slate-100 font-mono truncate max-w-md" title={selectedImage.name}>
+                      {selectedImage.name}
+                    </h2>
                     {selectedImage.isOfficial && (
                       <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-semibold flex items-center gap-1 shrink-0">
                         <ShieldCheck className="w-3.5 h-3.5" />
@@ -443,16 +473,18 @@ export default function RegistryView({
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      onClick={() => handlePullImageTag(selectedImage.name, 'latest')}
-                      disabled={pullingTag === 'latest'}
-                      className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold shadow-md shadow-cyan-500/20 transition-all cursor-pointer whitespace-nowrap"
-                    >
-                      <DownloadCloud className="w-3.5 h-3.5" />
-                      <span>{pullingTag === 'latest' ? 'Pulling :latest...' : 'Pull :latest'}</span>
-                    </button>
-                  </div>
+                  {navigationStyle === 'tabs' && (
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => handlePullImageTag(selectedImage.name, 'latest')}
+                        disabled={pullingTag === 'latest'}
+                        className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold shadow-md shadow-cyan-500/20 transition-all cursor-pointer whitespace-nowrap"
+                      >
+                        <DownloadCloud className="w-3.5 h-3.5" />
+                        <span>{pullingTag === 'latest' ? 'Pulling :latest...' : 'Pull :latest'}</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <p className="text-xs text-slate-400 line-clamp-2 mb-3">
@@ -475,32 +507,34 @@ export default function RegistryView({
                   </button>
                 </div>
 
-                {/* Sub-Tabs: Overview vs Tags */}
-                <div className="flex items-center gap-2 mt-4 pt-3 border-t border-slate-800">
-                  <button
-                    onClick={() => setDetailTab('overview')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
-                      detailTab === 'overview'
-                        ? 'bg-slate-800 text-cyan-400 shadow-sm border border-slate-700'
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    <FileText className="w-3.5 h-3.5" />
-                    <span>Overview & Docs</span>
-                  </button>
+                {/* Sub-Tabs: Overview vs Tags (shown when horizontal tabs layout is selected) */}
+                {navigationStyle === 'tabs' && (
+                  <div className="flex items-center gap-2 mt-4 pt-3 border-t border-slate-800">
+                    <button
+                      onClick={() => setDetailTab('overview')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
+                        detailTab === 'overview'
+                          ? 'bg-slate-800 text-cyan-400 shadow-sm border border-slate-700'
+                          : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                      <span>Overview & Docs</span>
+                    </button>
 
-                  <button
-                    onClick={() => setDetailTab('tags')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
-                      detailTab === 'tags'
-                        ? 'bg-slate-800 text-cyan-400 shadow-sm border border-slate-700'
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    <Tag className="w-3.5 h-3.5" />
-                    <span>Tags & Architectures ({tags.length})</span>
-                  </button>
-                </div>
+                    <button
+                      onClick={() => setDetailTab('tags')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
+                        detailTab === 'tags'
+                          ? 'bg-slate-800 text-cyan-400 shadow-sm border border-slate-700'
+                          : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      <Tag className="w-3.5 h-3.5" />
+                      <span>Tags & Architectures ({tags.length})</span>
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Tab 1: Overview & Documentation */}
