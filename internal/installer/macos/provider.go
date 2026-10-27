@@ -143,6 +143,62 @@ func (p *Provider) Install(ctx context.Context, targetRuntime string, progressCb
 	return nil
 }
 
+// GetStartPlan constructs a service startup plan for macOS.
+func (p *Provider) GetStartPlan(targetRuntime string) (*types.InstallPlan, error) {
+	switch strings.ToLower(targetRuntime) {
+	case "docker":
+		return &types.InstallPlan{
+			Runtime:        "docker",
+			OS:             "darwin",
+			PackageManager: "launchservices",
+			IsStartOnly:    true,
+			Steps: []types.InstallStep{
+				{
+					ID:          "launch_docker_app",
+					Title:       "Launch Docker Desktop Application",
+					Description: "Opens Docker Desktop to start daemon and background hypervisor.",
+					Command:     "open -a Docker",
+					Privileged:  false,
+				},
+			},
+		}, nil
+
+	case "podman":
+		return &types.InstallPlan{
+			Runtime:        "podman",
+			OS:             "darwin",
+			PackageManager: "podman",
+			IsStartOnly:    true,
+			Steps: []types.InstallStep{
+				{
+					ID:          "start_podman_machine",
+					Title:       "Start Podman Virtual Machine",
+					Description: "Boots the local Podman VM to provide container socket services.",
+					Command:     "podman machine start",
+					Privileged:  false,
+				},
+			},
+		}, nil
+
+	default:
+		return nil, fmt.Errorf("unsupported runtime %q for macOS", targetRuntime)
+	}
+}
+
+// StartEngine launches Docker Desktop or starts Podman machine on macOS.
+func (p *Provider) StartEngine(ctx context.Context, targetRuntime string) error {
+	switch strings.ToLower(targetRuntime) {
+	case "docker":
+		cmd := exec.CommandContext(ctx, "open", "-a", "Docker")
+		return cmd.Run()
+	case "podman":
+		cmd := exec.CommandContext(ctx, "podman", "machine", "start")
+		return cmd.Run()
+	default:
+		return fmt.Errorf("unsupported runtime %q for macOS", targetRuntime)
+	}
+}
+
 func detectDocker(ctx context.Context) types.RuntimeStatus {
 	status := types.RuntimeStatus{Name: "docker"}
 

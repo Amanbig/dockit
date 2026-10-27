@@ -1091,6 +1091,7 @@ export namespace types {
 	    runtime: string;
 	    os: string;
 	    packageManager: string;
+	    isStartOnly: boolean;
 	    steps: InstallStep[];
 	    warning?: string;
 	
@@ -1103,6 +1104,7 @@ export namespace types {
 	        this.runtime = source["runtime"];
 	        this.os = source["os"];
 	        this.packageManager = source["packageManager"];
+	        this.isStartOnly = source["isStartOnly"];
 	        this.steps = this.convertValues(source["steps"], InstallStep);
 	        this.warning = source["warning"];
 	    }

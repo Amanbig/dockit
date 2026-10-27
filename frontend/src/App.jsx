@@ -101,6 +101,8 @@ import {
   GetSystemTheme,
   DetectRuntimes,
   GetInstallPlan,
+  GetStartPlan,
+  StartRuntime,
   InstallRuntime,
   SelectDirectoryDialog,
   ExecHostCommand,
@@ -244,6 +246,7 @@ export default function App() {
   const [logsModal, setLogsModal] = useState({ open: false, id: '', name: '' });
   const [inspectModal, setInspectModal] = useState({ open: false, title: '', data: null });
   const [showInstaller, setShowInstaller] = useState(false);
+  const [isStartingEngine, setIsStartingEngine] = useState(false);
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
   const [showUpdateToast, setShowUpdateToast] = useState(false);
   const [updateInfo, setUpdateInfo] = useState(null);
@@ -546,6 +549,20 @@ export default function App() {
       setActiveRuntime(target);
       addToast(formatEngineError(err), 'error', `Failed to Switch to ${target}`);
       await refreshAll();
+    }
+  };
+
+  const handleStartActiveEngine = async () => {
+    setIsStartingEngine(true);
+    try {
+      await StartRuntime(activeRuntime);
+      addToast(`${activeRuntime === 'podman' ? 'Podman' : 'Docker'} engine started successfully!`, 'success');
+      await refreshAll();
+    } catch (err) {
+      addToast(`Failed to start engine: ${err?.message || err}`, 'error');
+      setShowInstaller(true);
+    } finally {
+      setIsStartingEngine(false);
     }
   };
 
@@ -1193,16 +1210,28 @@ export default function App() {
                   }
                 </span>
               </div>
-              <button
-                onClick={() => setShowInstaller(true)}
-                className={`px-3 py-1 rounded-md text-xs font-semibold border transition-all cursor-pointer shadow-xs ${
-                  !runtimesStatus[activeRuntime].installed
-                    ? 'bg-rose-600 hover:bg-rose-700 text-white border-rose-700 dark:bg-rose-900/70 dark:hover:bg-rose-800 dark:border-rose-700 dark:text-rose-100'
-                    : 'bg-amber-500 hover:bg-amber-600 text-slate-950 border-amber-600 dark:bg-amber-900/70 dark:hover:bg-amber-800 dark:border-amber-700 dark:text-amber-100'
-                }`}
-              >
-                {!runtimesStatus[activeRuntime].installed ? 'Install Engine' : 'Setup & Start Daemon'}
-              </button>
+              <div className="flex items-center gap-2">
+                {runtimesStatus[activeRuntime].installed && (
+                  <button
+                    onClick={handleStartActiveEngine}
+                    disabled={isStartingEngine}
+                    className="flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white dark:bg-emerald-600 dark:hover:bg-emerald-500 shadow-xs transition cursor-pointer disabled:opacity-50"
+                  >
+                    <Play className={`w-3.5 h-3.5 fill-current ${isStartingEngine ? 'animate-pulse' : ''}`} />
+                    {isStartingEngine ? 'Starting...' : `Start ${activeRuntime === 'podman' ? 'Podman' : 'Docker'}`}
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowInstaller(true)}
+                  className={`px-3 py-1 rounded-md text-xs font-semibold border transition-all cursor-pointer shadow-xs ${
+                    !runtimesStatus[activeRuntime].installed
+                      ? 'bg-rose-600 hover:bg-rose-700 text-white border-rose-700 dark:bg-rose-900/70 dark:hover:bg-rose-800 dark:border-rose-700 dark:text-rose-100'
+                      : 'bg-amber-500 hover:bg-amber-600 text-slate-950 border-amber-600 dark:bg-amber-900/70 dark:hover:bg-amber-800 dark:border-amber-700 dark:text-amber-100'
+                  }`}
+                >
+                  {!runtimesStatus[activeRuntime].installed ? 'Install Engine' : 'Setup & Diagnostics'}
+                </button>
+              </div>
             </div>
           )}
 
@@ -1444,7 +1473,12 @@ export default function App() {
         onClose={() => setShowInstaller(false)}
         onDetect={DetectRuntimes}
         onGetPlan={GetInstallPlan}
+        onGetStartPlan={GetStartPlan}
+        onStartEngine={StartRuntime}
         onInstall={InstallRuntime}
+        onInstalled={async () => {
+          await refreshAll();
+        }}
       />
 
       <UpdateModal

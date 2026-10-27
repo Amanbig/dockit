@@ -18,6 +18,8 @@ export default function InstallerModal({
   onClose, 
   onDetect, 
   onGetPlan, 
+  onGetStartPlan,
+  onStartEngine,
   onInstall,
   onInstalled 
 }) {
@@ -26,8 +28,25 @@ export default function InstallerModal({
   const [plan, setPlan] = useState(null);
   const [loading, setLoading] = useState(true);
   const [installing, setInstalling] = useState(false);
+  const [starting, setStarting] = useState(false);
   const [installStatus, setInstallStatus] = useState('');
   const [error, setError] = useState('');
+
+  const loadPlan = async (rt, currentDetection = detection) => {
+    try {
+      setError('');
+      const status = currentDetection ? currentDetection[rt] : null;
+      if (status?.installed && !status?.running && onGetStartPlan) {
+        const p = await onGetStartPlan(rt);
+        setPlan(p);
+      } else if (onGetPlan) {
+        const p = await onGetPlan(rt);
+        setPlan(p);
+      }
+    } catch (err) {
+      setError(`Failed to generate plan: ${err}`);
+    }
+  };
 
   const runDetection = async () => {
     setLoading(true);
@@ -39,25 +58,20 @@ export default function InstallerModal({
       // If docker is already running, or if podman is installed, select thoughtfully
       let initialChoice = 'docker';
       if (res?.docker?.running) {
-        initialChoice = res?.podman?.running ? 'docker' : (!res?.podman?.installed ? 'podman' : 'docker');
+        initialChoice = res?.podman?.running ? 'docker' : 'docker';
       } else if (res?.podman?.running) {
+        initialChoice = 'podman';
+      } else if (res?.docker?.installed) {
         initialChoice = 'docker';
+      } else if (res?.podman?.installed) {
+        initialChoice = 'podman';
       }
       setSelectedRuntime(initialChoice);
-      await loadPlan(initialChoice);
+      await loadPlan(initialChoice, res);
     } catch (err) {
       setError(`Detection failed: ${err}`);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loadPlan = async (rt) => {
-    try {
-      const p = await onGetPlan(rt);
-      setPlan(p);
-    } catch (err) {
-      setError(`Failed to generate installation plan: ${err}`);
     }
   };
 
@@ -69,7 +83,27 @@ export default function InstallerModal({
 
   const handleSelectRuntime = (rt) => {
     setSelectedRuntime(rt);
-    loadPlan(rt);
+    loadPlan(rt, detection);
+  };
+
+  const handleStartEngine = async () => {
+    if (!onStartEngine) return;
+    setStarting(true);
+    setError('');
+    setInstallStatus(`Starting ${selectedRuntime === 'docker' ? 'Docker' : 'Podman'} service...`);
+    try {
+      await onStartEngine(selectedRuntime);
+      setInstallStatus(`Service started successfully!`);
+      if (onInstalled) {
+        onInstalled(selectedRuntime);
+      }
+      // Re-scan after start
+      await runDetection();
+    } catch (err) {
+      setError(`Failed to start engine: ${err}`);
+    } finally {
+      setStarting(false);
+    }
   };
 
   const handleInstall = async () => {
@@ -219,11 +253,15 @@ export default function InstallerModal({
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                      {isCurrentlyActive ? 'Underlying Setup & Commands' : `Installation Plan (${plan.packageManager})`}
+                      {isCurrentlyActive 
+                        ? 'Underlying Setup & Commands' 
+                        : isCurrentlyInstalled 
+                          ? `Service Startup Plan (${plan?.packageManager || 'Service'})` 
+                          : `Installation Plan (${plan?.packageManager || 'Package'})`}
                     </h4>
-                    {plan.warning && !isCurrentlyActive && (
+                    {plan?.warning && !isCurrentlyActive && (
                       <span className="text-[11px] text-amber-400 flex items-center gap-1 font-medium">
-                        <Lock className="w-3.5 h-3.5" /> Requires system admin authentication
+                        <Lock className="w-3.5 h-3.5" /> Requires system authorization
                       </span>
                     )}
                   </div>
@@ -286,14 +324,25 @@ export default function InstallerModal({
             </button>
 
             {!isCurrentlyActive && (
-              <button
-                onClick={handleInstall}
-                disabled={loading || installing}
-                className="flex items-center gap-2 px-4 py-2 text-xs font-bold bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 rounded-lg transition shadow-lg shadow-cyan-500/20 disabled:opacity-50 hover:brightness-110"
-              >
-                <Download className="w-4 h-4 stroke-[2.5]" />
-                {installing ? 'Installing...' : `Install ${selectedRuntime === 'docker' ? 'Docker' : 'Podman'}`}
-              </button>
+              isCurrentlyInstalled ? (
+                <button
+                  onClick={handleStartEngine}
+                  disabled={loading || starting || installing}
+                  className="flex items-center gap-2 px-4 py-2 text-xs font-bold bg-gradient-to-r from-emerald-500 to-teal-600 text-slate-950 rounded-lg transition shadow-lg shadow-emerald-500/20 disabled:opacity-50 hover:brightness-110 cursor-pointer"
+                >
+                  <Play className={`w-4 h-4 fill-current ${starting ? 'animate-pulse' : ''}`} />
+                  {starting ? 'Starting Service...' : `Start ${selectedRuntime === 'docker' ? 'Docker' : 'Podman'} Engine`}
+                </button>
+              ) : (
+                <button
+                  onClick={handleInstall}
+                  disabled={loading || installing || starting}
+                  className="flex items-center gap-2 px-4 py-2 text-xs font-bold bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 rounded-lg transition shadow-lg shadow-cyan-500/20 disabled:opacity-50 hover:brightness-110 cursor-pointer"
+                >
+                  <Download className="w-4 h-4 stroke-[2.5]" />
+                  {installing ? 'Installing...' : `Install ${selectedRuntime === 'docker' ? 'Docker' : 'Podman'}`}
+                </button>
+              )
             )}
           </div>
         </div>

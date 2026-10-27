@@ -83,6 +83,112 @@ func (p *Provider) GetInstallPlan(targetRuntime string) (*types.InstallPlan, err
 	}
 }
 
+// GetStartPlan constructs a safe service startup plan for an already-installed engine on Linux.
+func (p *Provider) GetStartPlan(targetRuntime string) (*types.InstallPlan, error) {
+	switch strings.ToLower(targetRuntime) {
+	case "docker":
+		return &types.InstallPlan{
+			Runtime:        "docker",
+			OS:             "linux",
+			PackageManager: "systemd",
+			IsStartOnly:    true,
+			Warning:        "Starting the Docker daemon requires root authorization.",
+			Steps: []types.InstallStep{
+				{
+					ID:          "start_docker_service",
+					Title:       "Start Docker Daemon Service",
+					Description: "Activates the systemd Docker daemon service.",
+					Command:     "sudo systemctl start docker",
+					Privileged:  true,
+				},
+				{
+					ID:          "enable_docker_service",
+					Title:       "Enable Docker at Boot",
+					Description: "Ensures Docker starts automatically on system reboot.",
+					Command:     "sudo systemctl enable docker",
+					Privileged:  true,
+					Optional:    true,
+				},
+			},
+		}, nil
+
+	case "podman":
+		return &types.InstallPlan{
+			Runtime:        "podman",
+			OS:             "linux",
+			PackageManager: "systemd",
+			IsStartOnly:    true,
+			Steps: []types.InstallStep{
+				{
+					ID:          "start_podman_socket",
+					Title:       "Start Rootless Podman Socket",
+					Description: "Activates the Podman API socket for current user.",
+					Command:     "systemctl --user enable --now podman.socket",
+					Privileged:  false,
+				},
+			},
+		}, nil
+
+	default:
+		return nil, fmt.Errorf("unsupported runtime %q for Linux", targetRuntime)
+	}
+}
+
+// StartEngine starts the daemon/socket service for Docker or Podman on Linux.
+func (p *Provider) StartEngine(ctx context.Context, targetRuntime string) error {
+	switch strings.ToLower(targetRuntime) {
+	case "docker":
+		// First try starting without pkexec in case already permitted or non-root
+		cmd := exec.CommandContext(ctx, "systemctl", "start", "docker")
+		if err := cmd.Run(); err == nil {
+			return nil
+		}
+
+		// Try pkexec for Polkit graphical password prompt
+		if _, err := exec.LookPath("pkexec"); err == nil {
+			pkCmd := exec.CommandContext(ctx, "pkexec", "systemctl", "start", "docker")
+			var stderr bytes.Buffer
+			pkCmd.Stderr = &stderr
+			if err := pkCmd.Run(); err == nil {
+				return nil
+			} else {
+				errStr := strings.TrimSpace(stderr.String())
+				if errStr != "" {
+					return fmt.Errorf("failed to start Docker via pkexec: %s", errStr)
+				}
+			}
+		}
+
+		// Fallback to sudo or service
+		sudoCmd := exec.CommandContext(ctx, "sudo", "systemctl", "start", "docker")
+		var sErr bytes.Buffer
+		sudoCmd.Stderr = &sErr
+		if err := sudoCmd.Run(); err != nil {
+			// If systemctl fails, try service docker start
+			srvCmd := exec.CommandContext(ctx, "service", "docker", "start")
+			if srvErr := srvCmd.Run(); srvErr != nil {
+				return fmt.Errorf("failed to start docker service: %w (%s)", err, strings.TrimSpace(sErr.String()))
+			}
+		}
+		return nil
+
+	case "podman":
+		// Start user socket
+		cmd := exec.CommandContext(ctx, "systemctl", "--user", "enable", "--now", "podman.socket")
+		if err := cmd.Run(); err != nil {
+			// Fallback: podman system service
+			podmanCmd := exec.CommandContext(ctx, "podman", "system", "service", "--time=0")
+			if err := podmanCmd.Start(); err != nil {
+				return fmt.Errorf("failed to start podman socket service: %w", err)
+			}
+		}
+		return nil
+
+	default:
+		return fmt.Errorf("unsupported runtime %q for Linux", targetRuntime)
+	}
+}
+
 // Install runs the installation plan step by step, reporting progress.
 func (p *Provider) Install(ctx context.Context, targetRuntime string, progressCb func(step int, total int, message string)) error {
 	plan, err := p.GetInstallPlan(targetRuntime)
