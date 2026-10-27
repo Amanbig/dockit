@@ -145,7 +145,7 @@ export default function App() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [appConfig, setAppConfig] = useState(null);
   const [theme, setTheme] = useState('dark');
-  const [appVersion, setAppVersion] = useState(packageJson?.version || '0.8.1');
+  const [appVersion, setAppVersion] = useState(packageJson?.version || '0.9.0');
   const [activeComposeDir, setActiveComposeDir] = useState(null);
 
   // Navigation layout style: 'sidebar' (contextual drilldown) vs 'tabs' (horizontal subtabs)

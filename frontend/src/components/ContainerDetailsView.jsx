@@ -878,34 +878,45 @@ export default function ContainerDetailsView({
                   <span className="text-slate-500 block mb-1.5 font-medium">Exposed Ports:</span>
                   {details?.ports && details.ports.length > 0 ? (
                     <div className="flex flex-wrap gap-1">
-                      {details.ports.map((p, idx) => {
-                        const pubPort = p.publicPort ? Number(p.publicPort) : null;
-                        const label = `${p.publicPort ? `${p.publicPort}:` : ''}${p.privatePort}/${p.type}`;
-                        if (pubPort && isRunning) {
-                          return (
-                            <button
-                              key={idx}
-                              type="button"
-                              onClick={() => {
-                                const url = `http://localhost:${pubPort}`;
-                                if (typeof BrowserOpenURL === 'function') BrowserOpenURL(url);
-                                else if (window.runtime?.BrowserOpenURL) window.runtime.BrowserOpenURL(url);
-                                else window.open(url, '_blank');
-                              }}
-                              className="flex items-center gap-1 px-2 py-0.5 rounded bg-cyan-950/70 hover:bg-cyan-900/80 border border-cyan-800/60 hover:border-cyan-600/80 font-mono text-[11px] text-cyan-300 hover:text-cyan-200 transition cursor-pointer group/detailport"
-                              title={`Open http://localhost:${pubPort} in browser`}
-                            >
-                              <span>{label}</span>
-                              <ExternalLink className="w-2.5 h-2.5 opacity-60 group-hover/detailport:opacity-100 transition shrink-0" />
-                            </button>
-                          );
+                      {(() => {
+                        const seen = new Set();
+                        const uniquePorts = [];
+                        for (const p of details.ports) {
+                          const key = `${p.publicPort || 0}:${p.privatePort}/${p.type}`;
+                          if (!seen.has(key)) {
+                            seen.add(key);
+                            uniquePorts.push(p);
+                          }
                         }
-                        return (
-                          <span key={idx} className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 font-mono text-[11px] text-cyan-300">
-                            {label}
-                          </span>
-                        );
-                      })}
+                        return uniquePorts.map((p, idx) => {
+                          const pubPort = p.publicPort ? Number(p.publicPort) : null;
+                          const label = `${p.publicPort ? `${p.publicPort}:` : ''}${p.privatePort}/${p.type}`;
+                          if (pubPort && isRunning) {
+                            return (
+                              <button
+                                key={idx}
+                                type="button"
+                                onClick={() => {
+                                  const url = `http://localhost:${pubPort}`;
+                                  if (typeof BrowserOpenURL === 'function') BrowserOpenURL(url);
+                                  else if (window.runtime?.BrowserOpenURL) window.runtime.BrowserOpenURL(url);
+                                  else window.open(url, '_blank');
+                                }}
+                                className="flex items-center gap-1 px-2 py-0.5 rounded bg-cyan-950/70 hover:bg-cyan-900/80 border border-cyan-800/60 hover:border-cyan-600/80 font-mono text-[11px] text-cyan-300 hover:text-cyan-200 transition cursor-pointer group/detailport"
+                                title={`Open http://localhost:${pubPort} in browser`}
+                              >
+                                <span>{label}</span>
+                                <ExternalLink className="w-2.5 h-2.5 opacity-60 group-hover/detailport:opacity-100 transition shrink-0" />
+                              </button>
+                            );
+                          }
+                          return (
+                            <span key={idx} className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 font-mono text-[11px] text-cyan-300">
+                              {label}
+                            </span>
+                          );
+                        });
+                      })()}
                     </div>
                   ) : (
                     <span className="text-slate-600 font-mono">No ports exposed</span>

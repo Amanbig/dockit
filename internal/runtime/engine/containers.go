@@ -31,7 +31,13 @@ func (e *Engine) ListContainers(ctx context.Context, opts ...runtime.ContainerLi
 	summaries := make([]runtime.ContainerSummary, 0, len(result.Items))
 	for _, item := range result.Items {
 		ports := make([]runtime.Port, 0, len(item.Ports))
+		seenItemPorts := make(map[string]bool)
 		for _, p := range item.Ports {
+			key := fmt.Sprintf("%d:%d/%s", p.PublicPort, p.PrivatePort, p.Type)
+			if seenItemPorts[key] {
+				continue
+			}
+			seenItemPorts[key] = true
 			ipStr := ""
 			if p.IP.IsValid() {
 				ipStr = p.IP.String()
@@ -110,15 +116,20 @@ func (e *Engine) InspectContainer(ctx context.Context, containerID string) (*run
 	}
 
 	var ports []runtime.Port
+	seenPorts := make(map[string]bool)
 	if insp.NetworkSettings != nil && insp.NetworkSettings.Ports != nil {
 		for portProto, bindings := range insp.NetworkSettings.Ports {
 			privatePort := portProto.Num()
 			proto := string(portProto.Proto())
 			if len(bindings) == 0 {
-				ports = append(ports, runtime.Port{
-					PrivatePort: privatePort,
-					Type:        proto,
-				})
+				key := fmt.Sprintf("0:%d/%s", privatePort, proto)
+				if !seenPorts[key] {
+					seenPorts[key] = true
+					ports = append(ports, runtime.Port{
+						PrivatePort: privatePort,
+						Type:        proto,
+					})
+				}
 			} else {
 				for _, b := range bindings {
 					var pubPort uint16
@@ -127,12 +138,17 @@ func (e *Engine) InspectContainer(ctx context.Context, containerID string) (*run
 					if b.HostIP.IsValid() {
 						hostIP = b.HostIP.String()
 					}
-					ports = append(ports, runtime.Port{
-						IP:          hostIP,
-						PrivatePort: privatePort,
-						PublicPort:  pubPort,
-						Type:        proto,
-					})
+					// Deduplicate if the same publicPort:privatePort/proto is bound across multiple host IPs (e.g. 0.0.0.0 and ::)
+					key := fmt.Sprintf("%d:%d/%s", pubPort, privatePort, proto)
+					if !seenPorts[key] {
+						seenPorts[key] = true
+						ports = append(ports, runtime.Port{
+							IP:          hostIP,
+							PrivatePort: privatePort,
+							PublicPort:  pubPort,
+							Type:        proto,
+						})
+					}
 				}
 			}
 		}

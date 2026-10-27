@@ -483,10 +483,9 @@ export default function ContainersView({
                       <td className="py-3 px-4 font-mono text-[11px] text-slate-400">
                         {c.ports && c.ports.length > 0 ? (
                           <div className="flex flex-wrap gap-1">
-                            {c.ports.map((p, idx) => {
-                              const hostPort = extractHostPort(p);
+                            {Array.from(new Set(c.ports.map(p => typeof p === 'string' ? p : `${p.publicPort ? `${p.publicPort}:` : ''}${p.privatePort}/${p.type}`))).map((label, idx) => {
+                              const hostPort = extractHostPort(label);
                               const isRunning = (c.state || '').toLowerCase() === 'running';
-                              const label = typeof p === 'string' ? p : `${p.publicPort ? `${p.publicPort}:` : ''}${p.privatePort}/${p.type}`;
                               if (hostPort && isRunning) {
                                 return (
                                   <button
