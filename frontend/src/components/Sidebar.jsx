@@ -438,8 +438,8 @@ export default function Sidebar({
               window.open(url, '_blank');
             }
           }}
-          className={`w-full flex items-center justify-center rounded-lg bg-slate-900/50 hover:bg-slate-900 border border-slate-800/80 hover:border-slate-700 text-xs text-slate-400 hover:text-slate-200 transition-all group shadow-xs cursor-pointer ${
-            isCollapsed ? 'p-2' : 'px-3 py-1.5 justify-between'
+          className={`w-full flex items-center rounded-lg bg-slate-900/50 hover:bg-slate-900 border border-slate-800/80 hover:border-slate-700 text-xs text-slate-400 hover:text-slate-200 transition-all group shadow-xs cursor-pointer ${
+            isCollapsed ? 'p-2 justify-center' : 'px-2.5 py-1.5 justify-between gap-2'
           }`}
           title={`GitHub: Amanbig/dockit (v${appVersion})`}
         >
@@ -447,14 +447,19 @@ export default function Sidebar({
             <GithubIcon className="w-4 h-4 text-slate-400 group-hover:text-cyan-400" />
           ) : (
             <>
-              <div className="flex items-center gap-2">
-                <GithubIcon className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-400 transition-colors" />
-                <span className="font-medium text-slate-300 group-hover:text-slate-100 text-[11px]">GitHub</span>
+              <div className="flex items-center gap-1.5 min-w-0">
+                <GithubIcon className="w-3.5 h-3.5 shrink-0 text-slate-400 group-hover:text-cyan-400 transition-colors" />
+                <span className="font-medium text-slate-300 group-hover:text-slate-100 text-[11px] shrink-0">GitHub</span>
+                {sidebarWidth >= 200 && (
+                  <>
+                    <span className="text-slate-600 text-[10px] shrink-0">•</span>
+                    <span className="text-[10px] font-mono text-slate-500 group-hover:text-slate-400 truncate">
+                      Amanbig/dockit
+                    </span>
+                  </>
+                )}
               </div>
-              <div className="flex items-center gap-1.5 text-slate-500 group-hover:text-slate-300">
-                <span className="text-[10px] font-mono">Amanbig/dockit</span>
-                <ExternalLink className="w-3 h-3 group-hover:text-cyan-400 transition-colors" />
-              </div>
+              <ExternalLink className="w-3 h-3 shrink-0 text-slate-500 group-hover:text-cyan-400 transition-colors" />
             </>
           )}
         </button>
