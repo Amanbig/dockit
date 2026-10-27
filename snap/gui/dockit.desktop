@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Dockit
+Comment=Cross-Platform Docker & Podman Desktop Manager
+Exec=dockit
+Icon=${SNAP}/meta/gui/dockit.png
+Terminal=false
+Type=Application
+Categories=Development;Utility;
+Keywords=docker;podman;containers;devops;
+StartupWMClass=dockit
