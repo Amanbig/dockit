@@ -30,8 +30,12 @@ import {
   ChevronDown,
   Filter,
   Maximize2,
-  ClipboardPaste
+  ClipboardPaste,
+  ExternalLink,
+  Download,
+  WrapText
 } from 'lucide-react';
+import { BrowserOpenURL } from '../../wailsjs/runtime/runtime';
 
 const getClipboardText = async () => {
   try {
@@ -282,7 +286,21 @@ export default function ContainerDetailsView({
   const [activeLogMatchIndex, setActiveLogMatchIndex] = useState(0);
   const [logFilterMode, setLogFilterMode] = useState(false); // false = highlight & navigate all lines; true = filter lines
   const [autoTail, setAutoTail] = useState(true);
+  const [wrapLogLines, setWrapLogLines] = useState(false);
   const logsScrollRef = React.useRef(null);
+
+  const handleDownloadLogs = () => {
+    if (!logs) return;
+    const blob = new Blob([logs], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${containerName || containerId.slice(0, 12)}-logs.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   const scrollToLogsBottom = (smooth = false) => {
     const scroll = () => {
@@ -860,11 +878,34 @@ export default function ContainerDetailsView({
                   <span className="text-slate-500 block mb-1.5 font-medium">Exposed Ports:</span>
                   {details?.ports && details.ports.length > 0 ? (
                     <div className="flex flex-wrap gap-1">
-                      {details.ports.map((p, idx) => (
-                        <span key={idx} className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 font-mono text-[11px] text-cyan-300">
-                          {p.publicPort ? `${p.publicPort}:` : ''}{p.privatePort}/{p.type}
-                        </span>
-                      ))}
+                      {details.ports.map((p, idx) => {
+                        const pubPort = p.publicPort ? Number(p.publicPort) : null;
+                        const label = `${p.publicPort ? `${p.publicPort}:` : ''}${p.privatePort}/${p.type}`;
+                        if (pubPort && isRunning) {
+                          return (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => {
+                                const url = `http://localhost:${pubPort}`;
+                                if (typeof BrowserOpenURL === 'function') BrowserOpenURL(url);
+                                else if (window.runtime?.BrowserOpenURL) window.runtime.BrowserOpenURL(url);
+                                else window.open(url, '_blank');
+                              }}
+                              className="flex items-center gap-1 px-2 py-0.5 rounded bg-cyan-950/70 hover:bg-cyan-900/80 border border-cyan-800/60 hover:border-cyan-600/80 font-mono text-[11px] text-cyan-300 hover:text-cyan-200 transition cursor-pointer group/detailport"
+                              title={`Open http://localhost:${pubPort} in browser`}
+                            >
+                              <span>{label}</span>
+                              <ExternalLink className="w-2.5 h-2.5 opacity-60 group-hover/detailport:opacity-100 transition shrink-0" />
+                            </button>
+                          );
+                        }
+                        return (
+                          <span key={idx} className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 font-mono text-[11px] text-cyan-300">
+                            {label}
+                          </span>
+                        );
+                      })}
                     </div>
                   ) : (
                     <span className="text-slate-600 font-mono">No ports exposed</span>
@@ -1186,11 +1227,29 @@ export default function ContainerDetailsView({
                   </button>
 
                   <button
+                    onClick={() => setWrapLogLines(!wrapLogLines)}
+                    className={`p-1.5 rounded transition cursor-pointer ${
+                      wrapLogLines
+                        ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 shadow-xs'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                    title={wrapLogLines ? 'Word Wrap: ON (Click to disable wrap)' : 'Word Wrap: OFF (Click to wrap long lines)'}
+                  >
+                    <WrapText className="w-3.5 h-3.5" />
+                  </button>
+                  <button
                     onClick={() => copyText(logs, 'logs')}
                     className="p-1.5 text-slate-400 hover:text-slate-200 transition cursor-pointer"
                     title="Copy logs"
                   >
                     {copiedKey === 'logs' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  </button>
+                  <button
+                    onClick={handleDownloadLogs}
+                    className="p-1.5 text-slate-400 hover:text-cyan-400 hover:bg-slate-800 rounded transition cursor-pointer"
+                    title="Export / Download Logs (.txt)"
+                  >
+                    <Download className="w-3.5 h-3.5" />
                   </button>
                   <button
                     onClick={fetchLogs}
@@ -1212,7 +1271,7 @@ export default function ContainerDetailsView({
 
               <div 
                 ref={logsScrollRef}
-                className="flex-1 p-4 overflow-y-auto font-mono text-xs space-y-0.5 select-text leading-relaxed"
+                className={`flex-1 p-4 overflow-y-auto ${wrapLogLines ? '' : 'overflow-x-auto'} font-mono text-xs space-y-0.5 select-text leading-relaxed`}
               >
                 {logsLoading && !logs ? (
                   <div className="flex items-center justify-center py-16 text-slate-500 gap-2">
@@ -1240,7 +1299,7 @@ export default function ContainerDetailsView({
                     return (
                       <div 
                         key={idx} 
-                        className={`whitespace-pre-wrap break-all px-1 py-0.5 rounded hover:bg-slate-900/60 transition-colors ${
+                        className={`${wrapLogLines ? 'whitespace-pre-wrap break-all' : 'whitespace-pre'} px-1 py-0.5 rounded hover:bg-slate-900/60 transition-colors ${
                           isErr 
                             ? 'text-rose-400 bg-rose-500/5' 
                             : isWarn 

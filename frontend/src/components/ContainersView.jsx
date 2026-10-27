@@ -13,11 +13,25 @@ import {
   X, 
   SlidersHorizontal,
   Network,
-  Terminal
+  Terminal,
+  ExternalLink
 } from 'lucide-react';
+import { BrowserOpenURL } from '../../wailsjs/runtime/runtime';
 import EnvEditorModal, { parseEnvString } from './EnvEditorModal';
 import PortBindingsModal, { parsePortSpecs } from './PortBindingsModal';
 import CommandOverrideModal, { parseCommandArgs } from './CommandOverrideModal';
+
+function extractHostPort(p) {
+  if (!p) return null;
+  if (typeof p === 'object') {
+    const pub = p.publicPort ?? p.PublicPort;
+    if (pub && Number(pub) > 0) return Number(pub);
+  } else if (typeof p === 'string') {
+    const m = p.match(/(?:(?:::|[0-9.]+):)?([0-9]+)(?:->|:)/);
+    if (m && m[1]) return Number(m[1]);
+  }
+  return null;
+}
 
 export default function ContainersView({
   containers = [],
@@ -469,11 +483,36 @@ export default function ContainersView({
                       <td className="py-3 px-4 font-mono text-[11px] text-slate-400">
                         {c.ports && c.ports.length > 0 ? (
                           <div className="flex flex-wrap gap-1">
-                            {c.ports.map((p, idx) => (
-                              <span key={idx} className="bg-slate-900 border border-slate-800 px-1.5 py-0.5 rounded text-[10px] whitespace-nowrap">
-                                {typeof p === 'string' ? p : `${p.publicPort ? `${p.publicPort}:` : ''}${p.privatePort}/${p.type}`}
-                              </span>
-                            ))}
+                            {c.ports.map((p, idx) => {
+                              const hostPort = extractHostPort(p);
+                              const isRunning = (c.state || '').toLowerCase() === 'running';
+                              const label = typeof p === 'string' ? p : `${p.publicPort ? `${p.publicPort}:` : ''}${p.privatePort}/${p.type}`;
+                              if (hostPort && isRunning) {
+                                return (
+                                  <button
+                                    key={idx}
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const url = `http://localhost:${hostPort}`;
+                                      if (typeof BrowserOpenURL === 'function') BrowserOpenURL(url);
+                                      else if (window.runtime?.BrowserOpenURL) window.runtime.BrowserOpenURL(url);
+                                      else window.open(url, '_blank');
+                                    }}
+                                    className="flex items-center gap-1 bg-cyan-950/70 hover:bg-cyan-900/80 text-cyan-300 hover:text-cyan-200 border border-cyan-800/60 hover:border-cyan-600/80 px-1.5 py-0.5 rounded text-[10px] whitespace-nowrap transition cursor-pointer group/port"
+                                    title={`Open http://localhost:${hostPort} in browser`}
+                                  >
+                                    <span>{label}</span>
+                                    <ExternalLink className="w-2.5 h-2.5 opacity-60 group-hover/port:opacity-100 transition shrink-0" />
+                                  </button>
+                                );
+                              }
+                              return (
+                                <span key={idx} className="bg-slate-900 border border-slate-800 px-1.5 py-0.5 rounded text-[10px] whitespace-nowrap">
+                                  {label}
+                                </span>
+                              );
+                            })}
                           </div>
                         ) : (
                           <span className="text-slate-600">-</span>

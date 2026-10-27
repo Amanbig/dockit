@@ -191,9 +191,26 @@ export default function App() {
 
   useEffect(() => {
     const handleGlobalKeyDown = (e) => {
+      // Toggle bottom host terminal drawer
       if ((e.ctrlKey || e.metaKey) && (e.key === '`' || e.code === 'Backquote')) {
         e.preventDefault();
         setTerminalDrawerOpen((prev) => !prev);
+        return;
+      }
+
+      // Quick filter focus with '/' key when not already inside an input/textarea
+      if (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const activeTag = document.activeElement?.tagName?.toLowerCase();
+        if (activeTag === 'input' || activeTag === 'textarea' || document.activeElement?.isContentEditable) return;
+        
+        const searchInput = document.querySelector(
+          'main input[type="text"]:not([disabled]), main input[type="search"]:not([disabled])'
+        );
+        if (searchInput) {
+          e.preventDefault();
+          searchInput.focus();
+          searchInput.select?.();
+        }
       }
     };
     window.addEventListener('keydown', handleGlobalKeyDown);
