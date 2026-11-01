@@ -3,6 +3,11 @@
 @import "@fontsource-variable/figtree";
 @custom-variant dark (&:where(.dark, .dark *));
 
+@theme {
+    --color-slate-750: #243042;
+    --color-slate-850: #151e2e;
+}
+
 .wails-drag {
     --wails-draggable: drag;
     -webkit-app-region: drag;

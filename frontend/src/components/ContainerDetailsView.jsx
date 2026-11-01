@@ -89,6 +89,27 @@ export function formatDateTime(dateStr) {
   }
 }
 
+export function formatUptime(startedAt) {
+  if (!startedAt || startedAt === '-' || startedAt.startsWith('0001-01-01')) return null;
+  try {
+    const start = new Date(startedAt).getTime();
+    if (isNaN(start) || start <= 0) return null;
+    const diffSec = Math.floor((Date.now() - start) / 1000);
+    if (diffSec < 0) return null;
+    if (diffSec < 60) return `${diffSec}s`;
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return `${diffMin}m`;
+    const diffHours = Math.floor(diffMin / 60);
+    const remMin = diffMin % 60;
+    if (diffHours < 24) return `${diffHours}h ${remMin}m`;
+    const diffDays = Math.floor(diffHours / 24);
+    const remHours = diffHours % 24;
+    return `${diffDays}d ${remHours}h`;
+  } catch {
+    return null;
+  }
+}
+
 export default function ContainerDetailsView({ 
   containerId, 
   containerSummary = null,
@@ -453,6 +474,7 @@ export default function ContainerDetailsView({
     ? parentState === 'paused'
     : Boolean(details?.state?.paused);
   const stateStatus = parentState || details?.state?.status || (isRunning ? 'running' : 'stopped');
+  const uptime = isRunning ? formatUptime(details?.state?.startedAt) : null;
   const [terminalSessionKey, setTerminalSessionKey] = useState(0);
 
   // When container state transitions from stopped to running, advance session key so xterm initializes fresh
@@ -609,6 +631,11 @@ export default function ContainerDetailsView({
                 }`}>
                   <span className={`w-1.5 h-1.5 rounded-full ${isRunning ? 'bg-emerald-400 animate-pulse' : isPaused ? 'bg-amber-400' : 'bg-slate-500'}`}></span>
                   <span className="capitalize">{stateStatus}</span>
+                  {uptime && (
+                    <span className="text-[10px] text-emerald-300/90 font-mono pl-1 border-l border-emerald-500/30" title={`Uptime: ${uptime}`}>
+                      {uptime}
+                    </span>
+                  )}
                 </span>
               </div>
               <div className="flex items-center gap-2 text-xs text-slate-500 font-mono mt-0.5 min-w-0">
@@ -707,7 +734,7 @@ export default function ContainerDetailsView({
                 onClick={() => setActiveSubTab(tab.id)}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition whitespace-nowrap ${
                   isActive
-                    ? 'bg-slate-800 text-cyan-400 font-semibold shadow-sm'
+                    ? 'bg-cyan-500/15 text-cyan-300 font-semibold border border-cyan-500/30 shadow-xs'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
                 }`}
               >
@@ -731,59 +758,78 @@ export default function ContainerDetailsView({
             {/* Live Metrics Grid (Visible when container is running) */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {/* CPU Usage Card */}
-              <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/60 flex flex-col justify-between">
-                <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
-                  <span className="font-semibold uppercase tracking-wider flex items-center gap-1.5">
-                    <Cpu className="w-3.5 h-3.5 text-cyan-400" />
-                    CPU Usage
-                  </span>
-                  {details?.state?.running && (
-                    <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-                  )}
-                </div>
-                <div>
-                  <div className="text-2xl font-bold font-mono text-slate-100">
-                    {resourceStats ? `${resourceStats.cpuPercent.toFixed(1)}%` : details?.state?.running ? 'Loading...' : '0.0%'}
+              {(() => {
+                const cpuVal = resourceStats?.cpuPercent || 0;
+                const cpuBarColor = cpuVal > 80 ? 'bg-rose-500' : cpuVal > 60 ? 'bg-amber-400' : 'bg-cyan-400';
+                return (
+                  <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/60 flex flex-col justify-between">
+                    <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
+                      <span className="font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                        <Cpu className={`w-3.5 h-3.5 ${cpuVal > 80 ? 'text-rose-400' : cpuVal > 60 ? 'text-amber-400' : 'text-cyan-400'}`} />
+                        CPU Usage
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        {cpuVal > 80 && (
+                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 font-mono font-bold">High</span>
+                        )}
+                        {details?.state?.running && (
+                          <span className={`w-2 h-2 rounded-full ${cpuVal > 80 ? 'bg-rose-400' : 'bg-cyan-400'} animate-pulse`} />
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold font-mono text-slate-100">
+                        {resourceStats ? `${resourceStats.cpuPercent.toFixed(1)}%` : details?.state?.running ? 'Loading...' : '0.0%'}
+                      </div>
+                      <div className="w-full bg-slate-800 h-1.5 rounded-full mt-2 overflow-hidden">
+                        <div 
+                          className={`${cpuBarColor} h-full rounded-full transition-all duration-500`}
+                          style={{ width: `${Math.min(100, Math.max(0, resourceStats?.cpuPercent || 0))}%` }}
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div className="w-full bg-slate-800 h-1.5 rounded-full mt-2 overflow-hidden">
-                    <div 
-                      className="bg-cyan-400 h-full rounded-full transition-all duration-500"
-                      style={{ width: `${Math.min(100, Math.max(0, resourceStats?.cpuPercent || 0))}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
+                );
+              })()}
 
               {/* Memory Usage Card */}
-              <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/60 flex flex-col justify-between">
-                <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
-                  <span className="font-semibold uppercase tracking-wider flex items-center gap-1.5">
-                    <Activity className="w-3.5 h-3.5 text-purple-400" />
-                    Memory Usage
-                  </span>
-                  {resourceStats?.memoryPercent !== undefined && (
-                    <span className="font-mono text-purple-400 font-semibold">
-                      {resourceStats.memoryPercent.toFixed(1)}%
-                    </span>
-                  )}
-                </div>
-                <div>
-                  <div className="text-2xl font-bold font-mono text-slate-100 truncate">
-                    {resourceStats 
-                      ? `${(resourceStats.memoryUsage / (1024 * 1024)).toFixed(1)} MB` 
-                      : details?.state?.running ? 'Loading...' : '0.0 MB'}
+              {(() => {
+                const memVal = resourceStats?.memoryPercent || 0;
+                const memBarColor = memVal > 85 ? 'bg-rose-500' : memVal > 70 ? 'bg-amber-400' : 'bg-purple-500';
+                return (
+                  <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/60 flex flex-col justify-between">
+                    <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
+                      <span className="font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                        <Activity className={`w-3.5 h-3.5 ${memVal > 85 ? 'text-rose-400' : 'text-purple-400'}`} />
+                        Memory Usage
+                      </span>
+                      {memVal > 85 ? (
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 font-mono font-bold">High</span>
+                      ) : resourceStats?.memoryPercent !== undefined ? (
+                        <span className="font-mono text-purple-400 font-semibold text-xs">
+                          {resourceStats.memoryPercent.toFixed(1)}%
+                        </span>
+                      ) : null}
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold font-mono text-slate-100 truncate">
+                        {resourceStats 
+                          ? `${(resourceStats.memoryUsage / (1024 * 1024)).toFixed(1)} MB` 
+                          : details?.state?.running ? 'Loading...' : '0.0 MB'}
+                      </div>
+                      <div className="text-[11px] text-slate-500 font-mono mt-0.5 truncate">
+                        {resourceStats?.memoryLimit ? `Limit: ${(resourceStats.memoryLimit / (1024 * 1024 * 1024)).toFixed(2)} GB` : 'No Limit'}
+                      </div>
+                      <div className="w-full bg-slate-800 h-1.5 rounded-full mt-1.5 overflow-hidden">
+                        <div 
+                          className={`${memBarColor} h-full rounded-full transition-all duration-500`}
+                          style={{ width: `${Math.min(100, Math.max(0, resourceStats?.memoryPercent || 0))}%` }}
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-[11px] text-slate-500 font-mono mt-0.5 truncate">
-                    {resourceStats?.memoryLimit ? `Limit: ${(resourceStats.memoryLimit / (1024 * 1024 * 1024)).toFixed(2)} GB` : 'No Limit'}
-                  </div>
-                  <div className="w-full bg-slate-800 h-1.5 rounded-full mt-1.5 overflow-hidden">
-                    <div 
-                      className="bg-purple-500 h-full rounded-full transition-all duration-500"
-                      style={{ width: `${Math.min(100, Math.max(0, resourceStats?.memoryPercent || 0))}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
+                );
+              })()}
 
               {/* Network I/O Card */}
               <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/60 flex flex-col justify-between">
@@ -1413,8 +1459,48 @@ export default function ContainerDetailsView({
 
         {/* Tab 5: Raw JSON */}
         {activeSubTab === 'raw' && (
-          <div className="flex-1 min-h-[380px] rounded-xl border border-slate-800 bg-slate-950 p-4 font-mono text-xs text-slate-300 overflow-auto whitespace-pre-wrap select-text leading-relaxed">
-            {JSON.stringify(details, null, 2)}
+          <div className="flex-1 flex flex-col min-h-[380px] rounded-xl border border-slate-800 bg-slate-950 overflow-hidden shadow-lg">
+            <div className="flex items-center justify-between px-4 py-2 bg-slate-900/80 border-b border-slate-800 shrink-0">
+              <span className="text-xs font-semibold text-slate-300 font-mono">inspect.json</span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const text = JSON.stringify(details, null, 2);
+                    navigator.clipboard?.writeText(text);
+                    if (onToast) onToast('Inspect JSON copied to clipboard', 'success');
+                  }}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition cursor-pointer"
+                  title="Copy JSON"
+                >
+                  <Copy className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Copy</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const text = JSON.stringify(details, null, 2);
+                    const blob = new Blob([text], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${containerName || containerId.slice(0, 12)}-inspect.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                  }}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition cursor-pointer"
+                  title="Download inspect.json"
+                >
+                  <Download className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Download</span>
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 p-4 font-mono text-xs text-slate-300 overflow-auto whitespace-pre-wrap select-text leading-relaxed">
+              {JSON.stringify(details, null, 2)}
+            </div>
           </div>
         )}
       </div>

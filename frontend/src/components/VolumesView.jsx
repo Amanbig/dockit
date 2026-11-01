@@ -8,7 +8,10 @@ import {
   Layers, 
   Sparkles,
   CheckCircle2,
-  RefreshCw
+  RefreshCw,
+  Copy,
+  Check,
+  X
 } from 'lucide-react';
 
 export default function VolumesView({
@@ -30,6 +33,7 @@ export default function VolumesView({
   const [deletingVolumes, setDeletingVolumes] = useState({});
   const [selectedNames, setSelectedNames] = useState([]);
   const [batchExecuting, setBatchExecuting] = useState(false);
+  const [copiedName, setCopiedName] = useState(null);
   const headerCheckboxRef = useRef(null);
 
   useEffect(() => {
@@ -154,11 +158,23 @@ export default function VolumesView({
             />
           </div>
 
+          {/* Refresh button */}
+          {onRefresh && (
+            <button
+              onClick={onRefresh}
+              disabled={loading}
+              title="Refresh volumes list"
+              className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200 transition disabled:opacity-50 cursor-pointer"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-cyan-400' : ''}`} />
+            </button>
+          )}
+
           {/* Prune Unused button */}
           <button
             onClick={handlePruneClick}
             disabled={pruning}
-            className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-750 text-slate-300 font-semibold px-3 py-1.5 rounded-lg text-xs border border-slate-700 transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold px-3 py-1.5 rounded-lg text-xs border border-slate-700 transition-colors disabled:opacity-50 cursor-pointer"
             title="Remove all unused volumes"
           >
             <Sparkles className="w-3.5 h-3.5 text-amber-400" />
@@ -168,7 +184,7 @@ export default function VolumesView({
           {/* Create Volume button */}
           <button
             onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold px-3.5 py-1.5 rounded-lg text-xs shadow-md shadow-cyan-500/20 transition-all"
+            className="flex items-center gap-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold px-3.5 py-1.5 rounded-lg text-xs shadow-md shadow-cyan-500/20 transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4 text-slate-950 stroke-[3]" />
             <span>Create Volume</span>
@@ -178,12 +194,64 @@ export default function VolumesView({
 
       {/* Main Volumes Table */}
       <div className="flex-1 overflow-auto p-6">
-        {filtered.length === 0 ? (
-          <div className="h-64 border border-dashed border-slate-800 rounded-xl flex flex-col items-center justify-center text-center p-6 text-slate-500">
-            <HardDrive className="w-8 h-8 text-slate-600 mb-2" />
-            <p className="font-medium text-sm text-slate-400">No storage volumes found</p>
-            <p className="text-xs mt-1">Create a new persistent volume for databases or uploads.</p>
+        {loading ? (
+          /* Skeleton loader */
+          <div className="border border-slate-800 rounded-xl bg-slate-950/60 overflow-hidden">
+            <div className="border-b border-slate-800 bg-slate-900/80 py-3 px-4 flex gap-4">
+              <div className="skeleton w-4 h-4 rounded" />
+              <div className="skeleton w-36 h-4 rounded" />
+              <div className="skeleton w-24 h-4 rounded ml-auto" />
+            </div>
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="skeleton-row border-b border-slate-800/60">
+                <div className="skeleton w-4 h-4 rounded" />
+                <div className="flex-1 space-y-1.5">
+                  <div className="skeleton h-3.5 rounded w-48" />
+                </div>
+                <div className="skeleton h-3 rounded w-16 ml-4" />
+                <div className="skeleton h-3 rounded w-32 ml-4" />
+                <div className="skeleton h-3 rounded w-16 ml-4" />
+                <div className="flex gap-1.5 ml-4">
+                  <div className="skeleton h-6 w-6 rounded" />
+                  <div className="skeleton h-6 w-6 rounded" />
+                </div>
+              </div>
+            ))}
           </div>
+        ) : filtered.length === 0 ? (
+          volumes.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-state-icon">
+                <HardDrive size={28} />
+              </div>
+              <p className="empty-state-title">No storage volumes created</p>
+              <p className="empty-state-desc">
+                Volumes let containers store and persist files on your host filesystem across restarts and updates.
+              </p>
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="mt-2 flex items-center gap-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold px-4 py-2 rounded-lg text-xs shadow-md shadow-cyan-500/20 transition-all cursor-pointer"
+              >
+                <Plus className="w-4 h-4 stroke-[3]" />
+                Create Volume
+              </button>
+            </div>
+          ) : (
+            <div className="empty-state">
+              <div className="empty-state-icon">
+                <Search size={24} />
+              </div>
+              <p className="empty-state-title">No volumes match your filter</p>
+              <p className="empty-state-desc">Try checking for typos or searching by driver name.</p>
+              <button
+                onClick={() => setSearch('')}
+                className="mt-2 flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold px-4 py-2 rounded-lg text-xs transition-all border border-slate-700 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+                Clear filter
+              </button>
+            </div>
+          )
         ) : (
           <>
             {/* Batch Action Toolbar */}
@@ -216,7 +284,7 @@ export default function VolumesView({
             )}
 
             <div className="border border-slate-800 rounded-xl overflow-x-auto bg-slate-950/60 shadow-lg">
-              <table className="w-full text-left border-collapse text-xs min-w-[680px]">
+              <table className="w-full text-left border-collapse text-xs min-w-[680px] table-striped">
                 <thead>
                   <tr className="border-b border-slate-800 bg-slate-900/80 text-slate-400 uppercase font-semibold text-[11px] tracking-wider">
                     <th className="py-3 px-3 w-10 text-center">
@@ -242,7 +310,7 @@ export default function VolumesView({
                     return (
                       <tr 
                         key={v.name} 
-                        className={`hover:bg-slate-900/50 transition-colors group ${
+                        className={`table-row-hover transition-colors group ${
                           isSelected ? 'row-selected bg-cyan-50/80 border-l-2 border-l-cyan-500 dark:bg-cyan-950/30 dark:border-l-cyan-400' : ''
                         }`}
                       >
@@ -255,11 +323,30 @@ export default function VolumesView({
                           />
                         </td>
                         <td className="py-3 px-4 max-w-[240px] sm:max-w-[320px] md:max-w-[400px]">
-                          <div 
-                            className="font-semibold text-slate-100 group-hover:text-cyan-400 transition-colors truncate font-mono text-xs"
-                            title={v.name}
-                          >
-                            {v.name}
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span 
+                              className="font-semibold text-slate-100 group-hover:text-cyan-400 transition-colors truncate font-mono text-xs"
+                              title={v.name}
+                            >
+                              {v.name}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigator.clipboard.writeText(v.name);
+                                setCopiedName(v.name);
+                                setTimeout(() => setCopiedName(null), 1500);
+                              }}
+                              className="text-slate-600 hover:text-slate-300 transition-colors shrink-0 p-0.5 cursor-pointer"
+                              title="Copy volume name"
+                            >
+                              {copiedName === v.name ? (
+                                <Check className="w-3 h-3 text-emerald-400" />
+                              ) : (
+                                <Copy className="w-3 h-3" />
+                              )}
+                            </button>
                           </div>
                         </td>
                         <td className="py-3 px-4 whitespace-nowrap">
