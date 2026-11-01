@@ -52,14 +52,24 @@ export function ToastContainer({ toasts, onDismiss }) {
 function ToastItem({ toast, onDismiss }) {
   const { id, type = 'info', title, message, duration = 4000 } = toast;
 
+  // Smart duration: errors stay until manually dismissed, success=3s, info/warning=5s
+  const effectiveDuration = duration > 0 
+    ? duration 
+    : type === 'error' 
+      ? 0       // errors: no auto-dismiss
+      : type === 'success' 
+        ? 3000 
+        : 5000;
+
   useEffect(() => {
-    if (duration > 0) {
+    if (effectiveDuration > 0) {
       const timer = setTimeout(() => {
         onDismiss();
-      }, duration);
+      }, effectiveDuration);
       return () => clearTimeout(timer);
     }
-  }, [duration, onDismiss]);
+    // effectiveDuration === 0 → stays until user clicks X
+  }, [effectiveDuration, onDismiss]);
 
   const typeConfig = {
     success: {

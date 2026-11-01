@@ -91,6 +91,7 @@ export function formatDateTime(dateStr) {
 
 export default function ContainerDetailsView({ 
   containerId, 
+  containerSummary = null,
   isTabActive = true, 
   onBack, 
   onRefreshList, 
@@ -414,10 +415,23 @@ export default function ContainerDetailsView({
     };
   }, [isTabActive, containerId, details?.state?.running]);
 
+  const parentState = containerSummary?.state;
+  const parentStatus = containerSummary?.status;
+
   useEffect(() => {
     if (containerId && isTabActive) {
       fetchDetails();
     }
+  }, [containerId, isTabActive, parentState, parentStatus]);
+
+  // Periodic poll so container details automatically update when engine state changes
+  useEffect(() => {
+    if (!containerId || !isTabActive) return;
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      fetchDetails();
+    }, 3000);
+    return () => clearInterval(interval);
   }, [containerId, isTabActive]);
 
   useEffect(() => {
@@ -432,9 +446,13 @@ export default function ContainerDetailsView({
     setTimeout(() => setCopiedKey(null), 1500);
   };
 
-  const isRunning = details?.state?.running;
-  const isPaused = details?.state?.paused;
-  const stateStatus = details?.state?.status || (isRunning ? 'running' : 'stopped');
+  const isRunning = parentState !== undefined
+    ? parentState === 'running'
+    : Boolean(details?.state?.running);
+  const isPaused = parentState !== undefined
+    ? parentState === 'paused'
+    : Boolean(details?.state?.paused);
+  const stateStatus = parentState || details?.state?.status || (isRunning ? 'running' : 'stopped');
   const [terminalSessionKey, setTerminalSessionKey] = useState(0);
 
   // When container state transitions from stopped to running, advance session key so xterm initializes fresh
@@ -1063,7 +1081,10 @@ export default function ContainerDetailsView({
                 containerId={containerId}
                 containerName={details?.name || 'container'}
                 isActive={activeSubTab === 'terminal'}
-                onSessionExit={fetchDetails}
+                onSessionExit={() => {
+                  fetchDetails();
+                  if (onRefreshList) onRefreshList();
+                }}
               />
             )}
           </div>

@@ -64,6 +64,15 @@ export default function ContainersView({
   const [batchExecuting, setBatchExecuting] = useState(false);
   const headerCheckboxRef = useRef(null);
 
+  // Row density: 'normal' | 'compact' | 'dense'
+  const [density, setDensity] = useState(() => {
+    try { return localStorage.getItem('dockit:containers_density') || 'normal'; } catch { return 'normal'; }
+  });
+  const setDensityPersisted = (d) => {
+    setDensity(d);
+    try { localStorage.setItem('dockit:containers_density', d); } catch {}
+  };
+
   useEffect(() => {
     if (!showCreateModal) return;
     const handleKeyDown = (e) => {
@@ -212,28 +221,28 @@ export default function ContainersView({
     switch (state) {
       case 'running':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 whitespace-nowrap">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span className="status-badge bg-emerald-500/10 text-emerald-400 border-emerald-500/25 whitespace-nowrap">
+            <span className="status-dot status-dot-running"></span>
             <span>{label}</span>
           </span>
         );
       case 'paused':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/25 whitespace-nowrap">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+          <span className="status-badge bg-amber-500/10 text-amber-400 border-amber-500/25 whitespace-nowrap">
+            <span className="status-dot status-dot-paused"></span>
             <span>{label}</span>
           </span>
         );
       case 'stopped':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-400 border border-slate-700/80 whitespace-nowrap">
-            <span className="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+          <span className="status-badge bg-slate-800 text-slate-400 border-slate-700/80 whitespace-nowrap">
+            <span className="status-dot status-dot-stopped"></span>
             <span>{label}</span>
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700 whitespace-nowrap">
+          <span className="status-badge bg-slate-800 text-slate-300 border-slate-700 whitespace-nowrap">
             {label}
           </span>
         );
@@ -346,6 +355,28 @@ export default function ContainersView({
             </select>
           </div>
 
+          {/* Row density toggle */}
+          <div className="flex items-center gap-0.5 bg-slate-900 border border-slate-800 rounded-lg p-0.5">
+            {[
+              { id: 'normal', label: 'Normal', title: 'Normal row height' },
+              { id: 'compact', label: 'Compact', title: 'Compact row height' },
+              { id: 'dense', label: 'Dense', title: 'Dense row height' },
+            ].map(d => (
+              <button
+                key={d.id}
+                onClick={() => setDensityPersisted(d.id)}
+                title={d.title}
+                className={`px-2.5 py-1 rounded text-[11px] font-medium transition-all cursor-pointer ${
+                  density === d.id
+                    ? 'bg-slate-700 text-slate-100 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-300'
+                }`}
+              >
+                {d.label}
+              </button>
+            ))}
+          </div>
+
           {/* New Container button */}
           <button
             onClick={() => setShowCreateModal(true)}
@@ -359,11 +390,71 @@ export default function ContainersView({
 
       {/* Main Container list: with horizontal & vertical scroll for small displays */}
       <div className="flex-1 overflow-auto p-4 md:p-6">
-        {filtered.length === 0 ? (
-          <div className="h-64 border border-dashed border-slate-800 rounded-xl flex flex-col items-center justify-center text-center p-6 text-slate-500">
-            <p className="font-medium text-sm text-slate-400">No containers found</p>
-            <p className="text-xs mt-1">Start a new container or adjust your search filter.</p>
+        {loading ? (
+          /* Skeleton loader */
+          <div className="border border-slate-800 rounded-xl bg-slate-950/60 overflow-hidden">
+            <div className="border-b border-slate-800 bg-slate-900/80 py-3 px-4 flex gap-4">
+              <div className="skeleton w-4 h-4 rounded" />
+              <div className="skeleton w-32 h-4 rounded" />
+              <div className="skeleton w-20 h-4 rounded ml-auto" />
+            </div>
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="skeleton-row border-b border-slate-800/60">
+                <div className="skeleton w-4 h-4 rounded" />
+                <div className="flex-1 space-y-1.5">
+                  <div className="skeleton h-3.5 rounded w-36" />
+                  <div className="skeleton h-2.5 rounded w-20" />
+                </div>
+                <div className="skeleton h-5 rounded-full w-20" />
+                <div className="skeleton h-3 rounded w-28 ml-4" />
+                <div className="skeleton h-3 rounded w-16 ml-4" />
+                <div className="skeleton h-3 rounded w-20 ml-4" />
+                <div className="flex gap-1.5 ml-4">
+                  <div className="skeleton h-6 w-6 rounded" />
+                  <div className="skeleton h-6 w-6 rounded" />
+                  <div className="skeleton h-6 w-6 rounded" />
+                </div>
+              </div>
+            ))}
           </div>
+        ) : filtered.length === 0 ? (
+          containers.length === 0 ? (
+            /* True empty state */
+            <div className="empty-state">
+              <div className="empty-state-icon">
+                <Box size={28} />
+              </div>
+              <p className="empty-state-title">No containers yet</p>
+              <p className="empty-state-desc">
+                Create your first container to get started. You can pull an image from the Registry Hub or create a container directly.
+              </p>
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="mt-2 flex items-center gap-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold px-4 py-2 rounded-lg text-xs shadow-md shadow-cyan-500/20 transition-all"
+              >
+                <Plus className="w-4 h-4 stroke-[3]" />
+                Create Container
+              </button>
+            </div>
+          ) : (
+            /* Filtered empty state */
+            <div className="empty-state">
+              <div className="empty-state-icon">
+                <Search size={24} />
+              </div>
+              <p className="empty-state-title">No containers match your filter</p>
+              <p className="empty-state-desc">
+                Try adjusting your search query or status filter.
+              </p>
+              <button
+                onClick={() => { setSearch(''); setStatusFilter('all'); }}
+                className="mt-2 flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold px-4 py-2 rounded-lg text-xs transition-all border border-slate-700"
+              >
+                <X className="w-3.5 h-3.5" />
+                Clear filters
+              </button>
+            </div>
+          )
         ) : (
           <>
             {/* Batch Action Toolbar */}
@@ -423,7 +514,7 @@ export default function ContainersView({
             )}
 
             <div className="border border-slate-800 rounded-xl bg-slate-950/60 shadow-lg overflow-x-auto">
-              <table className="w-full min-w-[740px] text-left border-collapse text-xs">
+              <table className={`w-full min-w-[740px] text-left border-collapse text-xs table-striped table-density-${density}`}>
                 <thead>
                   <tr className="border-b border-slate-800 bg-slate-900/80 text-slate-400 uppercase font-semibold text-[11px] tracking-wider">
                     <th className="py-3 px-3 w-10 text-center">
@@ -456,7 +547,7 @@ export default function ContainersView({
                       <tr 
                         key={c.id} 
                         onClick={() => onSelectContainer && onSelectContainer(c.id)}
-                        className={`hover:bg-slate-900/50 transition-colors group cursor-pointer ${
+                        className={`table-row-hover group cursor-pointer transition-colors ${
                           isSelected ? 'row-selected bg-cyan-50/80 border-l-2 border-l-cyan-500 dark:bg-cyan-950/30 dark:border-l-cyan-400' : ''
                         }`}
                       >

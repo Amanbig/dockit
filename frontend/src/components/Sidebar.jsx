@@ -148,22 +148,41 @@ export default function Sidebar({
       localStorage.setItem('dockit:sidebar_width', String(DEFAULT_SIDEBAR_WIDTH));
     } catch (_) {}
   };
-  const navItems = [
-    { 
-      id: 'containers', 
-      label: 'Containers', 
-      icon: Box, 
-      badge: stats.runningContainers > 0 ? `${stats.runningContainers} running` : null,
-      badgeColor: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+  // Nav items grouped into sections for better visual hierarchy
+  const navSections = [
+    {
+      label: 'Resources',
+      items: [
+        { 
+          id: 'containers', 
+          label: 'Containers', 
+          icon: Box, 
+          badge: stats.runningContainers > 0 ? `${stats.runningContainers} running` : null,
+          badgeColor: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+        },
+        { id: 'images', label: 'Images', icon: Layers },
+        { id: 'volumes', label: 'Volumes', icon: HardDrive },
+        { id: 'networks', label: 'Networks', icon: Network },
+      ]
     },
-    { id: 'images', label: 'Images', icon: Layers },
-    { id: 'volumes', label: 'Volumes', icon: HardDrive },
-    { id: 'networks', label: 'Networks', icon: Network },
-    { id: 'cleanup', label: 'Disk & Cleanup', icon: Sparkles },
-    { id: 'compose', label: 'Compose Projects', icon: FileCode2 },
-    { id: 'registry', label: 'Registry Hub', icon: Globe },
-    { id: 'settings', label: 'Settings & Setup', icon: Settings },
+    {
+      label: 'Management',
+      items: [
+        { id: 'cleanup', label: 'Disk & Cleanup', icon: Sparkles },
+        { id: 'compose', label: 'Compose Projects', icon: FileCode2 },
+        { id: 'registry', label: 'Registry Hub', icon: Globe },
+      ]
+    },
+    {
+      label: 'App',
+      items: [
+        { id: 'settings', label: 'Settings & Setup', icon: Settings },
+      ]
+    }
   ];
+
+  // Flat list (still needed for collapsed icon-only mode)
+  const navItems = navSections.flatMap(s => s.items);
 
   return (
     <aside 
@@ -377,50 +396,55 @@ export default function Sidebar({
                   key={item.id}
                   type="button"
                   onClick={() => setActiveTab(item.id)}
-                  className={`w-full flex items-center justify-center p-2.5 rounded-lg text-sm font-medium transition cursor-pointer relative ${
+                  className={`w-full flex items-center justify-center p-2.5 rounded-lg text-sm font-medium transition-all cursor-pointer relative ${
                     isActive
-                      ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/80'
+                      ? 'sidebar-nav-active'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/80 border border-transparent'
                   }`}
                   title={item.label}
                 >
                   <Icon className="w-4 h-4" />
                   {item.badge && (
-                    <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-sm"></span>
+                    <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-sm animate-pulse"></span>
                   )}
                 </button>
               );
             })
           ) : (
-            navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = activeTab === item.id;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setActiveTab(item.id)}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all cursor-pointer ${
-                    isActive
-                      ? 'bg-gradient-to-r from-cyan-500/15 to-blue-600/10 text-cyan-300 border border-cyan-500/30 shadow-sm shadow-cyan-500/10'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/80 border border-transparent'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <Icon className={`w-4 h-4 ${isActive ? 'text-cyan-400' : 'text-slate-500'}`} />
-                    <span>{item.label}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {item.badge && (
-                      <span className={`text-[11px] px-2 py-0.5 rounded-full border ${item.badgeColor}`}>
-                        {item.badge}
-                      </span>
-                    )}
-                    {isActive && <ChevronRight className="w-3.5 h-3.5 text-cyan-400" />}
-                  </div>
-                </button>
-              );
-            })
+            navSections.map((section) => (
+              <div key={section.label} className="space-y-0.5">
+                <div className="sidebar-nav-section-label">{section.label}</div>
+                {section.items.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = activeTab === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setActiveTab(item.id)}
+                      className={`w-full flex items-center justify-between py-2.5 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+                        isActive
+                          ? 'sidebar-nav-active px-3'
+                          : 'px-3 text-slate-400 hover:text-slate-200 hover:bg-slate-900/80 border border-transparent'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-cyan-400' : 'text-slate-500'}`} />
+                        <span>{item.label}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {item.badge && (
+                          <span className={`text-[11px] px-2 py-0.5 rounded-full border status-badge ${item.badgeColor}`}>
+                            {item.badge}
+                          </span>
+                        )}
+                        {isActive && <ChevronRight className="w-3.5 h-3.5 text-cyan-400 shrink-0" />}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            ))
           )
         )}
       </nav>

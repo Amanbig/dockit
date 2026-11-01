@@ -1244,7 +1244,7 @@ export default function App() {
           <main className="flex-1 flex overflow-hidden relative">
             {visitedTabs.has('containers') && (
               <div
-                className="flex-1 flex flex-col h-full overflow-hidden"
+                className="flex-1 flex flex-col h-full overflow-hidden view-enter"
                 style={{ display: activeTab === 'containers' ? 'flex' : 'none' }}
               >
                 {selectedContainerId ? (
