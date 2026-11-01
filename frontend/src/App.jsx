@@ -1361,6 +1361,8 @@ export default function App() {
                 style={{ display: activeTab === 'compose' ? 'flex' : 'none' }}
               >
                 <ComposeView
+                  containers={containers}
+                  onOpenLogs={(id, name) => setLogsModal({ open: true, id, name })}
                   onOpenLocal={OpenComposeProject}
                   onOpenURL={OpenComposeProjectFromURL}
                   onSelectDirectory={SelectDirectoryDialog}
