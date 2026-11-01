@@ -514,8 +514,8 @@ export default function RegistryView({
                       onClick={() => setDetailTab('overview')}
                       className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
                         detailTab === 'overview'
-                          ? 'bg-slate-800 text-cyan-400 shadow-sm border border-slate-700'
-                          : 'text-slate-400 hover:text-slate-200'
+                          ? 'bg-cyan-500/15 text-cyan-300 font-semibold border border-cyan-500/30 shadow-xs'
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
                       }`}
                     >
                       <FileText className="w-3.5 h-3.5" />
@@ -526,8 +526,8 @@ export default function RegistryView({
                       onClick={() => setDetailTab('tags')}
                       className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
                         detailTab === 'tags'
-                          ? 'bg-slate-800 text-cyan-400 shadow-sm border border-slate-700'
-                          : 'text-slate-400 hover:text-slate-200'
+                          ? 'bg-cyan-500/15 text-cyan-300 font-semibold border border-cyan-500/30 shadow-xs'
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
                       }`}
                     >
                       <Tag className="w-3.5 h-3.5" />
@@ -697,7 +697,7 @@ export default function RegistryView({
                             <button
                               onClick={() => handlePullImageTag(selectedImage.name, t.name)}
                               disabled={pullingTag === t.name}
-                              className="flex items-center gap-1 px-3 py-1 rounded bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-semibold transition-colors disabled:opacity-50 whitespace-nowrap cursor-pointer"
+                              className="flex items-center gap-1 px-3 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-colors disabled:opacity-50 whitespace-nowrap cursor-pointer"
                             >
                               <DownloadCloud className="w-3 h-3 text-cyan-400" />
                               <span>{pullingTag === t.name ? 'Pulling...' : 'Pull'}</span>

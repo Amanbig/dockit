@@ -369,10 +369,10 @@ export default function Sidebar({
                       key={subTab.id}
                       type="button"
                       onClick={() => contextualNav.onSelectSubTab(subTab.id)}
-                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                      className={`w-full flex items-center justify-between py-2 rounded-lg text-xs font-medium transition-all cursor-pointer ${
                         isActive
-                          ? 'bg-gradient-to-r from-cyan-500/15 to-blue-600/10 text-cyan-300 border border-cyan-500/30 shadow-sm shadow-cyan-500/10 font-semibold'
-                          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/80 border border-transparent'
+                          ? 'sidebar-nav-active px-3'
+                          : 'px-3 text-slate-400 hover:text-slate-200 hover:bg-slate-900/80 border border-transparent'
                       }`}
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
