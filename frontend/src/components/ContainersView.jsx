@@ -15,9 +15,14 @@ import {
   Network,
   Terminal,
   ExternalLink,
-  Box
+  Box,
+  HardDrive,
+  FolderOpen,
+  Layers,
+  ArrowRight
 } from 'lucide-react';
 import { BrowserOpenURL } from '../../wailsjs/runtime/runtime';
+import { SelectDirectoryDialog } from '../../wailsjs/go/main/App';
 import EnvEditorModal, { parseEnvString } from './EnvEditorModal';
 import PortBindingsModal, { parsePortSpecs } from './PortBindingsModal';
 import CommandOverrideModal, { parseCommandArgs } from './CommandOverrideModal';
@@ -36,6 +41,7 @@ function extractHostPort(p) {
 
 export default function ContainersView({
   containers = [],
+  images = [],
   networks = [],
   volumes = [],
   loading,
@@ -82,6 +88,7 @@ export default function ContainersView({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showCreateModal]);
+
   const [createForm, setCreateForm] = useState({
     name: '',
     image: '',
@@ -92,6 +99,66 @@ export default function ContainersView({
     volume: '',
     restartPolicy: 'no'
   });
+
+  // Extract unique repo tags from locally available images
+  const availableImageTags = React.useMemo(() => {
+    const list = [];
+    images.forEach(img => {
+      if (Array.isArray(img.repoTags)) {
+        img.repoTags.forEach(t => {
+          if (t && t !== '<untagged>' && !list.includes(t)) {
+            list.push(t);
+          }
+        });
+      } else if (img.repository && img.tag) {
+        const full = `${img.repository}:${img.tag}`;
+        if (!list.includes(full)) list.push(full);
+      }
+    });
+    return list;
+  }, [images]);
+
+  // Structured Volume & Mount configuration state
+  const [mountMode, setMountMode] = useState('volume'); // 'volume' | 'bind' | 'raw'
+  const [selectedNamedVolume, setSelectedNamedVolume] = useState('');
+  const [namedVolumeTarget, setNamedVolumeTarget] = useState('/data');
+  const [hostBindSource, setHostBindSource] = useState('');
+  const [hostBindTarget, setHostBindTarget] = useState('/app');
+  const [mountReadOnly, setMountReadOnly] = useState(false);
+
+  useEffect(() => {
+    if (showCreateModal && volumes.length > 0 && !selectedNamedVolume) {
+      setSelectedNamedVolume(volumes[0]?.name || '');
+    }
+  }, [showCreateModal, volumes, selectedNamedVolume]);
+
+  const handleSelectImageTag = (tag) => {
+    let suggestedName = createForm.name;
+    if (!suggestedName.trim()) {
+      const base = tag.split('/').pop().split(':')[0];
+      if (base) {
+        suggestedName = base.toLowerCase().replace(/[^a-z0-9_-]/g, '-');
+      }
+    }
+    setCreateForm(prev => ({
+      ...prev,
+      image: tag,
+      name: suggestedName
+    }));
+  };
+
+  const handleBrowseHostFolder = async () => {
+    try {
+      if (typeof SelectDirectoryDialog === 'function') {
+        const path = await SelectDirectoryDialog();
+        if (path) {
+          setHostBindSource(path);
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to open directory picker:', err);
+    }
+  };
 
   const parsedEnvList = typeof createForm.env === 'string'
     ? parseEnvString(createForm.env).map(r => `${r.key}=${r.value}`)
@@ -287,10 +354,20 @@ export default function ContainersView({
     }
 
     const volumeList = [];
-    if (createForm.volume.trim()) {
-      createForm.volume.split(',').forEach(v => {
-        if (v.trim()) volumeList.push(v.trim());
-      });
+    if (mountMode === 'volume') {
+      if (selectedNamedVolume && selectedNamedVolume.trim() && namedVolumeTarget.trim()) {
+        volumeList.push(`${selectedNamedVolume.trim()}:${namedVolumeTarget.trim()}${mountReadOnly ? ':ro' : ''}`);
+      }
+    } else if (mountMode === 'bind') {
+      if (hostBindSource.trim() && hostBindTarget.trim()) {
+        volumeList.push(`${hostBindSource.trim()}:${hostBindTarget.trim()}${mountReadOnly ? ':ro' : ''}`);
+      }
+    } else {
+      if (createForm.volume.trim()) {
+        createForm.volume.split(',').forEach(v => {
+          if (v.trim()) volumeList.push(v.trim());
+        });
+      }
     }
 
     const networkList = [];
@@ -732,29 +809,83 @@ export default function ContainersView({
           onClick={() => setShowCreateModal(false)}
         >
           <div 
-            className="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-md overflow-hidden shadow-2xl"
+            className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-5 border-b border-slate-800 flex justify-between items-center">
+            <div className="p-5 border-b border-slate-800 flex justify-between items-center shrink-0">
               <h2 className="text-base font-bold text-slate-100">Create Container</h2>
               <button
                 onClick={() => setShowCreateModal(false)}
-                className="text-slate-400 hover:text-slate-200 text-sm"
+                className="text-slate-400 hover:text-slate-200 text-sm cursor-pointer"
               >
                 ✕
               </button>
             </div>
-            <form onSubmit={handleCreateSubmit} className="p-5 space-y-4 text-xs">
+            <form onSubmit={handleCreateSubmit} className="p-5 space-y-4 text-xs overflow-y-auto flex-1">
               <div>
-                <label className="block text-slate-300 font-medium mb-1">Image Name *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. nginx:alpine or redis:latest"
-                  value={createForm.image}
-                  onChange={(e) => setCreateForm({ ...createForm, image: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500"
-                />
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-slate-300 font-medium">Image Name *</label>
+                  {availableImageTags.length > 0 && (
+                    <span className="text-[10px] text-cyan-400 font-mono">
+                      {availableImageTags.length} local image{availableImageTags.length > 1 ? 's' : ''} available
+                    </span>
+                  )}
+                </div>
+                <div className="relative">
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. nginx:alpine or redis:latest"
+                    value={createForm.image}
+                    onChange={(e) => setCreateForm({ ...createForm, image: e.target.value })}
+                    list="local-images-datalist"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500 font-mono text-xs"
+                  />
+                  <datalist id="local-images-datalist">
+                    {availableImageTags.map(tag => (
+                      <option key={tag} value={tag} />
+                    ))}
+                  </datalist>
+                </div>
+
+                {availableImageTags.length > 0 && (
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                    <span className="text-[10px] text-slate-500 flex items-center gap-1">
+                      <Layers className="w-3 h-3 text-cyan-400" />
+                      <span>Pick local:</span>
+                    </span>
+                    {availableImageTags.slice(0, 4).map(tag => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => handleSelectImageTag(tag)}
+                        className={`text-[10px] px-2 py-0.5 rounded font-mono transition cursor-pointer border ${
+                          createForm.image === tag
+                            ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 shadow-xs'
+                            : 'bg-slate-950 text-slate-400 hover:text-cyan-300 hover:bg-slate-850 border-slate-800'
+                        }`}
+                        title={`Select ${tag}`}
+                      >
+                        {tag}
+                      </button>
+                    ))}
+                    {availableImageTags.length > 4 && (
+                      <select
+                        value={availableImageTags.includes(createForm.image) ? createForm.image : ''}
+                        onChange={(e) => {
+                          if (e.target.value) handleSelectImageTag(e.target.value);
+                        }}
+                        className="text-[10px] bg-slate-950 text-cyan-400 border border-slate-800 rounded px-1.5 py-0.5 font-mono cursor-pointer hover:bg-slate-800"
+                        title="More local images"
+                      >
+                        <option value="">More ({availableImageTags.length - 4})...</option>
+                        {availableImageTags.slice(4).map(tag => (
+                          <option key={tag} value={tag}>{tag}</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div>
@@ -995,31 +1126,216 @@ export default function ContainersView({
                 </div>
               </div>
 
-              {/* Volume & Mount Binding */}
-              <div>
-                <label className="block text-slate-300 font-medium mb-1">
-                  Volume / Bind Mount (volume_or_host:container_path)
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. my-volume:/data or /home/user/app:/app"
-                  value={createForm.volume}
-                  onChange={(e) => setCreateForm({ ...createForm, volume: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500 font-mono text-xs"
-                />
-                {volumes.length > 0 && (
-                  <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                    <span className="text-[11px] text-slate-500">Available volumes:</span>
-                    {volumes.slice(0, 4).map(v => (
-                      <button
-                        key={v.name}
-                        type="button"
-                        onClick={() => setCreateForm({ ...createForm, volume: `${v.name}:/data` })}
-                        className="text-[10px] px-1.5 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-cyan-400 border border-slate-800 font-mono transition cursor-pointer"
-                      >
-                        {v.name}
-                      </button>
-                    ))}
+              {/* Volume & Mount Configuration */}
+              <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800/90 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-slate-300 font-medium flex items-center gap-1.5">
+                    <HardDrive className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Volume / Storage Mount</span>
+                  </label>
+
+                  {/* Mode switcher */}
+                  <div className="flex items-center bg-slate-900 p-0.5 rounded-lg border border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => setMountMode('volume')}
+                      className={`px-2 py-0.5 rounded text-[10px] font-medium transition cursor-pointer flex items-center gap-1 ${
+                        mountMode === 'volume'
+                          ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-semibold'
+                          : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      <HardDrive className="w-3 h-3" />
+                      <span>Volume</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMountMode('bind')}
+                      className={`px-2 py-0.5 rounded text-[10px] font-medium transition cursor-pointer flex items-center gap-1 ${
+                        mountMode === 'bind'
+                          ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-semibold'
+                          : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      <FolderOpen className="w-3 h-3" />
+                      <span>Host Folder</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMountMode('raw')}
+                      className={`px-2 py-0.5 rounded text-[10px] font-medium transition cursor-pointer ${
+                        mountMode === 'raw'
+                          ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-semibold'
+                          : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      Raw
+                    </button>
+                  </div>
+                </div>
+
+                {mountMode === 'volume' && (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div>
+                        <span className="text-[11px] text-slate-400 block mb-1">Select Named Volume</span>
+                        {volumes.length > 0 ? (
+                          <select
+                            value={selectedNamedVolume}
+                            onChange={(e) => setSelectedNamedVolume(e.target.value)}
+                            className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-slate-200 focus:outline-none focus:border-cyan-500 font-mono text-xs"
+                          >
+                            <option value="">-- None (No volume) --</option>
+                            {volumes.map(v => (
+                              <option key={v.name} value={v.name}>
+                                {v.name.length > 28 ? v.name.slice(0, 14) + '...' + v.name.slice(-10) : v.name}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <div className="text-[11px] text-amber-400/90 bg-amber-500/10 border border-amber-500/20 rounded-lg p-2">
+                            No volumes created yet. Switch to "Host Folder" or create one in the Volumes tab.
+                          </div>
+                        )}
+                      </div>
+
+                      <div>
+                        <span className="text-[11px] text-slate-400 block mb-1">Container Path</span>
+                        <input
+                          type="text"
+                          placeholder="/data or /app"
+                          value={namedVolumeTarget}
+                          onChange={(e) => setNamedVolumeTarget(e.target.value)}
+                          className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-slate-200 focus:outline-none focus:border-cyan-500 font-mono text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Presets + Read Only */}
+                    {selectedNamedVolume && (
+                      <div className="flex items-center justify-between pt-1 text-[11px] flex-wrap gap-2">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-slate-500">Presets:</span>
+                          {['/data', '/app', '/var/lib/data'].map(preset => (
+                            <button
+                              key={preset}
+                              type="button"
+                              onClick={() => setNamedVolumeTarget(preset)}
+                              className="px-1.5 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-cyan-300 border border-slate-800 font-mono text-[10px] cursor-pointer"
+                            >
+                              {preset}
+                            </button>
+                          ))}
+                        </div>
+                        <label className="flex items-center gap-1.5 text-slate-400 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={mountReadOnly}
+                            onChange={(e) => setMountReadOnly(e.target.checked)}
+                            className="w-3.5 h-3.5 rounded border-slate-700 bg-slate-900 text-cyan-500 accent-cyan-500"
+                          />
+                          <span>Read-only (:ro)</span>
+                        </label>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {mountMode === 'bind' && (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[11px] text-slate-400">Host Folder</span>
+                          <button
+                            type="button"
+                            onClick={handleBrowseHostFolder}
+                            className="text-[10px] text-cyan-400 hover:text-cyan-300 hover:underline flex items-center gap-1 cursor-pointer font-medium"
+                          >
+                            <FolderOpen className="w-3 h-3" />
+                            <span>Browse...</span>
+                          </button>
+                        </div>
+                        <input
+                          type="text"
+                          placeholder="/home/user/project or C:\path"
+                          value={hostBindSource}
+                          onChange={(e) => setHostBindSource(e.target.value)}
+                          className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-slate-200 focus:outline-none focus:border-cyan-500 font-mono text-xs"
+                        />
+                      </div>
+
+                      <div>
+                        <span className="text-[11px] text-slate-400 block mb-1">Container Path</span>
+                        <input
+                          type="text"
+                          placeholder="/app or /workspace"
+                          value={hostBindTarget}
+                          onChange={(e) => setHostBindTarget(e.target.value)}
+                          className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-slate-200 focus:outline-none focus:border-cyan-500 font-mono text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Presets + Read Only */}
+                    {hostBindSource && (
+                      <div className="flex items-center justify-between pt-1 text-[11px] flex-wrap gap-2">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-slate-500">Presets:</span>
+                          {['/app', '/workspace', '/usr/share/nginx/html'].map(preset => (
+                            <button
+                              key={preset}
+                              type="button"
+                              onClick={() => setHostBindTarget(preset)}
+                              className="px-1.5 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-cyan-300 border border-slate-800 font-mono text-[10px] cursor-pointer"
+                            >
+                              {preset}
+                            </button>
+                          ))}
+                        </div>
+                        <label className="flex items-center gap-1.5 text-slate-400 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={mountReadOnly}
+                            onChange={(e) => setMountReadOnly(e.target.checked)}
+                            className="w-3.5 h-3.5 rounded border-slate-700 bg-slate-900 text-cyan-500 accent-cyan-500"
+                          />
+                          <span>Read-only (:ro)</span>
+                        </label>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {mountMode === 'raw' && (
+                  <div>
+                    <input
+                      type="text"
+                      placeholder="e.g. my-volume:/data, /home/user/app:/app:ro"
+                      value={createForm.volume}
+                      onChange={(e) => setCreateForm({ ...createForm, volume: e.target.value })}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-slate-200 focus:outline-none focus:border-cyan-500 font-mono text-xs"
+                    />
+                    <p className="text-[10px] text-slate-500 mt-1">
+                      Separate multiple mounts with commas. Standard Docker syntax supported.
+                    </p>
+                  </div>
+                )}
+
+                {/* Active mount preview */}
+                {((mountMode === 'volume' && selectedNamedVolume) || (mountMode === 'bind' && hostBindSource)) && (
+                  <div className="pt-1.5 border-t border-slate-800/80 flex items-center gap-1.5 text-[10px] font-mono text-slate-400">
+                    <span className="text-slate-500">Active Mount:</span>
+                    <span className="text-cyan-300 px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 truncate max-w-[160px]">
+                      {mountMode === 'volume' ? selectedNamedVolume : hostBindSource}
+                    </span>
+                    <ArrowRight className="w-3 h-3 text-slate-600 shrink-0" />
+                    <span className="text-cyan-300 px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800">
+                      {mountMode === 'volume' ? namedVolumeTarget : hostBindTarget}
+                    </span>
+                    <span className="text-[9px] px-1 py-0.5 rounded bg-slate-800 text-slate-400">
+                      {mountReadOnly ? 'ro' : 'rw'}
+                    </span>
                   </div>
                 )}
               </div>

@@ -1264,6 +1264,7 @@ export default function App() {
                 ) : (
                   <ContainersView
                     containers={containers}
+                    images={images}
                     networks={networks}
                     volumes={volumes}
                     loading={isRefreshing}
