@@ -286,9 +286,9 @@ export default function Sidebar({
               <button
                 type="button"
                 onClick={contextualNav.onBack}
-                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-cyan-400 hover:text-cyan-300 hover:bg-slate-900/90 border border-cyan-800/40 hover:border-cyan-700/60 transition-all cursor-pointer shadow-xs"
+                className="group w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-slate-300 hover:text-white bg-slate-900/70 hover:bg-slate-850 border border-slate-800 hover:border-slate-700 transition-all cursor-pointer shadow-xs"
               >
-                <ArrowLeft className="w-3.5 h-3.5 shrink-0" />
+                <ArrowLeft className="w-3.5 h-3.5 shrink-0 text-slate-400 group-hover:text-cyan-400 group-hover:-translate-x-0.5 transition-transform" />
                 <span className="truncate">Back to {contextualNav.backLabel || 'All'}</span>
               </button>
 
