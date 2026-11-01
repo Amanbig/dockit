@@ -104,12 +104,19 @@ export default function ComposeView({
   useEffect(() => {
     if (onProjectChange) {
       if (project) {
+        const isRunning = project.status === 'running' || (project.services || []).some(s => (s.status || '').toLowerCase() === 'running');
         onProjectChange({
           name: project.name,
           dir: project.workingDir || project.directory || '',
           serviceCount: Array.isArray(project.services) ? project.services.length : Object.keys(project.services || {}).length,
           hasEnv,
           snapshotCount: project.snapshots?.length || 0,
+          status: isRunning ? 'running' : 'stopped',
+          onUp: () => handleUp(false),
+          onStart: handleStartStack,
+          onStop: handleStopStack,
+          onDown: handleOpenDownModal,
+          onRestart: handleRestartStack,
           onClose: () => {
             setProject(null);
             if (onActiveProjectChange) onActiveProjectChange(null);
@@ -540,6 +547,53 @@ SECRET_KEY=dockit_super_secret_key
     }
   };
 
+  const handleStopStack = async () => {
+    if (!project || !projectKey || !onStop) return;
+    try {
+      setLoading(true);
+      const out = await onStop(projectKey, []);
+      setActionOutput(out || 'All compose services stopped.');
+      const refreshed = await onRefreshProject(projectKey);
+      if (refreshed) setProject(refreshed);
+      setActiveTab('output');
+      notify('All compose services stopped successfully.', 'info', 'Stack Stopped');
+    } catch (err) {
+      notify(`Stop stack failed: ${err}`, 'error', 'Stop Failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStartStack = async () => {
+    if (!project || !projectKey) return;
+    try {
+      setLoading(true);
+      let out;
+      if (onStart) {
+        out = await onStart(projectKey, []);
+      } else {
+        out = await onUp(projectKey, { detached: true, build: false });
+      }
+      setActionOutput(out || 'All compose services started.');
+      const refreshed = await onRefreshProject(projectKey);
+      if (refreshed) setProject(refreshed);
+      setActiveTab('output');
+      notify('All compose services started.', 'success', 'Stack Started');
+    } catch (err) {
+      try {
+        const out = await onUp(projectKey, { detached: true, build: false });
+        setActionOutput(out);
+        const refreshed = await onRefreshProject(projectKey);
+        if (refreshed) setProject(refreshed);
+        setActiveTab('output');
+      } catch (upErr) {
+        notify(`Start stack failed: ${upErr}`, 'error', 'Start Failed');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleRestartStack = async () => {
     if (!project || !projectKey) return;
     try {
@@ -906,39 +960,58 @@ SECRET_KEY=dockit_super_secret_key
 
             {/* Quick Action buttons */}
             <div className="flex items-center gap-2 ml-auto">
-              {navigationStyle === 'tabs' && (() => {
+              {(() => {
                 const isStackActive = project.status === 'running' || project.status === 'partial' || (project.services || []).some(s => (s.status || '').toLowerCase() === 'running');
                 return isStackActive ? (
                   <>
                     <button
-                      onClick={handleOpenDownModal}
+                      onClick={handleStopStack}
                       disabled={loading}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 border border-rose-500/30 text-xs font-semibold transition-all disabled:opacity-50 cursor-pointer"
-                      title="Stop stack and choose cleanup options"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-xs font-semibold transition-all disabled:opacity-50 cursor-pointer shadow-xs"
+                      title="Stop all services cleanly without deleting containers (docker compose stop)"
                     >
-                      {loading ? <RotateCw className="w-3.5 h-3.5 animate-spin" /> : <Square className="w-3.5 h-3.5 fill-current" />}
-                      <span>Compose Down</span>
+                      {loading ? <RotateCw className="w-3.5 h-3.5 animate-spin" /> : <Square className="w-3.5 h-3.5" />}
+                      <span>Stop Stack</span>
                     </button>
                     <button
                       onClick={handleRestartStack}
                       disabled={loading}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-300 border border-slate-700 text-xs font-medium transition-all disabled:opacity-50 cursor-pointer"
-                      title="Restart entire stack"
+                      title="Restart all services (docker compose restart)"
                     >
                       <RotateCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-cyan-400' : ''}`} />
-                      <span>Restart Stack</span>
+                      <span>Restart</span>
+                    </button>
+                    <button
+                      onClick={handleOpenDownModal}
+                      disabled={loading}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 border border-rose-500/30 text-xs font-semibold transition-all disabled:opacity-50 cursor-pointer"
+                      title="Stop stack and remove containers/networks (docker compose down)"
+                    >
+                      <span>Compose Down</span>
                     </button>
                   </>
                 ) : (
-                  <button
-                    onClick={() => handleUp(false)}
-                    disabled={loading}
-                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 text-xs font-bold transition-all disabled:opacity-50 cursor-pointer shadow-sm shadow-emerald-500/10"
-                    title="Launch compose stack"
-                  >
-                    {loading ? <RotateCw className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5 fill-current" />}
-                    <span>Compose Up</span>
-                  </button>
+                  <>
+                    <button
+                      onClick={() => handleUp(false)}
+                      disabled={loading}
+                      className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 text-xs font-bold transition-all disabled:opacity-50 cursor-pointer shadow-sm shadow-emerald-500/10"
+                      title="Build, create, and launch stack (docker compose up -d)"
+                    >
+                      {loading ? <RotateCw className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5 fill-current" />}
+                      <span>Compose Up</span>
+                    </button>
+                    <button
+                      onClick={handleStartStack}
+                      disabled={loading}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 text-xs font-medium transition-all disabled:opacity-50 cursor-pointer"
+                      title="Start existing stopped containers without rebuilding (docker compose start)"
+                    >
+                      <Play className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>Start Stack</span>
+                    </button>
+                  </>
                 );
               })()}
               <button

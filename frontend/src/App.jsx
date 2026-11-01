@@ -1047,6 +1047,22 @@ export default function App() {
       const composeActions = [];
       const isStackActive = composeProjectInfo.status === 'running' || composeProjectInfo.status === 'partial';
       if (isStackActive) {
+        if (composeProjectInfo.onStop) {
+          composeActions.push({
+            label: 'Stop',
+            icon: Square,
+            variant: 'warning',
+            onClick: composeProjectInfo.onStop
+          });
+        }
+        if (composeProjectInfo.onRestart) {
+          composeActions.push({
+            label: 'Restart',
+            icon: RotateCw,
+            variant: 'default',
+            onClick: composeProjectInfo.onRestart
+          });
+        }
         if (composeProjectInfo.onDown) {
           composeActions.push({
             label: 'Down',
@@ -1064,14 +1080,6 @@ export default function App() {
             onClick: composeProjectInfo.onUp
           });
         }
-      }
-      if (composeProjectInfo.onRestart) {
-        composeActions.push({
-          label: 'Restart',
-          icon: RotateCw,
-          variant: 'default',
-          onClick: composeProjectInfo.onRestart
-        });
       }
 
       return {
