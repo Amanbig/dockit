@@ -18,6 +18,10 @@ export function CheckForAppUpdate() {
   return window['go']['main']['App']['CheckForAppUpdate']();
 }
 
+export function CloseHostTerminal(arg1) {
+  return window['go']['main']['App']['CloseHostTerminal'](arg1);
+}
+
 export function CloseHostTerminalSession(arg1) {
   return window['go']['main']['App']['CloseHostTerminalSession'](arg1);
 }
@@ -294,6 +298,10 @@ export function RemoveVolume(arg1, arg2) {
   return window['go']['main']['App']['RemoveVolume'](arg1, arg2);
 }
 
+export function ResizeHostTerminal(arg1, arg2, arg3) {
+  return window['go']['main']['App']['ResizeHostTerminal'](arg1, arg2, arg3);
+}
+
 export function RestartApp() {
   return window['go']['main']['App']['RestartApp']();
 }
@@ -312,6 +320,10 @@ export function SearchRegistry(arg1, arg2, arg3, arg4) {
 
 export function SelectDirectoryDialog() {
   return window['go']['main']['App']['SelectDirectoryDialog']();
+}
+
+export function SendHostTerminalInput(arg1, arg2) {
+  return window['go']['main']['App']['SendHostTerminalInput'](arg1, arg2);
 }
 
 export function SetAutoCheckUpdates(arg1) {
@@ -336,6 +348,14 @@ export function SetTheme(arg1) {
 
 export function StartContainer(arg1) {
   return window['go']['main']['App']['StartContainer'](arg1);
+}
+
+export function StartContainerTerminal(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['StartContainerTerminal'](arg1, arg2, arg3, arg4);
+}
+
+export function StartHostTerminal(arg1, arg2, arg3) {
+  return window['go']['main']['App']['StartHostTerminal'](arg1, arg2, arg3);
 }
 
 export function StartRuntime(arg1) {

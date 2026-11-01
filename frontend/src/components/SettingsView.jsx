@@ -36,7 +36,7 @@ export default function SettingsView({
   activeRuntime,
   theme,
   onSetTheme,
-  appVersion = '0.9.0',
+  appVersion = '0.9.4',
   onCheckForUpdates,
   isCheckingUpdates = false,
   onToast,

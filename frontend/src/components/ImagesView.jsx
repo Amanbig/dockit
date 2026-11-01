@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   DownloadCloud, 
   Trash2, 
@@ -9,7 +9,8 @@ import {
   HardDrive, 
   Copy, 
   Check,
-  RefreshCw
+  RefreshCw,
+  X
 } from 'lucide-react';
 
 export default function ImagesView({
@@ -97,6 +98,10 @@ export default function ImagesView({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   };
 
+  const maxImageSize = useMemo(() => {
+    return images.reduce((max, img) => Math.max(max, img.size || 0), 0) || 1;
+  }, [images]);
+
   const handlePullSubmit = async (e) => {
     e.preventDefault();
     if (!pullInput.trim()) return;
@@ -167,10 +172,22 @@ export default function ImagesView({
             />
           </div>
 
+          {/* Refresh button */}
+          {onRefresh && (
+            <button
+              onClick={onRefresh}
+              disabled={loading}
+              title="Refresh images list"
+              className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200 transition disabled:opacity-50 cursor-pointer"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-cyan-400' : ''}`} />
+            </button>
+          )}
+
           {/* Pull button */}
           <button
             onClick={() => setShowPullModal(true)}
-            className="flex items-center gap-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold px-3.5 py-1.5 rounded-lg text-xs shadow-md shadow-cyan-500/20 transition-all"
+            className="flex items-center gap-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold px-3.5 py-1.5 rounded-lg text-xs shadow-md shadow-cyan-500/20 transition-all cursor-pointer"
           >
             <DownloadCloud className="w-4 h-4 text-slate-950 stroke-[2.5]" />
             <span>Pull Image</span>
@@ -180,12 +197,65 @@ export default function ImagesView({
 
       {/* Main Images Table */}
       <div className="flex-1 overflow-auto p-6">
-        {filtered.length === 0 ? (
-          <div className="h-64 border border-dashed border-slate-800 rounded-xl flex flex-col items-center justify-center text-center p-6 text-slate-500">
-            <Layers className="w-8 h-8 text-slate-600 mb-2" />
-            <p className="font-medium text-sm text-slate-400">No images found</p>
-            <p className="text-xs mt-1">Pull an image from Docker Hub or your registry to get started.</p>
+        {loading ? (
+          /* Skeleton Loader */
+          <div className="border border-slate-800 rounded-xl bg-slate-950/60 overflow-hidden">
+            <div className="border-b border-slate-800 bg-slate-900/80 py-3 px-4 flex gap-4">
+              <div className="skeleton w-4 h-4 rounded" />
+              <div className="skeleton w-36 h-4 rounded" />
+              <div className="skeleton w-24 h-4 rounded ml-auto" />
+            </div>
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="skeleton-row border-b border-slate-800/60">
+                <div className="skeleton w-4 h-4 rounded" />
+                <div className="flex-1 space-y-1.5">
+                  <div className="skeleton h-3.5 rounded w-44" />
+                  <div className="skeleton h-2.5 rounded w-28" />
+                </div>
+                <div className="skeleton h-3 rounded w-20 ml-4" />
+                <div className="skeleton h-3 rounded w-20 ml-4" />
+                <div className="skeleton h-3 rounded w-24 ml-4" />
+                <div className="flex gap-1.5 ml-4">
+                  <div className="skeleton h-6 w-6 rounded" />
+                  <div className="skeleton h-6 w-6 rounded" />
+                </div>
+              </div>
+            ))}
           </div>
+        ) : filtered.length === 0 ? (
+          images.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-state-icon">
+                <Layers size={28} />
+              </div>
+              <p className="empty-state-title">No images downloaded</p>
+              <p className="empty-state-desc">
+                Pull an image from Docker Hub, GitHub Container Registry, or your private registry to run containers.
+              </p>
+              <button
+                onClick={() => setShowPullModal(true)}
+                className="mt-2 flex items-center gap-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold px-4 py-2 rounded-lg text-xs shadow-md shadow-cyan-500/20 transition-all cursor-pointer"
+              >
+                <DownloadCloud className="w-4 h-4 stroke-[2.5]" />
+                Pull Image
+              </button>
+            </div>
+          ) : (
+            <div className="empty-state">
+              <div className="empty-state-icon">
+                <Search size={24} />
+              </div>
+              <p className="empty-state-title">No images match your filter</p>
+              <p className="empty-state-desc">Try checking for typos or searching by full image ID.</p>
+              <button
+                onClick={() => setSearch('')}
+                className="mt-2 flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold px-4 py-2 rounded-lg text-xs transition-all border border-slate-700 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+                Clear filter
+              </button>
+            </div>
+          )
         ) : (
           <>
             {/* Batch Action Toolbar */}
@@ -218,7 +288,7 @@ export default function ImagesView({
             )}
 
             <div className="border border-slate-800 rounded-xl overflow-hidden bg-slate-950/60 shadow-lg">
-              <table className="w-full text-left border-collapse text-xs">
+              <table className="w-full text-left border-collapse text-xs table-striped">
                 <thead>
                   <tr className="border-b border-slate-800 bg-slate-900/80 text-slate-400 uppercase font-semibold text-[11px] tracking-wider">
                     <th className="py-3 px-3 w-10 text-center">
@@ -246,7 +316,7 @@ export default function ImagesView({
                     return (
                       <tr 
                         key={img.id} 
-                        className={`hover:bg-slate-900/50 transition-colors group ${
+                        className={`table-row-hover transition-colors group ${
                           isSelected ? 'row-selected bg-cyan-50/80 border-l-2 border-l-cyan-500 dark:bg-cyan-950/30 dark:border-l-cyan-400' : ''
                         }`}
                       >
@@ -287,7 +357,16 @@ export default function ImagesView({
                         </div>
                       </td>
                       <td className="py-3 px-4 font-mono text-[11px] text-slate-300">
-                        {formatBytes(img.size)}
+                        <div className="flex items-center gap-2.5">
+                          <span className="font-semibold">{formatBytes(img.size)}</span>
+                          <div className="w-14 h-1.5 bg-slate-800 rounded-full overflow-hidden shrink-0 hidden sm:block">
+                            <div 
+                              className="bg-cyan-500 h-full rounded-full transition-all duration-300"
+                              style={{ width: `${Math.min(100, Math.max(5, Math.round(((img.size || 0) / maxImageSize) * 100)))}%` }}
+                              title={`${Math.round(((img.size || 0) / maxImageSize) * 100)}% of largest image`}
+                            />
+                          </div>
+                        </div>
                       </td>
                       <td className="py-3 px-4 text-slate-400 text-[11px]">
                         {new Date(img.created * 1000).toLocaleString(undefined, {
@@ -366,6 +445,19 @@ export default function ImagesView({
                 <p className="text-[11px] text-slate-500 mt-1.5">
                   Dockit will pull layers from your active registry and prepare the image locally.
                 </p>
+                <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                  <span className="text-[10px] text-slate-500 uppercase font-semibold">Quick picks:</span>
+                  {['alpine:latest', 'postgres:17-alpine', 'redis:7-alpine', 'nginx:alpine', 'node:22-alpine'].map(hint => (
+                    <button
+                      key={hint}
+                      type="button"
+                      onClick={() => setPullInput(hint)}
+                      className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 transition cursor-pointer"
+                    >
+                      {hint}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div className="flex justify-end gap-3 pt-3 border-t border-slate-800">

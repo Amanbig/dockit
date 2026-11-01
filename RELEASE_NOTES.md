@@ -1,39 +1,31 @@
-# Dockit v0.9.0 🚀
+# Dockit v0.9.4 🚀
 
-Dockit **v0.9.0** brings major UI/UX productivity upgrades including a **Collapsible Mini-Rail & Resizable Sidebar**, a **Bottom Dock Host Resources Monitor with Rolling Sparklines**, **1-Click Port Browser Launch**, **Smart Container Engine Startup**, and official **Ubuntu Snap Store Packaging** support.
+Dockit **v0.9.4** brings a major upgrade to the terminal experience with **Interactive xterm.js Terminal Sessions powered by a native Go PTY backend**, complete **Container Exec Shell synchronization**, and comprehensive **UI/UX design polish** including Figtree typography, design tokens, table density controls, and skeleton loaders.
 
 ---
 
 ### ✨ What's New & Highlights
 
-#### 📐 Collapsible Mini-Rail & Smoothly Resizable Sidebar
-- **58px Mini-Rail Mode**: Collapse the sidebar into a compact icon rail with tooltips to maximize workspace area for containers, logs, and Compose files.
-- **Dedicated Hotkeys & Toggle**: Toggle sidebar state via the top header button or the universal shortcut (<kbd>Ctrl + B</kbd> / <kbd>Cmd + B</kbd>).
-- **VS Code-Style Horizontal Resize Sash**: Freely drag the right border of the sidebar to customize width between 180px and 420px. Double-clicking the sash resets to default width (220px). Width preferences are persisted in `localStorage`.
-- **Polished Footer Shortcut**: Cleaned up the footer GitHub link with responsive bullet separation (`GitHub • Amanbig/dockit ↗`) and text elision to prevent text collision across any sidebar width.
+#### 💻 Interactive xterm.js Terminal with Native PTY Engine
+- **Full Pseudo-Terminal (PTY) Backend**: Switched from line-buffered execution to true interactive PTY streaming via `aymanbagabas/go-pty`. Run full-screen interactive TUI applications (`top`, `htop`, `vim`, `nano`, `less`), bash/zsh command completions, and escape sequence formatting directly inside Dockit.
+- **Multi-Tab Bottom Terminal Drawer**: Persistent bottom drawer supporting multiple concurrent interactive terminal tabs with independent working directories, dynamic PTY window resizing, and live `/proc/<pid>/cwd` directory tracking on Linux.
+- **Native Clipboard & Mouse Interactions**: Full support for <kbd>Ctrl+Shift+C</kbd> / <kbd>Ctrl+Shift+V</kbd>, Middle-Click paste, right-click context menus with Copy/Paste/Select All/Clear, and auto-fit terminal viewport scaling.
 
-#### ⚡ 1-Click Engine Service Startup
-- **Native Service Startup Plan**: If Docker or Podman is already installed on the machine but the daemon is inactive, Dockit offers a **Service Startup Plan** instead of repeating package manager installation commands:
-  - **Linux**: Starts the systemd daemon/socket (`sudo systemctl start docker` with `pkexec` Polkit graphical prompt fallback, or `systemctl --user enable --now podman.socket`).
-  - **macOS**: Launches Docker Desktop (`open -a Docker`) or boots the Podman virtual machine (`podman machine start`).
-  - **Windows**: Launches Docker Desktop (`powershell -Command "Start-Process 'Docker Desktop.exe'"`) or starts the Podman WSL2 machine.
-- **Instant Top Banner Action**: Start an offline daemon with one click directly from the amber warning banner without opening the configuration modal.
+#### 🚢 Container Interactive Exec Shell & Lifecycle Synchronization
+- **Live Container Shell Exec**: Open real-time interactive shell sessions (`docker exec -it <container> sh`) directly into running containers with full PTY support.
+- **Real-Time Engine State Sync**: Terminal views are now tightly synchronized with the container runtime state. Starting, stopping, or restarting a container from the sidebar, in-page action, or external CLI immediately updates the terminal state without stale errors.
+- **Automatic Session Cleanup & Reconnect**: Cleanly closes dangling PTY processes when containers stop, preventing lingering daemon error messages (`Container ... is not running`). Includes an in-terminal disconnect banner and header **"Reconnect"** button for instant re-attachment.
+- **Container Uptime Badge**: Live calculated uptime indicator (`formatUptime`) on container status badges (e.g. `2h 15m`, `3d 4h`).
 
-#### 📊 Bottom Dock Bar Host Metrics & Live Sparklines
-- **Relocated System Monitor**: CPU, RAM, core count, and system architecture now sit cleanly in the bottom dock bar with an interactive popover.
-- **Rolling SVG Sparklines**: The Host Resources popover includes rolling real-time sparkline graphs rendering the last 20 samples of CPU and memory utilization.
-- **Quick Diagnostic Command Chips**: One-click chips in the terminal drawer header for running common diagnostics instantly: `docker ps`, `stats`, `system df`, `compose ps`, and `images`.
-
-#### 🚢 Container Usability & Port Launching
-- **1-Click Web App Launch**: Exposed container port mappings are now clickable links (`localhost:<port> ↗`) in both container cards and the detailed container view, opening the service in your default browser.
-- **Live Logs Wrap & Export**: Toggle word wrapping in live container log streams and export raw console logs to `.txt` files with one click.
-- **Contextual Action Cards**: View actions (Start, Stop, Restart, Pause, Delete) integrated directly into the sidebar panel when viewing container details, eliminating duplicate in-page buttons.
-- **Universal Search Hotkey**: Press <kbd>/</kbd> anywhere outside input fields to focus the search and filter bar immediately.
-
-#### 📦 Ubuntu Snap Store Distribution
-- **Core24 Snapcraft Packaging**: Added complete Snapcraft configuration (`snap/snapcraft.yaml`) leveraging Ubuntu `core24`, WebKitGTK 4.1, desktop launchers, and application icons.
-- **Docker Socket Interface**: Preconfigured with `docker`, `network`, `home`, `removable-media`, and `system-observe` plugs for secure, sandboxed container management.
-- **Snap-Aware Update Management**: The in-app updater automatically detects running in a Snap environment and delegates lifecycle management to `snap refresh dockit`.
+#### 🎨 Comprehensive UI/UX Polish & Design Tokens
+- **Modern Figtree Typography**: Applied Figtree Variable font across the interface for a crisp, modern developer aesthetic.
+- **CSS Design Token Architecture**: Unified surface palettes, borders, status dots, and focus rings (`*:focus-visible` with 2px cyan outline) via CSS custom properties.
+- **Grouped Sidebar Navigation**: Nav items are now organized into clean sections (*Resources*, *Management*, *App*) with high-contrast left-accent borders (`.sidebar-nav-active`) and pulsing emerald status indicators for running containers.
+- **Table Density Modes**: Toggle container table display between **Normal**, **Compact**, and **Dense** views, persisted via `localStorage`.
+- **Skeleton Shimmer Loaders**: Reusable `.skeleton` shimmer loaders smooth out data transitions during initial load and runtime switches.
+- **Smart Empty States**: Distinguishes between true empty states (no containers exist) and filtered empty states (no search matches), with a 1-click **"Clear filters"** CTA.
+- **Smart Toast Notifications**: Error toasts remain visible until manually dismissed, while success toasts dismiss after 3 seconds, and info/warning toasts dismiss after 5 seconds.
+- **Container Details Refinements**: Dedicated Offline Status Card for stopped containers with a 1-click "Start Container" CTA, search and filter for environment variables with "Copy All (.env)", and volume mount access mode badges (Read/Write vs Read-Only).
 
 ---
 

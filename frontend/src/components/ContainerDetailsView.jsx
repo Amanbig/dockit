@@ -56,6 +56,7 @@ const getClipboardText = async () => {
 };
 import LogsModal, { highlightLogMatches, highlightLogText } from './LogsModal';
 import ExecutionDetailsModal from './ExecutionDetailsModal';
+import ContainerXTermTab from './ContainerXTermTab';
 import { 
   InspectContainer, 
   GetContainerLogs, 
@@ -66,12 +67,13 @@ import {
   PauseContainer, 
   UnpauseContainer, 
   RemoveContainer,
-  ExecContainer
+  ExecContainer,
+  CloseHostTerminal
 } from '../../wailsjs/go/main/App';
 import { formatEngineError } from './Toast';
 
 export function formatDateTime(dateStr) {
-  if (!dateStr || dateStr === '-' || dateStr.startsWith('0001-01-01')) return '-';
+  if (!dateStr || dateStr === '-' || dateStr.startsWith('0001-01-01')) return '—';
   try {
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return dateStr;
@@ -80,15 +82,36 @@ export function formatDateTime(dateStr) {
     const day = String(d.getDate()).padStart(2, '0');
     const hours = String(d.getHours()).padStart(2, '0');
     const minutes = String(d.getMinutes()).padStart(2, '0');
-    const seconds = String(d.getSeconds()).padStart(2, '0');
-    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    return `${year}-${month}-${day} ${hours}:${minutes}`;
   } catch {
     return dateStr;
   }
 }
 
+export function formatUptime(startedAt) {
+  if (!startedAt || startedAt === '-' || startedAt.startsWith('0001-01-01')) return null;
+  try {
+    const start = new Date(startedAt).getTime();
+    if (isNaN(start) || start <= 0) return null;
+    const diffSec = Math.floor((Date.now() - start) / 1000);
+    if (diffSec < 0) return null;
+    if (diffSec < 60) return `${diffSec}s`;
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return `${diffMin}m`;
+    const diffHours = Math.floor(diffMin / 60);
+    const remMin = diffMin % 60;
+    if (diffHours < 24) return `${diffHours}h ${remMin}m`;
+    const diffDays = Math.floor(diffHours / 24);
+    const remHours = diffHours % 24;
+    return `${diffDays}d ${remHours}h`;
+  } catch {
+    return null;
+  }
+}
+
 export default function ContainerDetailsView({ 
   containerId, 
+  containerSummary = null,
   isTabActive = true, 
   onBack, 
   onRefreshList, 
@@ -114,8 +137,11 @@ export default function ContainerDetailsView({
   const [copiedKey, setCopiedKey] = useState(null);
   const [actionInProgress, setActionInProgress] = useState(false);
   const [resourceStats, setResourceStats] = useState(null);
+  const [envFilter, setEnvFilter] = useState('');
+  const [copiedEnv, setCopiedEnv] = useState(false);
 
   // Terminal state
+  const containerTermRef = React.useRef(null);
   const [commandInput, setCommandInput] = useState('');
   const [terminalHistory, setTerminalHistory] = useState([
     { type: 'system', text: 'Dockit Container Shell (bash/sh)\nType any command or "clear" to clear screen.' }
@@ -411,10 +437,23 @@ export default function ContainerDetailsView({
     };
   }, [isTabActive, containerId, details?.state?.running]);
 
+  const parentState = containerSummary?.state;
+  const parentStatus = containerSummary?.status;
+
   useEffect(() => {
     if (containerId && isTabActive) {
       fetchDetails();
     }
+  }, [containerId, isTabActive, parentState, parentStatus]);
+
+  // Periodic poll so container details automatically update when engine state changes
+  useEffect(() => {
+    if (!containerId || !isTabActive) return;
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      fetchDetails();
+    }, 3000);
+    return () => clearInterval(interval);
   }, [containerId, isTabActive]);
 
   useEffect(() => {
@@ -429,9 +468,24 @@ export default function ContainerDetailsView({
     setTimeout(() => setCopiedKey(null), 1500);
   };
 
-  const isRunning = details?.state?.running;
-  const isPaused = details?.state?.paused;
-  const stateStatus = details?.state?.status || (isRunning ? 'running' : 'stopped');
+  const isRunning = parentState !== undefined
+    ? parentState === 'running'
+    : Boolean(details?.state?.running);
+  const isPaused = parentState !== undefined
+    ? parentState === 'paused'
+    : Boolean(details?.state?.paused);
+  const stateStatus = parentState || details?.state?.status || (isRunning ? 'running' : 'stopped');
+  const uptime = isRunning ? formatUptime(details?.state?.startedAt) : null;
+  const [terminalSessionKey, setTerminalSessionKey] = useState(0);
+
+  // When container state transitions from stopped to running, advance session key so xterm initializes fresh
+  const prevRunningRef = React.useRef(isRunning);
+  useEffect(() => {
+    if (isRunning && !prevRunningRef.current) {
+      setTerminalSessionKey((k) => k + 1);
+    }
+    prevRunningRef.current = isRunning;
+  }, [isRunning]);
 
   const notifyError = (err, fallbackTitle) => {
     const formatted = formatEngineError(err);
@@ -445,8 +499,10 @@ export default function ContainerDetailsView({
   const handleStart = async () => {
     setActionInProgress(true);
     try {
+      await CloseHostTerminal(`container-${containerId}`).catch(() => {});
       await StartContainer(containerId);
       if (onToast) onToast('Container started successfully', 'success');
+      setTerminalSessionKey((k) => k + 1);
       await fetchDetails();
       if (onRefreshList) onRefreshList();
     } catch (err) {
@@ -459,6 +515,7 @@ export default function ContainerDetailsView({
   const handleStop = async () => {
     setActionInProgress(true);
     try {
+      await CloseHostTerminal(`container-${containerId}`).catch(() => {});
       await StopContainer(containerId, 10);
       if (onToast) onToast('Container stopped', 'info');
       await fetchDetails();
@@ -473,8 +530,10 @@ export default function ContainerDetailsView({
   const handleRestart = async () => {
     setActionInProgress(true);
     try {
+      await CloseHostTerminal(`container-${containerId}`).catch(() => {});
       await RestartContainer(containerId, 10);
       if (onToast) onToast('Container restarted', 'success');
+      setTerminalSessionKey((k) => k + 1);
       await fetchDetails();
       if (onRefreshList) onRefreshList();
     } catch (err) {
@@ -573,6 +632,11 @@ export default function ContainerDetailsView({
                 }`}>
                   <span className={`w-1.5 h-1.5 rounded-full ${isRunning ? 'bg-emerald-400 animate-pulse' : isPaused ? 'bg-amber-400' : 'bg-slate-500'}`}></span>
                   <span className="capitalize">{stateStatus}</span>
+                  {uptime && (
+                    <span className="text-[10px] text-emerald-300/90 font-mono pl-1 border-l border-emerald-500/30" title={`Uptime: ${uptime}`}>
+                      {uptime}
+                    </span>
+                  )}
                 </span>
               </div>
               <div className="flex items-center gap-2 text-xs text-slate-500 font-mono mt-0.5 min-w-0">
@@ -671,7 +735,7 @@ export default function ContainerDetailsView({
                 onClick={() => setActiveSubTab(tab.id)}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition whitespace-nowrap ${
                   isActive
-                    ? 'bg-slate-800 text-cyan-400 font-semibold shadow-sm'
+                    ? 'bg-cyan-500/15 text-cyan-300 font-semibold border border-cyan-500/30 shadow-xs'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
                 }`}
               >
@@ -692,279 +756,345 @@ export default function ContainerDetailsView({
         {/* Tab 1: Overview */}
         {activeSubTab === 'overview' && (
           <div className="space-y-6">
-            {/* Live Metrics Grid (Visible when container is running) */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {/* CPU Usage Card */}
-              <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/60 flex flex-col justify-between">
-                <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
-                  <span className="font-semibold uppercase tracking-wider flex items-center gap-1.5">
-                    <Cpu className="w-3.5 h-3.5 text-cyan-400" />
-                    CPU Usage
-                  </span>
-                  {details?.state?.running && (
-                    <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-                  )}
-                </div>
-                <div>
-                  <div className="text-2xl font-bold font-mono text-slate-100">
-                    {resourceStats ? `${resourceStats.cpuPercent.toFixed(1)}%` : details?.state?.running ? 'Loading...' : '0.0%'}
+            {!isRunning ? (
+              /* Offline Status Card for Stopped / Inactive Containers */
+              <div className="p-5 rounded-xl border border-slate-800 bg-slate-950/60 flex flex-wrap items-center justify-between gap-4 shadow-sm">
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <div className="w-10 h-10 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400 shrink-0">
+                    <Square className="w-4 h-4 text-slate-400" />
                   </div>
-                  <div className="w-full bg-slate-800 h-1.5 rounded-full mt-2 overflow-hidden">
-                    <div 
-                      className="bg-cyan-400 h-full rounded-full transition-all duration-500"
-                      style={{ width: `${Math.min(100, Math.max(0, resourceStats?.cpuPercent || 0))}%` }}
-                    />
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-bold text-slate-200">Container is currently stopped</span>
+                      {details?.state?.exitCode !== undefined && (
+                        <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-semibold border ${
+                          details.state.exitCode === 0 
+                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25' 
+                            : 'bg-rose-500/10 text-rose-400 border-rose-500/25'
+                        }`}>
+                          Exit Code {details.state.exitCode} {details.state.exitCode === 0 ? '(Clean Exit)' : '(Error)'}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Live CPU, memory, network, and disk metrics stream in real time while the container is actively running.
+                    </p>
                   </div>
                 </div>
-              </div>
 
-              {/* Memory Usage Card */}
-              <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/60 flex flex-col justify-between">
-                <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
-                  <span className="font-semibold uppercase tracking-wider flex items-center gap-1.5">
-                    <Activity className="w-3.5 h-3.5 text-purple-400" />
-                    Memory Usage
-                  </span>
-                  {resourceStats?.memoryPercent !== undefined && (
-                    <span className="font-mono text-purple-400 font-semibold">
-                      {resourceStats.memoryPercent.toFixed(1)}%
-                    </span>
-                  )}
-                </div>
-                <div>
-                  <div className="text-2xl font-bold font-mono text-slate-100 truncate">
-                    {resourceStats 
-                      ? `${(resourceStats.memoryUsage / (1024 * 1024)).toFixed(1)} MB` 
-                      : details?.state?.running ? 'Loading...' : '0.0 MB'}
-                  </div>
-                  <div className="text-[11px] text-slate-500 font-mono mt-0.5 truncate">
-                    {resourceStats?.memoryLimit ? `Limit: ${(resourceStats.memoryLimit / (1024 * 1024 * 1024)).toFixed(2)} GB` : 'No Limit'}
-                  </div>
-                  <div className="w-full bg-slate-800 h-1.5 rounded-full mt-1.5 overflow-hidden">
-                    <div 
-                      className="bg-purple-500 h-full rounded-full transition-all duration-500"
-                      style={{ width: `${Math.min(100, Math.max(0, resourceStats?.memoryPercent || 0))}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Network I/O Card */}
-              <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/60 flex flex-col justify-between">
-                <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
-                  <span className="font-semibold uppercase tracking-wider flex items-center gap-1.5">
-                    <Network className="w-3.5 h-3.5 text-emerald-400" />
-                    Network I/O
-                  </span>
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 text-xs font-mono">
-                    <span className="flex items-center text-emerald-400">
-                      <ArrowDown className="w-3 h-3 mr-0.5" />
-                      {resourceStats ? `${(resourceStats.netRxBytes / 1024).toFixed(1)} KB` : '0 KB'}
-                    </span>
-                    <span className="text-slate-600">/</span>
-                    <span className="flex items-center text-blue-400">
-                      <ArrowUp className="w-3 h-3 mr-0.5" />
-                      {resourceStats ? `${(resourceStats.netTxBytes / 1024).toFixed(1)} KB` : '0 KB'}
-                    </span>
-                  </div>
-                  <div className="text-[11px] text-slate-500 font-mono mt-1">
-                    Rx / Tx Traffic
-                  </div>
-                </div>
-              </div>
-
-              {/* Disk / Block I/O & Processes Card */}
-              <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/60 flex flex-col justify-between">
-                <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
-                  <span className="font-semibold uppercase tracking-wider flex items-center gap-1.5">
-                    <HardDrive className="w-3.5 h-3.5 text-amber-400" />
-                    Disk & Tasks
-                  </span>
-                  {resourceStats?.pids ? (
-                    <span className="font-mono text-amber-400 font-semibold">{resourceStats.pids} PIDs</span>
-                  ) : null}
-                </div>
-                <div>
-                  <div className="text-sm font-bold font-mono text-slate-200 truncate">
-                    {resourceStats ? `R: ${(resourceStats.blockRead / 1024).toFixed(0)} KB • W: ${(resourceStats.blockWrite / 1024).toFixed(0)} KB` : '0 KB / 0 KB'}
-                  </div>
-                  <div className="text-[11px] text-slate-500 font-mono mt-1">
-                    Total Disk Read / Write
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {/* General Info Card */}
-            <div className="p-5 rounded-xl border border-slate-800 bg-slate-950/60 space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                  <Cpu className="w-4 h-4 text-cyan-400" />
-                  Execution Details
-                </h3>
                 <button
                   type="button"
-                  onClick={() => setShowExecutionModal(true)}
-                  className="flex items-center gap-1 px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-cyan-400 border border-slate-800 text-[11px] font-medium transition cursor-pointer hover:border-cyan-500/50"
-                  title="View Full Execution & Container Details"
+                  onClick={handleStart}
+                  disabled={actionInProgress}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition cursor-pointer shrink-0 disabled:opacity-50"
                 >
-                  <Maximize2 className="w-3 h-3" />
-                  <span>Expand</span>
+                  <Play className="w-3.5 h-3.5 fill-current" />
+                  <span>Start Container</span>
                 </button>
               </div>
-              <div className="space-y-2 text-xs">
-                <div className="flex items-center justify-between gap-2 border-b border-slate-900/80 pb-1.5">
-                  <span className="text-slate-500 shrink-0">Image ID:</span>
-                  <span className="font-mono text-slate-300 truncate" title={details?.imageId}>
-                    {details?.imageId ? `${details.imageId.slice(0, 19)}...` : '-'}
-                  </span>
+            ) : (
+              /* Live Metrics Grid (Visible when container is running) */
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {/* CPU Usage Card */}
+                {(() => {
+                  const cpuVal = resourceStats?.cpuPercent || 0;
+                  const cpuBarColor = cpuVal > 80 ? 'bg-rose-500' : cpuVal > 60 ? 'bg-amber-400' : 'bg-cyan-400';
+                  return (
+                    <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/60 flex flex-col justify-between">
+                      <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
+                        <span className="font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                          <Cpu className={`w-3.5 h-3.5 ${cpuVal > 80 ? 'text-rose-400' : cpuVal > 60 ? 'text-amber-400' : 'text-cyan-400'}`} />
+                          CPU Usage
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          {cpuVal > 80 && (
+                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 font-mono font-bold">High</span>
+                          )}
+                          <span className={`w-2 h-2 rounded-full ${cpuVal > 80 ? 'bg-rose-400' : 'bg-cyan-400'} animate-pulse`} />
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-2xl font-bold font-mono text-slate-100">
+                          {resourceStats ? `${resourceStats.cpuPercent.toFixed(1)}%` : 'Loading...'}
+                        </div>
+                        <div className="w-full bg-slate-800 h-1.5 rounded-full mt-2 overflow-hidden">
+                          <div 
+                            className={`${cpuBarColor} h-full rounded-full transition-all duration-500`}
+                            style={{ width: `${Math.min(100, Math.max(0, resourceStats?.cpuPercent || 0))}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Memory Usage Card */}
+                {(() => {
+                  const memVal = resourceStats?.memoryPercent || 0;
+                  const memBarColor = memVal > 85 ? 'bg-rose-500' : memVal > 70 ? 'bg-amber-400' : 'bg-purple-500';
+                  return (
+                    <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/60 flex flex-col justify-between">
+                      <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
+                        <span className="font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                          <Activity className={`w-3.5 h-3.5 ${memVal > 85 ? 'text-rose-400' : 'text-purple-400'}`} />
+                          Memory Usage
+                        </span>
+                        {memVal > 85 ? (
+                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 font-mono font-bold">High</span>
+                        ) : resourceStats?.memoryPercent !== undefined ? (
+                          <span className="font-mono text-purple-400 font-semibold text-xs">
+                            {resourceStats.memoryPercent.toFixed(1)}%
+                          </span>
+                        ) : null}
+                      </div>
+                      <div>
+                        <div className="text-2xl font-bold font-mono text-slate-100 truncate">
+                          {resourceStats 
+                            ? `${(resourceStats.memoryUsage / (1024 * 1024)).toFixed(1)} MB` 
+                            : 'Loading...'}
+                        </div>
+                        <div className="text-[11px] text-slate-500 font-mono mt-0.5 truncate">
+                          {resourceStats?.memoryLimit ? `Limit: ${(resourceStats.memoryLimit / (1024 * 1024 * 1024)).toFixed(2)} GB` : 'No Limit'}
+                        </div>
+                        <div className="w-full bg-slate-800 h-1.5 rounded-full mt-1.5 overflow-hidden">
+                          <div 
+                            className={`${memBarColor} h-full rounded-full transition-all duration-500`}
+                            style={{ width: `${Math.min(100, Math.max(0, resourceStats?.memoryPercent || 0))}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Network I/O Card */}
+                <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/60 flex flex-col justify-between">
+                  <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
+                    <span className="font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                      <Network className="w-3.5 h-3.5 text-emerald-400" />
+                      Network I/O
+                    </span>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 text-xs font-mono">
+                      <span className="flex items-center text-emerald-400">
+                        <ArrowDown className="w-3 h-3 mr-0.5" />
+                        {resourceStats ? `${(resourceStats.netRxBytes / 1024).toFixed(1)} KB` : '0 KB'}
+                      </span>
+                      <span className="text-slate-600">/</span>
+                      <span className="flex items-center text-blue-400">
+                        <ArrowUp className="w-3 h-3 mr-0.5" />
+                        {resourceStats ? `${(resourceStats.netTxBytes / 1024).toFixed(1)} KB` : '0 KB'}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-slate-500 font-mono mt-1">
+                      Rx / Tx Traffic
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between gap-2 border-b border-slate-900/80 pb-1.5">
-                  <span className="text-slate-500 shrink-0">Command:</span>
-                  <span className="font-mono text-cyan-400 truncate max-w-[200px]" title={details?.command || details?.args?.join(' ') || '-'}>
-                    {details?.command || details?.args?.join(' ') || '-'}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between gap-2 border-b border-slate-900/80 pb-1.5">
-                  <span className="text-slate-500 shrink-0">Created:</span>
-                  <span className="font-mono text-slate-300 truncate" title={details?.created}>
-                    {formatDateTime(details?.created)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between gap-2 border-b border-slate-900/80 pb-1.5">
-                  <span className="text-slate-500 shrink-0">Started At:</span>
-                  <span className="font-mono text-slate-300 truncate" title={details?.state?.startedAt || '-'}>
-                    {formatDateTime(details?.state?.startedAt)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between gap-2 border-b border-slate-900/80 pb-1.5">
-                  <span className="text-slate-500 shrink-0">Finished At:</span>
-                  <span className="font-mono text-slate-300 truncate" title={details?.state?.finishedAt || '-'}>
-                    {formatDateTime(details?.state?.finishedAt)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between gap-2 pt-0.5">
-                  <span className="text-slate-500 shrink-0">Exit Code:</span>
-                  <span className="font-mono text-slate-300 font-semibold">
-                    {details?.state?.exitCode !== undefined ? details.state.exitCode : '-'}
-                  </span>
+
+                {/* Disk / Block I/O & Processes Card */}
+                <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/60 flex flex-col justify-between">
+                  <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
+                    <span className="font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                      <HardDrive className="w-3.5 h-3.5 text-amber-400" />
+                      Disk & Tasks
+                    </span>
+                    {resourceStats?.pids ? (
+                      <span className="font-mono text-amber-400 font-semibold">{resourceStats.pids} PIDs</span>
+                    ) : null}
+                  </div>
+                  <div>
+                    <div className="text-sm font-bold font-mono text-slate-200 truncate">
+                      {resourceStats ? `R: ${(resourceStats.blockRead / 1024).toFixed(0)} KB • W: ${(resourceStats.blockWrite / 1024).toFixed(0)} KB` : '0 KB / 0 KB'}
+                    </div>
+                    <div className="text-[11px] text-slate-500 font-mono mt-1">
+                      Total Disk Read / Write
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
-            {/* Network Info Card */}
-            <div className="p-5 rounded-xl border border-slate-800 bg-slate-950/60 space-y-3">
-              <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                <Network className="w-4 h-4 text-cyan-400" />
-                Network Settings
-              </h3>
-              <div className="space-y-2 text-xs">
-                <div>
-                  <span className="text-slate-500">IP Address:</span>{' '}
-                  <span className="font-mono text-cyan-400">{details?.network?.ipAddress || 'Host / None'}</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {/* General Info Card */}
+              <div className="p-5 rounded-xl border border-slate-800 bg-slate-950/60 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                    <Cpu className="w-4 h-4 text-cyan-400" />
+                    Execution Details
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setShowExecutionModal(true)}
+                    className="flex items-center gap-1 px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-cyan-400 border border-slate-800 text-[11px] font-medium transition cursor-pointer hover:border-cyan-500/50"
+                    title="View Full Execution & Container Details"
+                  >
+                    <Maximize2 className="w-3 h-3" />
+                    <span>Expand</span>
+                  </button>
                 </div>
-                <div>
-                  <span className="text-slate-500">Gateway:</span>{' '}
-                  <span className="font-mono text-slate-300">{details?.network?.gateway || '-'}</span>
+                <div className="space-y-2 text-xs">
+                  <div className="flex items-center justify-between gap-2 border-b border-slate-900/80 pb-1.5">
+                    <span className="text-slate-500 shrink-0">Image ID:</span>
+                    <span className="font-mono text-slate-300 truncate" title={details?.imageId}>
+                      {details?.imageId ? `${details.imageId.slice(0, 19)}...` : '—'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 border-b border-slate-900/80 pb-1.5">
+                    <span className="text-slate-500 shrink-0">Command:</span>
+                    <span className="font-mono text-cyan-400 truncate max-w-[200px]" title={details?.command || details?.args?.join(' ') || '—'}>
+                      {details?.command || details?.args?.join(' ') || '—'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 border-b border-slate-900/80 pb-1.5">
+                    <span className="text-slate-500 shrink-0">Created:</span>
+                    <span className="font-mono text-slate-300 truncate" title={details?.created}>
+                      {formatDateTime(details?.created)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 border-b border-slate-900/80 pb-1.5">
+                    <span className="text-slate-500 shrink-0">Started At:</span>
+                    <span className="font-mono text-slate-300 truncate" title={details?.state?.startedAt || '—'}>
+                      {formatDateTime(details?.state?.startedAt)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 border-b border-slate-900/80 pb-1.5">
+                    <span className="text-slate-500 shrink-0">Finished At:</span>
+                    <span className="font-mono text-slate-300 truncate" title={details?.state?.finishedAt || '—'}>
+                      {formatDateTime(details?.state?.finishedAt)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 pt-0.5">
+                    <span className="text-slate-500 shrink-0">Exit Status:</span>
+                    {details?.state?.exitCode !== undefined ? (
+                      <span className={`font-mono text-[11px] px-2 py-0.5 rounded font-semibold border ${
+                        details.state.exitCode === 0 
+                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25' 
+                          : 'bg-rose-500/10 text-rose-400 border-rose-500/25'
+                      }`}>
+                        Code {details.state.exitCode} {details.state.exitCode === 0 ? '(Success)' : '(Error)'}
+                      </span>
+                    ) : (
+                      <span className="font-mono text-slate-400">—</span>
+                    )}
+                  </div>
                 </div>
-                <div>
-                  <span className="text-slate-500">MAC Address:</span>{' '}
-                  <span className="font-mono text-slate-300">{details?.network?.macAddress || '-'}</span>
-                </div>
-                <div className="pt-2 border-t border-slate-900">
-                  <span className="text-slate-500 block mb-1.5 font-medium">Exposed Ports:</span>
-                  {details?.ports && details.ports.length > 0 ? (
-                    <div className="flex flex-wrap gap-1">
-                      {(() => {
-                        const seen = new Set();
-                        const uniquePorts = [];
-                        for (const p of details.ports) {
-                          const key = `${p.publicPort || 0}:${p.privatePort}/${p.type}`;
-                          if (!seen.has(key)) {
-                            seen.add(key);
-                            uniquePorts.push(p);
+              </div>
+
+              {/* Network Info Card */}
+              <div className="p-5 rounded-xl border border-slate-800 bg-slate-950/60 space-y-3">
+                <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                  <Network className="w-4 h-4 text-cyan-400" />
+                  Network Settings
+                </h3>
+                <div className="space-y-2 text-xs">
+                  <div className="flex items-center justify-between gap-2 border-b border-slate-900/80 pb-1.5">
+                    <span className="text-slate-500 shrink-0">IP Address:</span>
+                    <span className="font-mono text-cyan-400 font-semibold truncate">
+                      {details?.network?.ipAddress || 'Host / None'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 border-b border-slate-900/80 pb-1.5">
+                    <span className="text-slate-500 shrink-0">Gateway:</span>
+                    <span className="font-mono text-slate-300 truncate">
+                      {details?.network?.gateway || '—'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 border-b border-slate-900/80 pb-1.5">
+                    <span className="text-slate-500 shrink-0">MAC Address:</span>
+                    <span className="font-mono text-slate-300 truncate">
+                      {details?.network?.macAddress || '—'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 pt-0.5">
+                    <span className="text-slate-500 shrink-0">Exposed Ports:</span>
+                    {details?.ports && details.ports.length > 0 ? (
+                      <div className="flex flex-wrap gap-1 justify-end max-w-[190px]">
+                        {(() => {
+                          const seen = new Set();
+                          const uniquePorts = [];
+                          for (const p of details.ports) {
+                            const key = `${p.publicPort || 0}:${p.privatePort}/${p.type}`;
+                            if (!seen.has(key)) {
+                              seen.add(key);
+                              uniquePorts.push(p);
+                            }
                           }
-                        }
-                        return uniquePorts.map((p, idx) => {
-                          const pubPort = p.publicPort ? Number(p.publicPort) : null;
-                          const label = `${p.publicPort ? `${p.publicPort}:` : ''}${p.privatePort}/${p.type}`;
-                          if (pubPort && isRunning) {
+                          return uniquePorts.map((p, idx) => {
+                            const pubPort = p.publicPort ? Number(p.publicPort) : null;
+                            const label = `${p.publicPort ? `${p.publicPort}:` : ''}${p.privatePort}/${p.type}`;
+                            if (pubPort && isRunning) {
+                              return (
+                                <button
+                                  key={idx}
+                                  type="button"
+                                  onClick={() => {
+                                    const url = `http://localhost:${pubPort}`;
+                                    if (typeof BrowserOpenURL === 'function') BrowserOpenURL(url);
+                                    else if (window.runtime?.BrowserOpenURL) window.runtime.BrowserOpenURL(url);
+                                    else window.open(url, '_blank');
+                                  }}
+                                  className="flex items-center gap-1 px-2 py-0.5 rounded bg-cyan-950/70 hover:bg-cyan-900/80 border border-cyan-800/60 hover:border-cyan-600/80 font-mono text-[11px] text-cyan-300 hover:text-cyan-200 transition cursor-pointer group/detailport"
+                                  title={`Open http://localhost:${pubPort} in browser`}
+                                >
+                                  <span>{label}</span>
+                                  <ExternalLink className="w-2.5 h-2.5 opacity-60 group-hover/detailport:opacity-100 transition shrink-0" />
+                                </button>
+                              );
+                            }
                             return (
-                              <button
-                                key={idx}
-                                type="button"
-                                onClick={() => {
-                                  const url = `http://localhost:${pubPort}`;
-                                  if (typeof BrowserOpenURL === 'function') BrowserOpenURL(url);
-                                  else if (window.runtime?.BrowserOpenURL) window.runtime.BrowserOpenURL(url);
-                                  else window.open(url, '_blank');
-                                }}
-                                className="flex items-center gap-1 px-2 py-0.5 rounded bg-cyan-950/70 hover:bg-cyan-900/80 border border-cyan-800/60 hover:border-cyan-600/80 font-mono text-[11px] text-cyan-300 hover:text-cyan-200 transition cursor-pointer group/detailport"
-                                title={`Open http://localhost:${pubPort} in browser`}
-                              >
-                                <span>{label}</span>
-                                <ExternalLink className="w-2.5 h-2.5 opacity-60 group-hover/detailport:opacity-100 transition shrink-0" />
-                              </button>
+                              <span key={idx} className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 font-mono text-[11px] text-cyan-300">
+                                {label}
+                              </span>
                             );
-                          }
-                          return (
-                            <span key={idx} className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 font-mono text-[11px] text-cyan-300">
-                              {label}
-                            </span>
-                          );
-                        });
-                      })()}
+                          });
+                        })()}
+                      </div>
+                    ) : (
+                      <span className="text-slate-500 font-mono">None exposed</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Storage & Mounts Summary */}
+              <div className="p-5 rounded-xl border border-slate-800 bg-slate-950/60 space-y-3">
+                <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                  <HardDrive className="w-4 h-4 text-cyan-400" />
+                  Storage & Mounts
+                </h3>
+                <div className="space-y-2 text-xs">
+                  <div className="flex items-center justify-between gap-2 border-b border-slate-900/80 pb-1.5">
+                    <span className="text-slate-500 shrink-0">Total Mounts:</span>
+                    <span className="text-slate-200 font-semibold">{details?.mounts?.length || 0} attached</span>
+                  </div>
+                  {details?.mounts && details.mounts.length > 0 ? (
+                    <div className="space-y-2 pt-1">
+                      {details.mounts.slice(0, 3).map((m, idx) => (
+                        <div key={idx} className="p-2 rounded-lg bg-slate-900 border border-slate-800/80 font-mono text-[11px] space-y-0.5">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="text-cyan-400 font-semibold truncate">{m.destination}</span>
+                            <span className="text-[10px] px-1 py-0.2 rounded bg-slate-800 text-slate-400">{m.rw ? 'rw' : 'ro'}</span>
+                          </div>
+                          <div className="text-slate-500 text-[10px] truncate">{m.source}</div>
+                        </div>
+                      ))}
                     </div>
                   ) : (
-                    <span className="text-slate-600 font-mono">No ports exposed</span>
+                    <div className="py-4 text-center text-slate-500 text-[11px]">
+                      No volumes or bind mounts attached
+                    </div>
                   )}
                 </div>
-              </div>
-            </div>
-
-            {/* Storage & Mounts Summary */}
-            <div className="p-5 rounded-xl border border-slate-800 bg-slate-950/60 space-y-3">
-              <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                <HardDrive className="w-4 h-4 text-cyan-400" />
-                Storage & Mounts
-              </h3>
-              <div className="space-y-2 text-xs">
-                <div>
-                  <span className="text-slate-500">Total Mounts:</span>{' '}
-                  <span className="text-slate-200 font-medium">{details?.mounts?.length || 0} attached</span>
-                </div>
-                {details?.mounts && details.mounts.length > 0 ? (
-                  <div className="space-y-2 pt-1">
-                    {details.mounts.slice(0, 3).map((m, idx) => (
-                      <div key={idx} className="p-2 rounded bg-slate-900 border border-slate-800/80 font-mono text-[11px] space-y-0.5">
-                        <div className="text-cyan-400 truncate">{m.destination}</div>
-                        <div className="text-slate-500 text-[10px] truncate">{m.source}</div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <span className="text-slate-600">No volumes attached</span>
-                )}
               </div>
             </div>
           </div>
-        </div>
         )}
 
         {/* Tab: Terminal Exec */}
         {activeSubTab === 'terminal' && (
-          <div 
-            onClick={() => {
-              const sel = window.getSelection()?.toString();
-              if (!sel && isRunning && !executing) {
-                terminalInputRef.current?.focus({ preventScroll: true });
-              }
-            }}
-            className="terminal-window flex-1 flex flex-col min-h-[360px] rounded-xl border border-slate-800 bg-[#0c1017] overflow-hidden shadow-2xl font-mono cursor-text"
-          >
+          <div className="terminal-window flex-1 flex flex-col min-h-[360px] rounded-xl border border-slate-800 bg-[#0c1017] overflow-hidden shadow-2xl font-mono">
             {/* Terminal Window Titlebar */}
             <div className="terminal-titlebar px-4 py-2.5 bg-[#161b22] border-b border-slate-800 flex items-center justify-between text-xs select-none shrink-0">
               <div className="flex items-center gap-2">
@@ -978,45 +1108,53 @@ export default function ContainerDetailsView({
               <div className="flex items-center gap-2.5">
                 <span className="text-[10px] text-slate-400 flex items-center gap-1.5 font-medium">
                   <span className={`w-1.5 h-1.5 rounded-full ${isRunning ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`}></span>
-                  {isRunning ? 'Connected (exec session)' : 'Container Stopped'}
+                  {isRunning ? 'PTY Shell Active' : 'Container Stopped'}
                 </span>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handlePasteToContainerTerminal();
-                  }}
-                  className="terminal-clear-btn p-1 rounded bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-cyan-300 transition cursor-pointer flex items-center gap-1"
-                  title="Paste from clipboard (Ctrl+V / Ctrl+Shift+V)"
-                >
-                  <ClipboardPaste className="w-3 h-3" />
-                  <span className="text-[10px]">Paste</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setTerminalHistory([]);
-                  }}
-                  className="terminal-clear-btn text-[10px] px-2 py-0.5 rounded bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition cursor-pointer"
-                >
-                  Clear
-                </button>
+                {isRunning && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => containerTermRef.current?.reconnect?.()}
+                      className="terminal-clear-btn p-1 rounded bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-cyan-300 transition cursor-pointer flex items-center gap-1"
+                      title="Reconnect shell session"
+                    >
+                      <RotateCw className="w-3 h-3" />
+                      <span className="text-[10px]">Reconnect</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => containerTermRef.current?.copy?.()}
+                      className="terminal-clear-btn p-1 rounded bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-cyan-300 transition cursor-pointer flex items-center gap-1"
+                      title="Copy selection or all output (Ctrl+Shift+C)"
+                    >
+                      <Copy className="w-3 h-3" />
+                      <span className="text-[10px]">Copy</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => containerTermRef.current?.paste?.()}
+                      className="terminal-clear-btn p-1 rounded bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-cyan-300 transition cursor-pointer flex items-center gap-1"
+                      title="Paste from clipboard (Ctrl+V / Ctrl+Shift+V)"
+                    >
+                      <ClipboardPaste className="w-3 h-3" />
+                      <span className="text-[10px]">Paste</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => containerTermRef.current?.clear?.()}
+                      className="terminal-clear-btn text-[10px] px-2 py-0.5 rounded bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition cursor-pointer"
+                      title="Clear terminal (Ctrl+L)"
+                    >
+                      Clear
+                    </button>
+                  </>
+                )}
               </div>
             </div>
 
-            {/* Terminal Output & Inline Prompt Area */}
-            <div 
-              ref={terminalScrollRef}
-              onClick={() => {
-                const sel = window.getSelection()?.toString();
-                if (!sel && isRunning && !executing) {
-                  terminalInputRef.current?.focus({ preventScroll: true });
-                }
-              }}
-              className="flex-1 p-4 overflow-y-auto text-xs space-y-1.5 select-text leading-relaxed cursor-text"
-            >
-              {!isRunning && (
+            {/* Terminal Body */}
+            {!isRunning ? (
+              <div className="flex-1 p-4 overflow-y-auto">
                 <div className="terminal-alert p-3 mb-2 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-300 text-xs flex flex-wrap items-center justify-between gap-2 select-none">
                   <div className="flex items-center gap-2">
                     <AlertCircle className="w-4 h-4 shrink-0 text-amber-400" />
@@ -1037,53 +1175,20 @@ export default function ContainerDetailsView({
                     <span>{actionInProgress ? 'Starting...' : 'Start Container'}</span>
                   </button>
                 </div>
-              )}
-
-              {terminalHistory.map((item, idx) => (
-                <div key={idx} className="whitespace-pre-wrap break-all">
-                  {item.type === 'cmd' ? (
-                    <div className="flex items-center gap-2 text-slate-200 font-bold mt-1">
-                      <span className="text-emerald-400 font-bold">root@{details?.name || 'container'}:~#</span>
-                      <span>{item.text}</span>
-                    </div>
-                  ) : item.type === 'err' ? (
-                    <div className="text-rose-400 pl-2">{item.text}</div>
-                  ) : item.type === 'system' ? (
-                    <div className="text-slate-500 text-[11px] mb-2">{item.text}</div>
-                  ) : (
-                    <div className="text-slate-300 font-mono pl-1">{item.text}</div>
-                  )}
-                </div>
-              ))}
-
-              {executing && (
-                <div className="flex items-center gap-2 text-slate-400 text-xs py-1">
-                  <RefreshCw className="w-3 h-3 animate-spin text-cyan-400" />
-                  <span>Executing...</span>
-                </div>
-              )}
-
-              {/* Seamless Inline CLI Prompt */}
-              {isRunning && (
-                <form onSubmit={handleRunCommand} className="flex items-center gap-2 pt-1">
-                  <span className="text-emerald-400 font-bold text-xs shrink-0 select-none">
-                    root@{details?.name || 'container'}:~#
-                  </span>
-                  <input
-                    ref={terminalInputRef}
-                    type="text"
-                    disabled={executing}
-                    value={commandInput}
-                    onChange={(e) => setCommandInput(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    className="terminal-prompt-input flex-1 bg-transparent text-xs text-slate-100 font-mono border-none outline-none focus:ring-0 p-0 shadow-none ring-0 focus:outline-none"
-                    placeholder={executing ? "" : ""}
-                    spellCheck={false}
-                    autoComplete="off"
-                  />
-                </form>
-              )}
-            </div>
+              </div>
+            ) : (
+              <ContainerXTermTab
+                key={`${containerId}-${details?.state?.startedAt || ''}-${terminalSessionKey}`}
+                ref={containerTermRef}
+                containerId={containerId}
+                containerName={details?.name || 'container'}
+                isActive={activeSubTab === 'terminal'}
+                onSessionExit={() => {
+                  fetchDetails();
+                  if (onRefreshList) onRefreshList();
+                }}
+              />
+            )}
           </div>
         )}
 
@@ -1346,72 +1451,195 @@ export default function ContainerDetailsView({
         })()}
 
         {/* Tab 3: Environment Variables */}
-        {activeSubTab === 'env' && (
-          <div className="rounded-xl border border-slate-800 bg-slate-950/60 overflow-hidden shadow-lg">
-            <table className="w-full text-left text-xs border-collapse font-mono">
-              <thead>
-                <tr className="bg-slate-900 border-b border-slate-800 text-slate-400 uppercase text-[11px] font-semibold">
-                  <th className="py-3 px-4 w-1/3">Variable Key</th>
-                  <th className="py-3 px-4">Value</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/60 text-slate-300">
-                {details?.env && details.env.length > 0 ? (
-                  details.env.map((entry, idx) => {
-                    const [k, ...v] = entry.split('=');
-                    return (
-                      <tr key={idx} className="hover:bg-slate-900/40 transition">
-                        <td className="py-2.5 px-4 font-semibold text-cyan-400">{k}</td>
-                        <td className="py-2.5 px-4 text-slate-300 select-all break-all">{v.join('=')}</td>
+        {activeSubTab === 'env' && (() => {
+          const allEnv = details?.env || [];
+          const filteredEnv = allEnv.filter((e) => e.toLowerCase().includes(envFilter.toLowerCase()));
+          return (
+            <div className="rounded-xl border border-slate-800 bg-slate-950/60 overflow-hidden shadow-lg flex flex-col">
+              {/* Environment Toolbar */}
+              <div className="p-3 bg-slate-900/80 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2 flex-1 max-w-sm">
+                  <div className="relative w-full">
+                    <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2.5" />
+                    <input
+                      type="text"
+                      placeholder="Filter variables by key or value..."
+                      value={envFilter}
+                      onChange={(e) => setEnvFilter(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-slate-400 font-mono">
+                    {filteredEnv.length} of {allEnv.length} variables
+                  </span>
+                  {allEnv.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const envContent = allEnv.join('\n');
+                        navigator.clipboard.writeText(envContent);
+                        setCopiedEnv(true);
+                        setTimeout(() => setCopiedEnv(false), 2000);
+                        if (onToast) onToast('All environment variables copied', 'success');
+                      }}
+                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition cursor-pointer"
+                      title="Copy all variables as .env format"
+                    >
+                      {copiedEnv ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-cyan-400" />}
+                      <span>{copiedEnv ? 'Copied' : 'Copy All (.env)'}</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse font-mono table-striped">
+                  <thead>
+                    <tr className="bg-slate-900 border-b border-slate-800 text-slate-400 uppercase text-[11px] font-semibold">
+                      <th className="py-3 px-4 w-1/3">Variable Key</th>
+                      <th className="py-3 px-4">Value</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                    {filteredEnv.length > 0 ? (
+                      filteredEnv.map((entry, idx) => {
+                        const [k, ...v] = entry.split('=');
+                        const val = v.join('=');
+                        return (
+                          <tr key={idx} className="table-row-hover group transition">
+                            <td className="py-2.5 px-4 font-semibold text-cyan-400">{k}</td>
+                            <td className="py-2.5 px-4 text-slate-300 select-all break-all">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="break-all">{val}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(val);
+                                    if (onToast) onToast(`Copied ${k}`, 'success');
+                                  }}
+                                  className="opacity-0 group-hover:opacity-100 p-1 text-slate-500 hover:text-slate-300 transition shrink-0 cursor-pointer"
+                                  title={`Copy value of ${k}`}
+                                >
+                                  <Copy className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    ) : (
+                      <tr>
+                        <td colSpan="2" className="p-8 text-center text-slate-500">
+                          {envFilter ? `No variables matching "${envFilter}"` : 'No environment variables set'}
+                        </td>
                       </tr>
-                    );
-                  })
-                ) : (
-                  <tr>
-                    <td colSpan="2" className="p-6 text-center text-slate-500">No environment variables set</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Tab 4: Mounts */}
         {activeSubTab === 'mounts' && (
-          <div className="rounded-xl border border-slate-800 bg-slate-950/60 overflow-hidden shadow-lg">
-            <table className="w-full text-left text-xs border-collapse font-mono">
-              <thead>
-                <tr className="bg-slate-900 border-b border-slate-800 text-slate-400 uppercase text-[11px] font-semibold">
-                  <th className="py-3 px-4">Type</th>
-                  <th className="py-3 px-4">Source (Host)</th>
-                  <th className="py-3 px-4">Destination (Container)</th>
-                  <th className="py-3 px-4">Mode</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/60 text-slate-300">
-                {details?.mounts && details.mounts.length > 0 ? (
-                  details.mounts.map((m, idx) => (
-                    <tr key={idx} className="hover:bg-slate-900/40 transition">
-                      <td className="py-2.5 px-4 text-cyan-400 font-semibold">{m.type}</td>
-                      <td className="py-2.5 px-4 text-slate-300 break-all">{m.source}</td>
-                      <td className="py-2.5 px-4 text-slate-300 font-semibold">{m.destination}</td>
-                      <td className="py-2.5 px-4 text-slate-400">{m.rw ? 'Read/Write' : 'Read-Only'}</td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="4" className="p-6 text-center text-slate-500">No storage mounts configured</td>
+          <div className="rounded-xl border border-slate-800 bg-slate-950/60 overflow-hidden shadow-lg flex flex-col">
+            <div className="p-3 bg-slate-900/80 border-b border-slate-800 flex items-center justify-between text-xs">
+              <span className="font-semibold text-slate-300">Container Storage &amp; Bind Mounts</span>
+              <span className="text-[11px] text-slate-400 font-mono">
+                {details?.mounts?.length || 0} mounts configured
+              </span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse font-mono table-striped">
+                <thead>
+                  <tr className="bg-slate-900 border-b border-slate-800 text-slate-400 uppercase text-[11px] font-semibold">
+                    <th className="py-3 px-4">Type</th>
+                    <th className="py-3 px-4">Source (Host)</th>
+                    <th className="py-3 px-4">Destination (Container)</th>
+                    <th className="py-3 px-4">Access Mode</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                  {details?.mounts && details.mounts.length > 0 ? (
+                    details.mounts.map((m, idx) => (
+                      <tr key={idx} className="table-row-hover transition">
+                        <td className="py-3 px-4">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+                            {m.type || 'volume'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-slate-300 break-all">{m.source}</td>
+                        <td className="py-3 px-4 text-cyan-400 font-semibold">{m.destination}</td>
+                        <td className="py-3 px-4">
+                          <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${
+                            m.rw ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-slate-800 text-slate-400 border border-slate-700'
+                          }`}>
+                            {m.rw ? 'Read / Write' : 'Read-Only'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="4" className="p-8 text-center text-slate-500">
+                        No storage volumes or bind mounts attached to this container
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
         {/* Tab 5: Raw JSON */}
         {activeSubTab === 'raw' && (
-          <div className="flex-1 min-h-[380px] rounded-xl border border-slate-800 bg-slate-950 p-4 font-mono text-xs text-slate-300 overflow-auto whitespace-pre-wrap select-text leading-relaxed">
-            {JSON.stringify(details, null, 2)}
+          <div className="flex-1 flex flex-col min-h-[380px] rounded-xl border border-slate-800 bg-slate-950 overflow-hidden shadow-lg">
+            <div className="flex items-center justify-between px-4 py-2 bg-slate-900/80 border-b border-slate-800 shrink-0">
+              <span className="text-xs font-semibold text-slate-300 font-mono">inspect.json</span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const text = JSON.stringify(details, null, 2);
+                    navigator.clipboard?.writeText(text);
+                    if (onToast) onToast('Inspect JSON copied to clipboard', 'success');
+                  }}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition cursor-pointer"
+                  title="Copy JSON"
+                >
+                  <Copy className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Copy</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const text = JSON.stringify(details, null, 2);
+                    const blob = new Blob([text], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${containerName || containerId.slice(0, 12)}-inspect.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                  }}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition cursor-pointer"
+                  title="Download inspect.json"
+                >
+                  <Download className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Download</span>
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 p-4 font-mono text-xs text-slate-300 overflow-auto whitespace-pre-wrap select-text leading-relaxed">
+              {JSON.stringify(details, null, 2)}
+            </div>
           </div>
         )}
       </div>

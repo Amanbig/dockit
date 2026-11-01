@@ -7,8 +7,17 @@ import {
   Search, 
   Link2, 
   Unlink,
-  RefreshCw
+  RefreshCw,
+  X
 } from 'lucide-react';
+
+const getDriverBadge = (driver = 'bridge') => {
+  const d = driver.toLowerCase();
+  if (d === 'bridge') return 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30';
+  if (d === 'host') return 'bg-amber-500/15 text-amber-300 border-amber-500/30';
+  if (d === 'none' || d === 'null') return 'bg-slate-800 text-slate-400 border-slate-700';
+  return 'bg-purple-500/15 text-purple-300 border-purple-500/30';
+};
 
 export default function NetworksView({
   networks = [],
@@ -94,10 +103,22 @@ export default function NetworksView({
             />
           </div>
 
+          {/* Refresh button */}
+          {onRefresh && (
+            <button
+              onClick={onRefresh}
+              disabled={loading}
+              title="Refresh networks list"
+              className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200 transition disabled:opacity-50 cursor-pointer"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-cyan-400' : ''}`} />
+            </button>
+          )}
+
           {/* Create Network button */}
           <button
             onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold px-3.5 py-1.5 rounded-lg text-xs shadow-md shadow-cyan-500/20 transition-all"
+            className="flex items-center gap-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold px-3.5 py-1.5 rounded-lg text-xs shadow-md shadow-cyan-500/20 transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4 text-slate-950 stroke-[3]" />
             <span>Create Network</span>
@@ -107,15 +128,66 @@ export default function NetworksView({
 
       {/* Main Networks Table */}
       <div className="flex-1 overflow-auto p-6">
-        {filtered.length === 0 ? (
-          <div className="h-64 border border-dashed border-slate-800 rounded-xl flex flex-col items-center justify-center text-center p-6 text-slate-500">
-            <NetworkIcon className="w-8 h-8 text-slate-600 mb-2" />
-            <p className="font-medium text-sm text-slate-400">No networks found</p>
-            <p className="text-xs mt-1">Create an isolated bridge network to connect your services.</p>
+        {loading ? (
+          /* Skeleton loader */
+          <div className="border border-slate-800 rounded-xl bg-slate-950/60 overflow-hidden">
+            <div className="border-b border-slate-800 bg-slate-900/80 py-3 px-4 flex gap-4">
+              <div className="skeleton w-36 h-4 rounded" />
+              <div className="skeleton w-20 h-4 rounded ml-auto" />
+            </div>
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="skeleton-row border-b border-slate-800/60">
+                <div className="flex-1 space-y-1.5">
+                  <div className="skeleton h-3.5 rounded w-36" />
+                </div>
+                <div className="skeleton h-5 rounded-full w-20 ml-4" />
+                <div className="skeleton h-3 rounded w-16 ml-4" />
+                <div className="skeleton h-3 rounded w-24 ml-4" />
+                <div className="skeleton h-3 rounded w-28 ml-4" />
+                <div className="flex gap-1.5 ml-4">
+                  <div className="skeleton h-6 w-6 rounded" />
+                  <div className="skeleton h-6 w-6 rounded" />
+                </div>
+              </div>
+            ))}
           </div>
+        ) : filtered.length === 0 ? (
+          networks.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-state-icon">
+                <NetworkIcon size={28} />
+              </div>
+              <p className="empty-state-title">No networks created</p>
+              <p className="empty-state-desc">
+                Create an isolated bridge or overlay network to safely connect your container services.
+              </p>
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="mt-2 flex items-center gap-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold px-4 py-2 rounded-lg text-xs shadow-md shadow-cyan-500/20 transition-all cursor-pointer"
+              >
+                <Plus className="w-4 h-4 stroke-[3]" />
+                Create Network
+              </button>
+            </div>
+          ) : (
+            <div className="empty-state">
+              <div className="empty-state-icon">
+                <Search size={24} />
+              </div>
+              <p className="empty-state-title">No networks match your filter</p>
+              <p className="empty-state-desc">Try checking for typos or searching by driver name.</p>
+              <button
+                onClick={() => setSearch('')}
+                className="mt-2 flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold px-4 py-2 rounded-lg text-xs transition-all border border-slate-700 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+                Clear filter
+              </button>
+            </div>
+          )
         ) : (
           <div className="border border-slate-800 rounded-xl overflow-hidden bg-slate-950/60 shadow-lg">
-            <table className="w-full text-left border-collapse text-xs">
+            <table className="w-full text-left border-collapse text-xs table-striped">
               <thead>
                 <tr className="border-b border-slate-800 bg-slate-900/80 text-slate-400 uppercase font-semibold text-[11px] tracking-wider">
                   <th className="py-3 px-4">Network Name</th>
@@ -131,7 +203,7 @@ export default function NetworksView({
                   const shortId = (n.id || '').substring(0, 12);
                   const isDefault = ['bridge', 'host', 'none'].includes(n.name);
                   return (
-                    <tr key={n.id} className="hover:bg-slate-900/50 transition-colors group">
+                    <tr key={n.id} className="table-row-hover transition-colors group">
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-slate-100 group-hover:text-cyan-400 transition-colors">
@@ -145,7 +217,7 @@ export default function NetworksView({
                         </div>
                       </td>
                       <td className="py-3 px-4">
-                        <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-300">
+                        <span className={`font-mono text-[11px] px-2 py-0.5 rounded border ${getDriverBadge(n.driver)}`}>
                           {n.driver || 'bridge'}
                         </span>
                       </td>
@@ -156,7 +228,7 @@ export default function NetworksView({
                         {shortId}
                       </td>
                       <td className="py-3 px-4 font-mono text-[11px] text-slate-400">
-                        {n.ipam?.config?.[0]?.subnet || '-'}
+                        {n.ipam?.config?.[0]?.subnet || '—'}
                       </td>
                       <td className="py-3 px-4 text-right">
                         <div className="flex items-center justify-end gap-1">

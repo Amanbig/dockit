@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   FolderOpen, 
   Link as LinkIcon, 
@@ -25,12 +25,26 @@ import {
   Copy,
   Plus,
   FileText,
-  Key
+  Key,
+  ExternalLink
 } from 'lucide-react';
+import { BrowserOpenURL } from '../../wailsjs/runtime/runtime';
 
 const RECENT_PROJECTS_STORAGE_KEY = 'dockit_recent_compose_projects';
 
+function parsePortItem(p) {
+  if (!p) return null;
+  const str = typeof p === 'object' ? `${p.hostPort || p.published || ''}:${p.containerPort || p.target || ''}` : String(p);
+  const match = str.match(/(?:(?:::|[0-9.]+):)?([0-9]+)(?:->|:)([0-9]+)/);
+  if (match) {
+    return { hostPort: Number(match[1]), containerPort: Number(match[2]), raw: str };
+  }
+  return { hostPort: null, containerPort: null, raw: str };
+}
+
 export default function ComposeView({
+  containers = [],
+  onOpenLogs,
   onOpenLocal,
   onOpenURL,
   onSelectDirectory,
@@ -90,12 +104,19 @@ export default function ComposeView({
   useEffect(() => {
     if (onProjectChange) {
       if (project) {
+        const isRunning = project.status === 'running' || (project.services || []).some(s => (s.status || '').toLowerCase() === 'running');
         onProjectChange({
           name: project.name,
           dir: project.workingDir || project.directory || '',
           serviceCount: Array.isArray(project.services) ? project.services.length : Object.keys(project.services || {}).length,
           hasEnv,
           snapshotCount: project.snapshots?.length || 0,
+          status: isRunning ? 'running' : 'stopped',
+          onUp: () => handleUp(false),
+          onStart: handleStartStack,
+          onStop: handleStopStack,
+          onDown: handleOpenDownModal,
+          onRestart: handleRestartStack,
           onClose: () => {
             setProject(null);
             if (onActiveProjectChange) onActiveProjectChange(null);
@@ -122,6 +143,36 @@ export default function ComposeView({
     removeOrphans: true,
     removeImages: false
   });
+  const [copiedOutput, setCopiedOutput] = useState(false);
+  const [showManualPath, setShowManualPath] = useState(false);
+  const outputRef = useRef(null);
+
+  useEffect(() => {
+    if (outputRef.current) {
+      outputRef.current.scrollTop = outputRef.current.scrollHeight;
+    }
+  }, [actionOutput]);
+
+  const handleCopyOutput = () => {
+    if (!actionOutput) return;
+    navigator.clipboard?.writeText(actionOutput);
+    setCopiedOutput(true);
+    setTimeout(() => setCopiedOutput(false), 2000);
+  };
+
+  const handleKeyDownEditor = (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      e.preventDefault();
+      handleStage();
+    }
+  };
+
+  const handleKeyDownEnv = (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      e.preventDefault();
+      handleSaveEnv();
+    }
+  };
 
   // Global Esc key dismiss for Compose local dialogs
   useEffect(() => {
@@ -496,6 +547,53 @@ SECRET_KEY=dockit_super_secret_key
     }
   };
 
+  const handleStopStack = async () => {
+    if (!project || !projectKey || !onStop) return;
+    try {
+      setLoading(true);
+      const out = await onStop(projectKey, []);
+      setActionOutput(out || 'All compose services stopped.');
+      const refreshed = await onRefreshProject(projectKey);
+      if (refreshed) setProject(refreshed);
+      setActiveTab('output');
+      notify('All compose services stopped successfully.', 'info', 'Stack Stopped');
+    } catch (err) {
+      notify(`Stop stack failed: ${err}`, 'error', 'Stop Failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStartStack = async () => {
+    if (!project || !projectKey) return;
+    try {
+      setLoading(true);
+      let out;
+      if (onStart) {
+        out = await onStart(projectKey, []);
+      } else {
+        out = await onUp(projectKey, { detached: true, build: false });
+      }
+      setActionOutput(out || 'All compose services started.');
+      const refreshed = await onRefreshProject(projectKey);
+      if (refreshed) setProject(refreshed);
+      setActiveTab('output');
+      notify('All compose services started.', 'success', 'Stack Started');
+    } catch (err) {
+      try {
+        const out = await onUp(projectKey, { detached: true, build: false });
+        setActionOutput(out);
+        const refreshed = await onRefreshProject(projectKey);
+        if (refreshed) setProject(refreshed);
+        setActiveTab('output');
+      } catch (upErr) {
+        notify(`Start stack failed: ${upErr}`, 'error', 'Start Failed');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleRestartStack = async () => {
     if (!project || !projectKey) return;
     try {
@@ -548,41 +646,62 @@ SECRET_KEY=dockit_super_secret_key
 
           {/* Directory Loader: Only shown in All Projects view */}
           {!project && (
-            <div className="flex items-center gap-3">
-              <form onSubmit={handleOpenLocal} className="flex items-center gap-2">
-                <input
-                  type="text"
-                  placeholder="/path/to/project folder"
-                  value={localPathInput}
-                  onChange={(e) => setLocalPathInput(e.target.value)}
-                  className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 w-56 md:w-72 font-mono transition-colors"
-                />
-                <button
-                  type="button"
-                  onClick={handleBrowseDir}
-                  className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-semibold border border-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer"
-                  title="Open native file explorer to select folder"
-                >
-                  <FolderOpen className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Browse</span>
-                </button>
-                <button
-                  type="submit"
-                  className="px-3.5 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold transition-all cursor-pointer"
-                >
-                  <span>Load</span>
-                </button>
-              </form>
+            <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                onClick={handleBrowseDir}
+                className="flex items-center gap-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold px-3.5 py-1.5 rounded-lg text-xs shadow-md shadow-cyan-500/20 transition-all cursor-pointer whitespace-nowrap"
+                title="Open native file explorer to select Compose directory"
+              >
+                <FolderOpen className="w-3.5 h-3.5 stroke-[2.5]" />
+                <span>Open Folder</span>
+              </button>
 
               <button
+                type="button"
                 onClick={() => setShowUrlDialog(true)}
-                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-300 text-xs font-semibold border border-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-semibold border border-slate-700 transition-colors cursor-pointer"
               >
                 <LinkIcon className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Git URL</span>
+                <span>Clone from Git</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowManualPath(!showManualPath)}
+                className={`p-1.5 rounded-lg border text-xs transition cursor-pointer ${
+                  showManualPath
+                    ? 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30'
+                    : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                }`}
+                title="Enter custom path manually"
+              >
+                <Terminal className="w-3.5 h-3.5" />
               </button>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Optional Manual Path Input Bar */}
+      {showManualPath && !project && (
+        <div className="px-6 py-2.5 bg-slate-950 border-b border-slate-800 flex items-center gap-2">
+          <span className="text-[11px] text-slate-400 font-mono">Path:</span>
+          <form onSubmit={handleOpenLocal} className="flex-1 flex items-center gap-2">
+            <input
+              type="text"
+              placeholder="/path/to/project folder (containing docker-compose.yml)"
+              value={localPathInput}
+              onChange={(e) => setLocalPathInput(e.target.value)}
+              className="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-3 py-1 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 font-mono"
+            />
+            <button
+              type="submit"
+              className="px-3 py-1 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold transition-all cursor-pointer"
+            >
+              Load
+            </button>
+          </form>
         </div>
       )}
 
@@ -682,47 +801,73 @@ SECRET_KEY=dockit_super_secret_key
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {recentProjects.map((p) => (
-                  <div
-                    key={p.workingDir}
-                    onClick={() => loadProjectFromPath(p.workingDir)}
-                    className="p-4 rounded-xl border border-slate-800 bg-slate-900 hover:border-cyan-500/50 transition-all cursor-pointer flex flex-col justify-between group shadow-sm min-w-0 overflow-hidden"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex items-center justify-between mb-2 gap-2 min-w-0">
-                        <span className="font-bold text-slate-100 text-sm group-hover:text-cyan-400 transition-colors flex items-center gap-2 truncate min-w-0" title={p.name}>
-                          <Layers className="w-4 h-4 text-cyan-400 shrink-0" />
-                          <span className="truncate block max-w-full">{p.name}</span>
-                        </span>
-                        <button
-                          onClick={(e) => removeRecentProject(p.workingDir, e)}
-                          className="p-1 text-slate-500 hover:text-rose-400 transition-colors opacity-0 group-hover:opacity-100 cursor-pointer shrink-0"
-                          title="Remove from recents"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                {recentProjects.map((p) => {
+                  const runningCount = (containers || []).filter(c => {
+                    const cName = (c.name || '').replace(/^\//, '').toLowerCase();
+                    const pName = (p.name || '').toLowerCase();
+                    const cState = (c.state || c.status || '').toLowerCase();
+                    const isRunning = cState.includes('running') || cState.startsWith('up');
+                    if (!isRunning) return false;
+                    if (c.labels && c.labels['com.docker.compose.project'] === pName) return true;
+                    return cName.startsWith(pName + '-') || cName.startsWith(pName + '_');
+                  }).length;
+                  const isRunning = runningCount > 0;
+
+                  return (
+                    <div
+                      key={p.workingDir}
+                      onClick={() => loadProjectFromPath(p.workingDir)}
+                      className="p-4 rounded-xl border border-slate-800 bg-slate-900/90 hover:border-cyan-500/50 hover:bg-slate-850 transition-all cursor-pointer flex flex-col justify-between group shadow-sm min-w-0 overflow-hidden"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center justify-between mb-2 gap-2 min-w-0">
+                          <span className="font-bold text-slate-100 text-sm group-hover:text-cyan-400 transition-colors flex items-center gap-2 truncate min-w-0" title={p.name}>
+                            <Layers className="w-4 h-4 text-cyan-400 shrink-0" />
+                            <span className="truncate block max-w-full">{p.name}</span>
+                          </span>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {isRunning ? (
+                              <span className="status-badge bg-emerald-500/10 text-emerald-400 border-emerald-500/25 text-[10px]">
+                                <span className="status-dot status-dot-running" />
+                                <span>Running ({runningCount})</span>
+                              </span>
+                            ) : (
+                              <span className="status-badge bg-slate-800 text-slate-400 border-slate-700/80 text-[10px]">
+                                <span className="status-dot status-dot-stopped" />
+                                <span>Stopped</span>
+                              </span>
+                            )}
+                            <button
+                              onClick={(e) => removeRecentProject(p.workingDir, e)}
+                              className="p-1 text-slate-500 hover:text-rose-400 transition-colors opacity-0 group-hover:opacity-100 cursor-pointer shrink-0"
+                              title="Remove from recents"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="font-mono text-xs text-slate-400 truncate mb-3" title={p.workingDir}>
+                          {p.workingDir}
+                        </div>
+
+                        <div className="flex items-center gap-2 text-xs text-slate-500 flex-wrap min-w-0">
+                          <span className="px-2 py-0.5 rounded bg-slate-950/60 border border-slate-800 text-slate-400 font-medium shrink-0">
+                            {p.servicesCount || 0} services
+                          </span>
+                          <span className="truncate">Opened {new Date(p.lastOpened).toLocaleDateString()}</span>
+                        </div>
                       </div>
 
-                      <div className="font-mono text-xs text-slate-400 truncate mb-3" title={p.workingDir}>
-                        {p.workingDir}
-                      </div>
-
-                      <div className="flex items-center gap-2 text-xs text-slate-500 flex-wrap min-w-0">
-                        <span className="px-2 py-0.5 rounded bg-slate-950/60 border border-slate-800 text-slate-400 font-medium shrink-0">
-                          {p.servicesCount || 0} services
+                      <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-xs">
+                        <span className="text-cyan-400 font-semibold group-hover:translate-x-1 transition-transform flex items-center gap-1">
+                          Open Project Workspace
+                          <ChevronRight className="w-3 h-3" />
                         </span>
-                        <span className="truncate">Opened {new Date(p.lastOpened).toLocaleDateString()}</span>
                       </div>
                     </div>
-
-                    <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-xs">
-                      <span className="text-cyan-400 font-semibold group-hover:translate-x-1 transition-transform flex items-center gap-1">
-                        Open Project Workspace
-                        <ChevronRight className="w-3 h-3" />
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -815,39 +960,58 @@ SECRET_KEY=dockit_super_secret_key
 
             {/* Quick Action buttons */}
             <div className="flex items-center gap-2 ml-auto">
-              {navigationStyle === 'tabs' && (() => {
+              {(() => {
                 const isStackActive = project.status === 'running' || project.status === 'partial' || (project.services || []).some(s => (s.status || '').toLowerCase() === 'running');
                 return isStackActive ? (
                   <>
                     <button
-                      onClick={handleOpenDownModal}
+                      onClick={handleStopStack}
                       disabled={loading}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 border border-rose-500/30 text-xs font-semibold transition-all disabled:opacity-50 cursor-pointer"
-                      title="Stop stack and choose cleanup options"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-xs font-semibold transition-all disabled:opacity-50 cursor-pointer shadow-xs"
+                      title="Stop all services cleanly without deleting containers (docker compose stop)"
                     >
-                      {loading ? <RotateCw className="w-3.5 h-3.5 animate-spin" /> : <Square className="w-3.5 h-3.5 fill-current" />}
-                      <span>Compose Down</span>
+                      {loading ? <RotateCw className="w-3.5 h-3.5 animate-spin" /> : <Square className="w-3.5 h-3.5" />}
+                      <span>Stop Stack</span>
                     </button>
                     <button
                       onClick={handleRestartStack}
                       disabled={loading}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-300 border border-slate-700 text-xs font-medium transition-all disabled:opacity-50 cursor-pointer"
-                      title="Restart entire stack"
+                      title="Restart all services (docker compose restart)"
                     >
                       <RotateCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-cyan-400' : ''}`} />
-                      <span>Restart Stack</span>
+                      <span>Restart</span>
+                    </button>
+                    <button
+                      onClick={handleOpenDownModal}
+                      disabled={loading}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 border border-rose-500/30 text-xs font-semibold transition-all disabled:opacity-50 cursor-pointer"
+                      title="Stop stack and remove containers/networks (docker compose down)"
+                    >
+                      <span>Compose Down</span>
                     </button>
                   </>
                 ) : (
-                  <button
-                    onClick={() => handleUp(false)}
-                    disabled={loading}
-                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 text-xs font-bold transition-all disabled:opacity-50 cursor-pointer shadow-sm shadow-emerald-500/10"
-                    title="Launch compose stack"
-                  >
-                    {loading ? <RotateCw className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5 fill-current" />}
-                    <span>Compose Up</span>
-                  </button>
+                  <>
+                    <button
+                      onClick={() => handleUp(false)}
+                      disabled={loading}
+                      className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 text-xs font-bold transition-all disabled:opacity-50 cursor-pointer shadow-sm shadow-emerald-500/10"
+                      title="Build, create, and launch stack (docker compose up -d)"
+                    >
+                      {loading ? <RotateCw className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5 fill-current" />}
+                      <span>Compose Up</span>
+                    </button>
+                    <button
+                      onClick={handleStartStack}
+                      disabled={loading}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 text-xs font-medium transition-all disabled:opacity-50 cursor-pointer"
+                      title="Start existing stopped containers without rebuilding (docker compose start)"
+                    >
+                      <Play className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>Start Stack</span>
+                    </button>
+                  </>
                 );
               })()}
               <button
@@ -873,6 +1037,16 @@ SECRET_KEY=dockit_super_secret_key
                   const isRunning = (service.status || '').toLowerCase() === 'running';
                   const isBusy = !!serviceLoading[sName];
 
+                  const matchingContainer = (containers || []).find(c => {
+                    const cName = (c.name || '').replace(/^\//, '').toLowerCase();
+                    const sNameLower = sName.toLowerCase();
+                    const pNameLower = (project?.name || '').toLowerCase();
+                    if (c.labels && (c.labels['com.docker.compose.service'] === sName || c.labels['com.docker.compose.service'] === sNameLower)) {
+                      return true;
+                    }
+                    return cName.includes(sNameLower) && cName.includes(pNameLower);
+                  });
+
                   return (
                     <div
                       key={sName}
@@ -885,13 +1059,14 @@ SECRET_KEY=dockit_super_secret_key
                             {sName}
                           </span>
                           {isRunning ? (
-                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-semibold flex items-center gap-1.5 font-mono">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                              running
+                            <span className="status-badge bg-emerald-500/10 text-emerald-400 border-emerald-500/25 text-[10px]">
+                              <span className="status-dot status-dot-running" />
+                              <span>running</span>
                             </span>
                           ) : (
-                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700 font-mono">
-                              {service.status || 'stopped'}
+                            <span className="status-badge bg-slate-800 text-slate-400 border-slate-700/80 text-[10px]">
+                              <span className="status-dot status-dot-stopped" />
+                              <span>{service.status || 'stopped'}</span>
                             </span>
                           )}
                         </div>
@@ -902,9 +1077,37 @@ SECRET_KEY=dockit_super_secret_key
                             <span className="text-slate-300">{service.image || '(local build)'}</span>
                           </div>
                           {service.ports && service.ports.length > 0 && (
-                            <div>
-                              <span className="text-slate-500">Ports:</span>{' '}
-                              <span className="text-cyan-400">{Array.isArray(service.ports) ? service.ports.join(', ') : String(service.ports)}</span>
+                            <div className="flex items-start gap-1">
+                              <span className="text-slate-500 shrink-0">Ports:</span>{' '}
+                              <div className="flex flex-wrap gap-1 items-center">
+                                {(Array.isArray(service.ports) ? service.ports : [service.ports]).map((portItem, pIdx) => {
+                                  const parsed = parsePortItem(portItem);
+                                  if (parsed?.hostPort) {
+                                    return (
+                                      <button
+                                        key={pIdx}
+                                        type="button"
+                                        onClick={() => {
+                                          try {
+                                            if (typeof BrowserOpenURL === 'function') BrowserOpenURL(`http://localhost:${parsed.hostPort}`);
+                                            else window.open(`http://localhost:${parsed.hostPort}`, '_blank');
+                                          } catch {}
+                                        }}
+                                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-cyan-950/40 hover:bg-cyan-900/60 text-cyan-300 border border-cyan-800/40 text-[10px] font-mono transition cursor-pointer"
+                                        title={`Open http://localhost:${parsed.hostPort} in browser`}
+                                      >
+                                        <span>{parsed.hostPort}:{parsed.containerPort}</span>
+                                        <ExternalLink className="w-2.5 h-2.5" />
+                                      </button>
+                                    );
+                                  }
+                                  return (
+                                    <span key={pIdx} className="text-cyan-400 text-[10px]">
+                                      {parsed?.raw || String(portItem)}
+                                    </span>
+                                  );
+                                })}
+                              </div>
                             </div>
                           )}
                           {service.volumes && service.volumes.length > 0 && (
@@ -918,6 +1121,16 @@ SECRET_KEY=dockit_super_secret_key
 
                       {/* Context-aware per-service controls */}
                       <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-900">
+                        {onOpenLogs && matchingContainer && (
+                          <button
+                            onClick={() => onOpenLogs(matchingContainer.id, matchingContainer.name || sName)}
+                            className="flex items-center gap-1 px-2.5 py-1 rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs font-medium transition-colors cursor-pointer mr-auto"
+                            title={`View live container logs for ${sName}`}
+                          >
+                            <FileText className="w-3 h-3 text-cyan-400" />
+                            <span>Logs</span>
+                          </button>
+                        )}
                         {isRunning ? (
                           <>
                             <button
@@ -1044,9 +1257,22 @@ SECRET_KEY=dockit_super_secret_key
                 <textarea
                   value={editorYaml}
                   onChange={(e) => setEditorYaml(e.target.value)}
+                  onKeyDown={handleKeyDownEditor}
                   className="flex-1 w-full p-4 bg-transparent font-mono text-xs text-slate-200 resize-none focus:outline-none leading-relaxed"
                   spellCheck={false}
                 />
+              </div>
+
+              {/* Editor footer */}
+              <div className="mt-2.5 flex items-center justify-between text-[11px] text-slate-500">
+                <span className="flex items-center gap-2">
+                  <span>Lines: {editorYaml ? editorYaml.split('\n').length : 0}</span>
+                  <span>•</span>
+                  <span>Characters: {editorYaml.length}</span>
+                </span>
+                <span className="font-mono text-slate-400 bg-slate-900/80 px-2 py-0.5 rounded border border-slate-800 text-[10px]">
+                  Ctrl + S to Stage in Sandbox
+                </span>
               </div>
             </div>
           )}
@@ -1132,6 +1358,7 @@ SECRET_KEY=dockit_super_secret_key
                 <textarea
                   value={envContent}
                   onChange={(e) => setEnvContent(e.target.value)}
+                  onKeyDown={handleKeyDownEnv}
                   placeholder="# Enter environment variables (e.g. PORT=8080, DB_PASSWORD=secret)..."
                   className="flex-1 w-full p-4 bg-transparent font-mono text-xs text-slate-200 placeholder-slate-600 resize-none focus:outline-none leading-relaxed"
                   spellCheck={false}
@@ -1141,7 +1368,9 @@ SECRET_KEY=dockit_super_secret_key
               {/* Hint footer */}
               <div className="mt-2.5 flex items-center justify-between text-[11px] text-slate-500">
                 <span>Docker Compose automatically injects variables from this file into defined services (e.g. ${'{VAR_NAME}'}).</span>
-                <span className="font-mono">Lines: {envContent ? envContent.split('\n').length : 0}</span>
+                <span className="font-mono text-slate-400 bg-slate-900/80 px-2 py-0.5 rounded border border-slate-800 text-[10px]">
+                  Ctrl + S to Save .env
+                </span>
               </div>
             </div>
           )}
@@ -1211,7 +1440,40 @@ SECRET_KEY=dockit_super_secret_key
           {/* TAB 4: Terminal Output */}
           {activeTab === 'output' && (
             <div className="flex-1 p-6 flex flex-col overflow-hidden">
-              <div className="flex-1 bg-slate-950 border border-slate-800 rounded-xl p-4 font-mono text-xs text-emerald-400 overflow-auto whitespace-pre-wrap leading-relaxed select-text">
+              <div className="mb-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Terminal className="w-4 h-4 text-cyan-400" />
+                  <span className="text-xs font-semibold text-slate-200">Execution Console Output</span>
+                  {loading && (
+                    <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 text-[10px] font-mono">
+                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
+                      Streaming
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleCopyOutput}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-medium transition cursor-pointer"
+                    title="Copy console output to clipboard"
+                  >
+                    {copiedOutput ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                    <span>{copiedOutput ? 'Copied' : 'Copy'}</span>
+                  </button>
+                  <button
+                    onClick={() => setActionOutput('')}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 border border-slate-700 text-xs font-medium transition cursor-pointer"
+                    title="Clear console output"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    <span>Clear</span>
+                  </button>
+                </div>
+              </div>
+              <div 
+                ref={outputRef}
+                className="flex-1 bg-slate-950 border border-slate-800 rounded-xl p-4 font-mono text-xs text-emerald-400 overflow-auto whitespace-pre-wrap leading-relaxed select-text"
+              >
                 {actionOutput || 'No command execution output yet. Run Compose Up or Down to inspect the live CLI stream.'}
               </div>
             </div>

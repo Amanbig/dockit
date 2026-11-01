@@ -114,6 +114,7 @@ import {
   CancelHostCommand,
   CancelHostCommandSession,
   CloseHostTerminalSession,
+  CloseHostTerminal,
   GetHostHomeDir
 } from '../wailsjs/go/main/App';
 import { WindowIsMaximised, WindowToggleMaximise } from '../wailsjs/runtime/runtime';
@@ -145,7 +146,7 @@ export default function App() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [appConfig, setAppConfig] = useState(null);
   const [theme, setTheme] = useState('dark');
-  const [appVersion, setAppVersion] = useState(packageJson?.version || '0.9.0');
+  const [appVersion, setAppVersion] = useState(packageJson?.version || '0.9.4');
   const [activeComposeDir, setActiveComposeDir] = useState(null);
 
   // Navigation layout style: 'sidebar' (contextual drilldown) vs 'tabs' (horizontal subtabs)
@@ -569,9 +570,10 @@ export default function App() {
   // Container handlers
   const handleStartContainer = async (id) => {
     try {
+      await CloseHostTerminal(`container-${id}`).catch(() => {});
       await StartContainer(id);
       addToast('Container started successfully', 'success');
-      refreshAll();
+      await refreshAll();
     } catch (err) {
       addToast(formatEngineError(err), 'error', 'Failed to Start Container');
     }
@@ -579,9 +581,10 @@ export default function App() {
 
   const handleStopContainer = async (id) => {
     try {
+      await CloseHostTerminal(`container-${id}`).catch(() => {});
       await StopContainer(id, 10);
       addToast('Container stopped', 'info');
-      refreshAll();
+      await refreshAll();
     } catch (err) {
       addToast(formatEngineError(err), 'error', 'Failed to Stop Container');
     }
@@ -589,9 +592,10 @@ export default function App() {
 
   const handleRestartContainer = async (id) => {
     try {
+      await CloseHostTerminal(`container-${id}`).catch(() => {});
       await RestartContainer(id, 10);
       addToast('Container restarted', 'success');
-      refreshAll();
+      await refreshAll();
     } catch (err) {
       addToast(formatEngineError(err), 'error', 'Failed to Restart Container');
     }
@@ -1043,6 +1047,22 @@ export default function App() {
       const composeActions = [];
       const isStackActive = composeProjectInfo.status === 'running' || composeProjectInfo.status === 'partial';
       if (isStackActive) {
+        if (composeProjectInfo.onStop) {
+          composeActions.push({
+            label: 'Stop',
+            icon: Square,
+            variant: 'warning',
+            onClick: composeProjectInfo.onStop
+          });
+        }
+        if (composeProjectInfo.onRestart) {
+          composeActions.push({
+            label: 'Restart',
+            icon: RotateCw,
+            variant: 'default',
+            onClick: composeProjectInfo.onRestart
+          });
+        }
         if (composeProjectInfo.onDown) {
           composeActions.push({
             label: 'Down',
@@ -1060,14 +1080,6 @@ export default function App() {
             onClick: composeProjectInfo.onUp
           });
         }
-      }
-      if (composeProjectInfo.onRestart) {
-        composeActions.push({
-          label: 'Restart',
-          icon: RotateCw,
-          variant: 'default',
-          onClick: composeProjectInfo.onRestart
-        });
       }
 
       return {
@@ -1240,12 +1252,13 @@ export default function App() {
           <main className="flex-1 flex overflow-hidden relative">
             {visitedTabs.has('containers') && (
               <div
-                className="flex-1 flex flex-col h-full overflow-hidden"
+                className="flex-1 flex flex-col h-full overflow-hidden view-enter"
                 style={{ display: activeTab === 'containers' ? 'flex' : 'none' }}
               >
                 {selectedContainerId ? (
                   <ContainerDetailsView
                     containerId={selectedContainerId}
+                    containerSummary={containers.find((item) => item.id === selectedContainerId)}
                     isTabActive={activeTab === 'containers'}
                     onBack={() => setSelectedContainerId(null)}
                     onRefreshList={refreshAll}
@@ -1259,6 +1272,7 @@ export default function App() {
                 ) : (
                   <ContainersView
                     containers={containers}
+                    images={images}
                     networks={networks}
                     volumes={volumes}
                     loading={isRefreshing}
@@ -1355,6 +1369,8 @@ export default function App() {
                 style={{ display: activeTab === 'compose' ? 'flex' : 'none' }}
               >
                 <ComposeView
+                  containers={containers}
+                  onOpenLogs={(id, name) => setLogsModal({ open: true, id, name })}
                   onOpenLocal={OpenComposeProject}
                   onOpenURL={OpenComposeProjectFromURL}
                   onSelectDirectory={SelectDirectoryDialog}

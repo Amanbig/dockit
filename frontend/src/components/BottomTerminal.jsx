@@ -1,98 +1,66 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { 
-  Terminal, 
-  ChevronUp, 
-  ChevronDown, 
-  Maximize2, 
-  Minimize2, 
-  X, 
-  RefreshCw, 
-  Trash2, 
-  Copy, 
-  Check, 
+import {
+  Terminal,
+  ChevronUp,
+  Maximize2,
+  Minimize2,
+  X,
+  Copy,
+  Check,
   Folder,
-  Square,
   ClipboardPaste,
   Plus,
   Activity,
-  Cpu,
-  Zap
+  Zap,
 } from 'lucide-react';
+import XTermTab from './XTermTab';
 
 const QUICK_COMMANDS = [
   { label: 'docker ps', cmd: 'docker ps' },
   { label: 'stats', cmd: 'docker stats --no-stream' },
   { label: 'system df', cmd: 'docker system df' },
   { label: 'compose ps', cmd: 'docker compose ps' },
-  { label: 'images', cmd: 'docker images' }
+  { label: 'images', cmd: 'docker images' },
 ];
 
 function Sparkline({ data = [], color = '#22d3ee', height = 24 }) {
   if (!data || data.length < 2) return null;
   const width = 250;
   const step = width / (data.length - 1);
-  const points = data.map((val, idx) => {
-    const clamped = Math.max(0, Math.min(100, val));
-    const x = Math.round(idx * step);
-    const y = Math.round(height - (clamped / 100) * height);
-    return `${x},${y}`;
-  }).join(' ');
+  const points = data
+    .map((val, idx) => {
+      const clamped = Math.max(0, Math.min(100, val));
+      const x = Math.round(idx * step);
+      const y = Math.round(height - (clamped / 100) * height);
+      return `${x},${y}`;
+    })
+    .join(' ');
 
   const areaPoints = `0,${height} ${points} ${width},${height}`;
 
   return (
     <svg className="w-full overflow-hidden rounded" height={height} viewBox={`0 0 ${width} ${height}`}>
       <polygon points={areaPoints} fill={color} fillOpacity="0.15" />
-      <polyline points={points} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <polyline
+        points={points}
+        fill="none"
+        stroke={color}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
 
-const MAX_HISTORY = 150;
-const MAX_CMD_HISTORY = 100;
-const MAX_OUTPUT_CHARS = 100000;
 const DEFAULT_HEIGHT = 288;
 const MIN_HEIGHT = 140;
-
-function truncateText(str, max = MAX_OUTPUT_CHARS) {
-  if (!str || typeof str !== 'string') return '';
-  if (str.length <= max) return str;
-  return str.slice(0, max) + '\n\n[...output truncated to 100,000 characters to conserve memory...]';
-}
-
-const getClipboardText = async () => {
-  try {
-    if (typeof window !== 'undefined' && window.runtime?.ClipboardGetText) {
-      const text = await window.runtime.ClipboardGetText();
-      if (text) return text;
-    }
-  } catch (_) {}
-
-  try {
-    if (typeof navigator !== 'undefined' && navigator.clipboard?.readText) {
-      const text = await navigator.clipboard.readText();
-      if (text) return text;
-    }
-  } catch (_) {}
-
-  return '';
-};
 
 function createInitialTab(id = 'term-1', title = 'Terminal 1', initialCwd = '~') {
   return {
     id,
     title,
     cwd: initialCwd,
-    history: [
-      {
-        type: 'system',
-        text: 'Dockit Host Terminal\nType any command or "clear" to clear screen.'
-      }
-    ],
-    commandInput: '',
-    executing: false,
-    cmdHistory: [],
-    historyIndex: -1
   };
 }
 
@@ -100,26 +68,22 @@ export default function BottomTerminal({
   isOpen,
   onToggle,
   onClose,
-  onExecHostCommand,
-  onExecHostCommandSession,
-  onGetHostCwd,
   onGetHostCwdSession,
-  onSetHostCwd,
   onSetHostCwdSession,
-  onCancelHostCommand,
-  onCancelHostCommandSession,
-  onCloseHostTerminalSession,
   onGetHostHomeDir,
   activeComposeDir = null,
   hostMetrics = null,
   systemInfo = null,
-  runningContainersCount = 0
+  runningContainersCount = 0,
 }) {
   const [homeDir, setHomeDir] = useState('');
   const [tabs, setTabs] = useState([createInitialTab('term-1', 'Terminal 1', '~')]);
   const [activeTabId, setActiveTabId] = useState('term-1');
   const [isMaximized, setIsMaximized] = useState(false);
   const [copied, setCopied] = useState(false);
+  const nextTabNumRef = useRef(2);
+  const tabRefs = useRef({});
+
   const [drawerHeight, setDrawerHeight] = useState(() => {
     try {
       const saved = localStorage.getItem('dockit:terminal_height');
@@ -135,8 +99,6 @@ export default function BottomTerminal({
   const [isDragging, setIsDragging] = useState(false);
   const isDraggingRef = useRef(false);
 
-  const terminalScrollRef = useRef(null);
-  const inputRef = useRef(null);
   const drawerRef = useRef(null);
   const hostResourcesRef = useRef(null);
   const [showHostResources, setShowHostResources] = useState(false);
@@ -195,19 +157,22 @@ export default function BottomTerminal({
     document.body.style.userSelect = 'none';
   }, []);
 
-  const handleDoubleClickSash = useCallback((e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (isMaximized) {
-      setIsMaximized(false);
-    } else if (drawerHeight !== DEFAULT_HEIGHT) {
-      setDrawerHeight(DEFAULT_HEIGHT);
-    } else {
-      setIsMaximized(true);
-    }
-  }, [isMaximized, drawerHeight]);
+  const handleDoubleClickSash = useCallback(
+    (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (isMaximized) {
+        setIsMaximized(false);
+      } else if (drawerHeight !== DEFAULT_HEIGHT) {
+        setDrawerHeight(DEFAULT_HEIGHT);
+      } else {
+        setIsMaximized(true);
+      }
+    },
+    [isMaximized, drawerHeight]
+  );
 
-  // Window listeners for responsive dragging across the viewport
+  // Viewport dragging listener
   useEffect(() => {
     const handlePointerMove = (e) => {
       if (!isDraggingRef.current || !drawerRef.current) return;
@@ -243,7 +208,7 @@ export default function BottomTerminal({
     };
   }, []);
 
-  // Persist user preferred height to localStorage when dragging settles
+  // Persist user preferred height to localStorage
   useEffect(() => {
     if (!isDragging && drawerHeight) {
       try {
@@ -252,54 +217,17 @@ export default function BottomTerminal({
     }
   }, [drawerHeight, isDragging]);
 
-  // Active Tab object helper
   const activeTab = tabs.find((t) => t.id === activeTabId) || tabs[0] || createInitialTab('term-1');
 
-  const updateTab = useCallback((tabId, updater) => {
-    setTabs((prevTabs) =>
-      prevTabs.map((t) => {
-        if (t.id !== tabId) return t;
-        const updates = typeof updater === 'function' ? updater(t) : updater;
-        return { ...t, ...updates };
-      })
-    );
-  }, []);
-
-  const appendTabHistory = useCallback((tabId, entry) => {
-    setTabs((prevTabs) =>
-      prevTabs.map((t) => {
-        if (t.id !== tabId) return t;
-        const next = [...t.history, entry];
-        return {
-          ...t,
-          history: next.length > MAX_HISTORY ? next.slice(-MAX_HISTORY) : next
-        };
-      })
-    );
-  }, []);
-
-  const appendTabCmdHistory = useCallback((tabId, cmd) => {
-    setTabs((prevTabs) =>
-      prevTabs.map((t) => {
-        if (t.id !== tabId) return t;
-        const next = [...t.cmdHistory, cmd];
-        return {
-          ...t,
-          cmdHistory: next.length > MAX_CMD_HISTORY ? next.slice(-MAX_CMD_HISTORY) : next
-        };
-      })
-    );
-  }, []);
-
-  // Fetch initial home directory and initial cwd on mount or open
+  // Fetch initial home directory and initial cwd
   useEffect(() => {
     if (onGetHostHomeDir) {
       onGetHostHomeDir()
         .then((home) => {
           if (home) {
             setHomeDir(home);
-            setTabs((prevTabs) =>
-              prevTabs.map((t, idx) => (idx === 0 && t.cwd === '~' ? { ...t, cwd: home } : t))
+            setTabs((prev) =>
+              prev.map((t, idx) => (idx === 0 && t.cwd === '~' ? { ...t, cwd: home } : t))
             );
           }
         })
@@ -310,63 +238,74 @@ export default function BottomTerminal({
       onGetHostCwdSession('term-1')
         .then((dir) => {
           if (dir) {
-            updateTab('term-1', { cwd: dir });
-          }
-        })
-        .catch(() => {});
-    } else if (onGetHostCwd) {
-      onGetHostCwd()
-        .then((dir) => {
-          if (dir) {
-            updateTab('term-1', { cwd: dir });
+            setTabs((prev) =>
+              prev.map((t) => (t.id === 'term-1' ? { ...t, cwd: dir } : t))
+            );
           }
         })
         .catch(() => {});
     }
-  }, [isOpen, onGetHostHomeDir, onGetHostCwd, onGetHostCwdSession, updateTab]);
+  }, [isOpen, onGetHostHomeDir, onGetHostCwdSession]);
 
-  // Auto-scroll terminal scroll area when active tab's history updates or tab changes
+  const shortenPath = useCallback(
+    (path) => {
+      if (!path) return '~';
+      let p = path;
+      if (homeDir && p.startsWith(homeDir)) {
+        p = '~' + p.slice(homeDir.length);
+        if (p === '') p = '~';
+      }
+      const parts = p.split('/');
+      if (parts.length > 4) {
+        return parts[0] + '/…/' + parts.slice(-2).join('/');
+      }
+      return p;
+    },
+    [homeDir]
+  );
+
+  const refreshCwd = useCallback(
+    (tabId) => {
+      if (onGetHostCwdSession) {
+        onGetHostCwdSession(tabId)
+          .then((dir) => {
+            if (dir) {
+              setTabs((prev) => {
+                const current = prev.find((t) => t.id === tabId);
+                if (current && current.cwd === dir) return prev;
+                return prev.map((t) => (t.id === tabId ? { ...t, cwd: dir } : t));
+              });
+            }
+          })
+          .catch(() => {});
+      }
+    },
+    [onGetHostCwdSession]
+  );
+
+  const handleCommandExecuted = useCallback(
+    (tabId) => {
+      refreshCwd(tabId);
+    },
+    [refreshCwd]
+  );
+
+  // Periodically update cwd of active tab
   useEffect(() => {
-    if (isOpen && terminalScrollRef.current) {
-      terminalScrollRef.current.scrollTop = terminalScrollRef.current.scrollHeight;
-    }
-  }, [activeTab.history, activeTab.executing, isOpen, activeTabId]);
-
-  // Auto-focus input when terminal drawer opens or active tab switches
-  useEffect(() => {
-    if (isOpen && !activeTab.executing) {
-      setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 50);
-    }
-  }, [isOpen, activeTabId, activeTab.executing]);
-
-  // Auto-resize input textarea to match content height up to max-height
-  useEffect(() => {
-    if (inputRef.current) {
-      inputRef.current.style.height = 'auto';
-      inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 160)}px`;
-    }
-  }, [activeTab.commandInput, activeTabId]);
-
-  const shortenPath = useCallback((path) => {
-    if (!path) return '~';
-    let p = path;
-    if (homeDir && p.startsWith(homeDir)) {
-      p = '~' + p.slice(homeDir.length);
-      if (p === '') p = '~';
-    }
-    const parts = p.split('/');
-    if (parts.length > 4) {
-      return parts[0] + '/…/' + parts.slice(-2).join('/');
-    }
-    return p;
-  }, [homeDir]);
+    if (!isOpen || !activeTabId) return;
+    refreshCwd(activeTabId);
+    const interval = setInterval(() => {
+      refreshCwd(activeTabId);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [isOpen, activeTabId, refreshCwd]);
 
   // Add a new terminal tab
   const handleNewTab = useCallback(() => {
+    const tabNum = nextTabNumRef.current++;
     const newId = `term-${Date.now()}`;
-    const newIndex = tabs.length + 1;
     const initialCwd = activeTab.cwd || homeDir || '~';
-    const newTab = createInitialTab(newId, `Terminal ${newIndex}`, initialCwd);
+    const newTab = createInitialTab(newId, `Terminal ${tabNum}`, initialCwd);
 
     setTabs((prev) => [...prev, newTab]);
     setActiveTabId(newId);
@@ -375,348 +314,91 @@ export default function BottomTerminal({
       onSetHostCwdSession(newId, initialCwd).catch(() => {});
     }
 
-    setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 60);
-  }, [tabs.length, activeTab.cwd, homeDir, onSetHostCwdSession]);
+    setTimeout(() => {
+      tabRefs.current[newId]?.focus();
+    }, 80);
+  }, [activeTab.cwd, homeDir, onSetHostCwdSession]);
 
   // Close a specific terminal tab
-  const handleCloseTab = useCallback((tabIdToClose, e) => {
-    if (e) e.stopPropagation();
+  const handleCloseTab = useCallback(
+    (tabIdToClose, e) => {
+      if (e) e.stopPropagation();
 
-    if (tabs.length <= 1) {
-      // If closing the only tab, clear its screen and reset
-      updateTab(tabIdToClose, {
-        history: [
-          {
-            type: 'system',
-            text: 'Dockit Host Terminal\nType any command or "clear" to clear screen.'
-          }
-        ],
-        commandInput: '',
-        historyIndex: -1
-      });
-      return;
-    }
-
-    // Terminate session on backend
-    if (onCloseHostTerminalSession) {
-      onCloseHostTerminalSession(tabIdToClose);
-    } else if (onCancelHostCommandSession) {
-      onCancelHostCommandSession(tabIdToClose);
-    }
-
-    setTabs((prevTabs) => {
-      const nextTabs = prevTabs.filter((t) => t.id !== tabIdToClose);
-      if (activeTabId === tabIdToClose) {
-        const closedIdx = prevTabs.findIndex((t) => t.id === tabIdToClose);
-        const nextActive = nextTabs[Math.max(0, closedIdx - 1)] || nextTabs[0];
-        if (nextActive) setActiveTabId(nextActive.id);
-      }
-      return nextTabs;
-    });
-
-    setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 50);
-  }, [tabs.length, activeTabId, onCloseHostTerminalSession, onCancelHostCommandSession, updateTab]);
-
-  // Cancel currently running command in the active or specified tab
-  const handleCancelCommand = useCallback(async (tabId = activeTab.id) => {
-    try {
-      if (onCancelHostCommandSession) {
-        await onCancelHostCommandSession(tabId);
-      } else if (onCancelHostCommand) {
-        await onCancelHostCommand();
-      }
-      appendTabHistory(tabId, { type: 'err', text: '^C (command canceled)' });
-    } catch (_) {}
-    updateTab(tabId, { executing: false });
-    setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 40);
-  }, [activeTab.id, onCancelHostCommandSession, onCancelHostCommand, appendTabHistory, updateTab]);
-
-  // Paste handler into active tab command input
-  const handlePasteToInput = useCallback(async () => {
-    const text = await getClipboardText();
-    if (!text) return;
-    const currentTabId = activeTab.id;
-
-    if (inputRef.current) {
-      inputRef.current.focus({ preventScroll: true });
-      const el = inputRef.current;
-      const start = el.selectionStart ?? activeTab.commandInput.length;
-      const end = el.selectionEnd ?? activeTab.commandInput.length;
-      const updated = activeTab.commandInput.slice(0, start) + text + activeTab.commandInput.slice(end);
-      updateTab(currentTabId, { commandInput: updated });
-      setTimeout(() => {
-        el.setSelectionRange(start + text.length, start + text.length);
-        el.focus({ preventScroll: true });
-      }, 10);
-    } else {
-      updateTab(currentTabId, (prev) => ({ commandInput: prev.commandInput + text }));
-      setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 30);
-    }
-  }, [activeTab.id, activeTab.commandInput, updateTab]);
-
-  // Global keyboard shortcuts: Ctrl+C, Ctrl+V, Ctrl+Shift+V, Ctrl+Shift+`, Alt+[1-9]
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleKeyDownGlobal = (e) => {
-      // Hotkey: Ctrl+Shift+` to create a new tab
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === '`' || e.key === '~')) {
-        e.preventDefault();
-        handleNewTab();
+      if (tabs.length <= 1) {
+        // If closing the only tab, clear its screen and reset
+        tabRefs.current[tabIdToClose]?.clear();
         return;
       }
 
-      // Hotkey: Alt+[1-9] to switch between tabs
-      if (e.altKey && e.key >= '1' && e.key <= '9') {
-        const targetIdx = parseInt(e.key, 10) - 1;
-        if (tabs[targetIdx]) {
-          e.preventDefault();
-          setActiveTabId(tabs[targetIdx].id);
-          setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 40);
-          return;
-        }
-      }
-
-      // Ctrl+V or Ctrl+Shift+V handling
-      if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V')) {
-        if (
-          drawerRef.current?.contains(document.activeElement) ||
-          document.activeElement === inputRef.current
-        ) {
-          if (e.shiftKey || document.activeElement !== inputRef.current) {
-            e.preventDefault();
-            handlePasteToInput();
-            return;
+      setTabs((prev) => {
+        const remaining = prev.filter((t) => t.id !== tabIdToClose);
+        if (activeTabId === tabIdToClose) {
+          const closedIdx = prev.findIndex((t) => t.id === tabIdToClose);
+          const nextActive = remaining[Math.max(0, closedIdx - 1)] || remaining[0];
+          if (nextActive) {
+            setActiveTabId(nextActive.id);
+            setTimeout(() => {
+              tabRefs.current[nextActive.id]?.focus();
+            }, 50);
           }
         }
-      }
-
-      // Ctrl+C handling
-      if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C')) {
-        const selection = window.getSelection()?.toString();
-        if (selection && selection.length > 0) {
-          return;
-        }
-
-        if (activeTab.executing) {
-          e.preventDefault();
-          handleCancelCommand(activeTab.id);
-          return;
-        }
-
-        if (
-          drawerRef.current?.contains(document.activeElement) ||
-          document.activeElement === inputRef.current
-        ) {
-          e.preventDefault();
-          if (activeTab.commandInput) {
-            appendTabHistory(activeTab.id, {
-              type: 'cmd',
-              text: `${activeTab.commandInput}^C`,
-              cwd: activeTab.cwd
-            });
-            updateTab(activeTab.id, { commandInput: '' });
-          } else {
-            appendTabHistory(activeTab.id, { type: 'cmd', text: '^C', cwd: activeTab.cwd });
-          }
-          setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 30);
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDownGlobal);
-    return () => window.removeEventListener('keydown', handleKeyDownGlobal);
-  }, [
-    isOpen,
-    tabs,
-    activeTab.id,
-    activeTab.executing,
-    activeTab.commandInput,
-    activeTab.cwd,
-    handleCancelCommand,
-    handlePasteToInput,
-    handleNewTab,
-    appendTabHistory,
-    updateTab
-  ]);
-
-  const handleRunCommand = async (e) => {
-    if (e) e.preventDefault();
-    const currentTabId = activeTab.id;
-    const cmdStr = activeTab.commandInput.trim();
-    if (!cmdStr || activeTab.executing) return;
-
-    if (cmdStr.toLowerCase() === 'clear') {
-      updateTab(currentTabId, {
-        history: [],
-        commandInput: '',
-        historyIndex: -1
+        return remaining;
       });
-      appendTabCmdHistory(currentTabId, 'clear');
-      return;
-    }
+    },
+    [tabs.length, activeTabId]
+  );
 
-    updateTab(currentTabId, {
-      executing: true,
-      commandInput: '',
-      historyIndex: -1
-    });
-    appendTabHistory(currentTabId, { type: 'cmd', text: cmdStr, cwd: activeTab.cwd });
-    appendTabCmdHistory(currentTabId, cmdStr);
-
-    try {
-      let res = null;
-      if (onExecHostCommandSession) {
-        res = await onExecHostCommandSession(currentTabId, cmdStr);
-      } else if (onExecHostCommand) {
-        res = await onExecHostCommand(cmdStr);
+  // Quick Command trigger
+  const handleRunQuickCommand = useCallback(
+    (cmd) => {
+      if (!cmd) return;
+      const term = tabRefs.current[activeTabId];
+      if (term) {
+        term.sendInput(cmd + '\n');
+        term.focus();
       }
+    },
+    [activeTabId]
+  );
 
-      if (res) {
-        if (res.cwd) {
-          updateTab(currentTabId, { cwd: res.cwd });
-        }
-        if (res.output) {
-          appendTabHistory(currentTabId, { type: 'out', text: truncateText(res.output) });
-        }
-        if (res.error) {
-          appendTabHistory(currentTabId, { type: 'err', text: truncateText(res.error) });
-        }
-      }
-    } catch (err) {
-      appendTabHistory(currentTabId, { type: 'err', text: `Execution failed: ${err}` });
-    } finally {
-      updateTab(currentTabId, { executing: false });
-      setTimeout(() => {
-        if (activeTabId === currentTabId) {
-          inputRef.current?.focus({ preventScroll: true });
-        }
-      }, 40);
-    }
-  };
-
-  const handleKeyDown = (e) => {
-    // Ctrl + Shift + V on input element
-    if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V')) {
-      if (e.shiftKey) {
-        e.preventDefault();
-        handlePasteToInput();
-        return;
-      }
-    }
-
-    // Ctrl + C on input element
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
-      const selection = window.getSelection()?.toString();
-      if (selection && selection.length > 0) {
-        return;
-      }
-      e.preventDefault();
-      if (activeTab.executing) {
-        handleCancelCommand(activeTab.id);
-      } else {
-        if (activeTab.commandInput) {
-          appendTabHistory(activeTab.id, {
-            type: 'cmd',
-            text: `${activeTab.commandInput}^C`,
-            cwd: activeTab.cwd
-          });
-          updateTab(activeTab.id, { commandInput: '' });
-        }
-      }
-      return;
-    }
-
-    // Enter key: Execute command or insert newline (Shift+Enter or continuation backslash '\')
-    if (e.key === 'Enter') {
-      if (e.shiftKey) {
-        // Shift+Enter creates a new line in textarea naturally
-        return;
-      }
-
-      // Check if command ends with line continuation backslash '\'
-      const textBeforeCursor = activeTab.commandInput.slice(0, e.target.selectionStart || 0);
-      if (textBeforeCursor.trimEnd().endsWith('\\')) {
-        // Allow newline insertion for multi-line continuation
-        return;
-      }
-
-      // Normal Enter: execute the command
-      e.preventDefault();
-      handleRunCommand();
-      return;
-    }
-
-    // Arrow Up / Down command history navigation
-    if (e.key === 'ArrowUp') {
-      // Only navigate history if cursor is on the first line
-      const textBeforeCursor = activeTab.commandInput.slice(0, e.target.selectionStart || 0);
-      if (textBeforeCursor.includes('\n')) {
-        return; // Allow moving cursor up within multi-line textarea
-      }
-
-      e.preventDefault();
-      if (activeTab.cmdHistory.length === 0) return;
-      const nextIdx =
-        activeTab.historyIndex === -1
-          ? activeTab.cmdHistory.length - 1
-          : Math.max(0, activeTab.historyIndex - 1);
-      updateTab(activeTab.id, {
-        historyIndex: nextIdx,
-        commandInput: activeTab.cmdHistory[nextIdx] || ''
-      });
-    } else if (e.key === 'ArrowDown') {
-      // Only navigate history if cursor is on the last line
-      const textAfterCursor = activeTab.commandInput.slice(e.target.selectionEnd || 0);
-      if (textAfterCursor.includes('\n')) {
-        return; // Allow moving cursor down within multi-line textarea
-      }
-
-      e.preventDefault();
-      if (activeTab.historyIndex === -1) return;
-      const nextIdx = activeTab.historyIndex + 1;
-      if (nextIdx >= activeTab.cmdHistory.length) {
-        updateTab(activeTab.id, {
-          historyIndex: -1,
-          commandInput: ''
-        });
-      } else {
-        updateTab(activeTab.id, {
-          historyIndex: nextIdx,
-          commandInput: activeTab.cmdHistory[nextIdx] || ''
-        });
-      }
-    }
-  };
-
-  const handleCopyHistory = () => {
-    const text = activeTab.history
-      .map((item) => (item.type === 'cmd' ? `$ ${item.text}` : item.text))
-      .join('\n');
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleCdToCompose = async () => {
+  // Jump to compose directory
+  const handleCdToCompose = useCallback(() => {
     if (!activeComposeDir) return;
-    const currentTabId = activeTab.id;
-    try {
-      if (onSetHostCwdSession) {
-        await onSetHostCwdSession(currentTabId, activeComposeDir);
-      } else if (onSetHostCwd) {
-        await onSetHostCwd(activeComposeDir);
-      }
-      updateTab(currentTabId, { cwd: activeComposeDir });
-      appendTabHistory(currentTabId, {
-        type: 'system',
-        text: `Switched working directory to: ${activeComposeDir}`
-      });
-      setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 40);
-    } catch (err) {
-      appendTabHistory(currentTabId, { type: 'err', text: `Failed to cd: ${err}` });
+    const term = tabRefs.current[activeTabId];
+    if (term) {
+      term.sendInput(`cd "${activeComposeDir}"\n`);
+      term.focus();
+      setTimeout(() => refreshCwd(activeTabId), 500);
     }
-  };
+  }, [activeComposeDir, activeTabId, refreshCwd]);
+
+  // Copy active terminal selection / buffer
+  const handleCopy = useCallback(async () => {
+    const term = tabRefs.current[activeTabId];
+    if (term) {
+      await term.copy();
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    }
+  }, [activeTabId]);
+
+  // Paste into active terminal
+  const handlePaste = useCallback(async () => {
+    const term = tabRefs.current[activeTabId];
+    if (term) {
+      await term.paste();
+      term.focus();
+    }
+  }, [activeTabId]);
+
+  // Clear active terminal screen
+  const handleClear = useCallback(() => {
+    const term = tabRefs.current[activeTabId];
+    if (term) {
+      term.clear();
+      term.focus();
+    }
+  }, [activeTabId]);
 
   return (
     <div className="shrink-0 flex flex-col z-30 select-none">
@@ -725,25 +407,26 @@ export default function BottomTerminal({
         <div
           ref={drawerRef}
           style={{
-            height: isMaximized ? '65vh' : `${drawerHeight}px`
+            height: isMaximized ? '65vh' : `${drawerHeight}px`,
           }}
           className={`terminal-window border-t border-slate-800 bg-[#0c1017] flex flex-col relative overflow-hidden shadow-2xl font-mono ${
             isDragging ? 'transition-none select-none' : 'transition-[height] duration-200'
           }`}
         >
-          {/* VS Code-Style Top Resize Sash */}
+          {/* Top Resize Sash */}
           <div
             onPointerDown={handleResizeStart}
             onDoubleClick={handleDoubleClickSash}
-            className={`terminal-resize-sash group/sash relative w-full h-[2px] cursor-ns-resize z-40 shrink-0 select-none transition-colors duration-150 ${
+            className={`terminal-resize-sash group/sash relative w-full h-[4px] cursor-ns-resize z-40 shrink-0 select-none transition-colors duration-150 ${
               isDragging
                 ? 'bg-cyan-500 shadow-sm shadow-cyan-500/80'
-                : 'bg-slate-800 hover:bg-cyan-500/90'
+                : 'bg-slate-800/80 hover:bg-cyan-500/90'
             }`}
             title="Drag to resize terminal (Double-click to reset / toggle maximize)"
           >
-            {/* Expanded invisible hit area for effortless grabbing */}
-            <div className="absolute -top-1 -bottom-1.5 inset-x-0 cursor-ns-resize" />
+            {/* Centered drag handle pill affordance */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-1 rounded-full bg-slate-600 group-hover/sash:bg-cyan-400 transition-colors pointer-events-none" />
+            <div className="absolute -top-1.5 -bottom-2 inset-x-0 cursor-ns-resize" />
           </div>
 
           {/* Drawer Titlebar & Tab Bar */}
@@ -757,7 +440,7 @@ export default function BottomTerminal({
                     key={tab.id}
                     onClick={() => {
                       setActiveTabId(tab.id);
-                      setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 40);
+                      setTimeout(() => tabRefs.current[tab.id]?.focus(), 40);
                     }}
                     className={`group flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition cursor-pointer select-none shrink-0 ${
                       isActive
@@ -766,15 +449,14 @@ export default function BottomTerminal({
                     }`}
                     title={`Tab ${idx + 1} (${tab.title}): ${tab.cwd}`}
                   >
-                    <Terminal className={`w-3 h-3 shrink-0 ${isActive ? 'text-cyan-400' : 'text-slate-500'}`} />
+                    <Terminal
+                      className={`w-3 h-3 shrink-0 ${isActive ? 'text-cyan-400' : 'text-slate-500'}`}
+                    />
                     <span className="font-mono text-[11px] font-semibold">{tab.title}</span>
                     <span className="text-slate-600 text-[10px]">•</span>
                     <span className="font-mono text-[10px] text-slate-400 max-w-[90px] truncate">
                       {shortenPath(tab.cwd)}
                     </span>
-                    {tab.executing && (
-                      <RefreshCw className="w-2.5 h-2.5 animate-spin text-amber-400 ml-0.5 shrink-0" />
-                    )}
                     {tabs.length > 1 && (
                       <button
                         type="button"
@@ -818,46 +500,35 @@ export default function BottomTerminal({
                 </button>
               )}
 
-              {activeTab.executing ? (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleCancelCommand(activeTab.id);
-                  }}
-                  className="px-2 py-0.5 rounded bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-[10px] font-semibold transition cursor-pointer flex items-center gap-1 shadow-xs mr-1"
-                  title="Stop command (Ctrl+C)"
-                >
-                  <Square className="w-2.5 h-2.5 fill-current" />
-                  <span>Stop (Ctrl+C)</span>
-                </button>
-              ) : (
-                <span className="text-[10px] text-slate-400 flex items-center gap-1.5 mr-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                  Ready
-                </span>
-              )}
+              <span className="text-[10px] text-slate-400 flex items-center gap-1.5 mr-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                PTY Active
+              </span>
 
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleCopyHistory();
+                  handleCopy();
                 }}
                 className="terminal-clear-btn p-1 rounded bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition cursor-pointer"
-                title="Copy terminal session"
+                title="Copy terminal selection or full buffer (Ctrl+Shift+C)"
               >
-                {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                {copied ? (
+                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                ) : (
+                  <Copy className="w-3.5 h-3.5" />
+                )}
               </button>
 
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  handlePasteToInput();
+                  handlePaste();
                 }}
                 className="terminal-clear-btn p-1 rounded bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-cyan-300 transition cursor-pointer"
-                title="Paste from clipboard (Ctrl+V / Ctrl+Shift+V)"
+                title="Paste from clipboard (Ctrl+Shift+V)"
               >
                 <ClipboardPaste className="w-3.5 h-3.5" />
               </button>
@@ -866,10 +537,10 @@ export default function BottomTerminal({
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  updateTab(activeTab.id, { history: [] });
+                  handleClear();
                 }}
                 className="terminal-clear-btn text-[10px] px-2 py-0.5 rounded bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition cursor-pointer"
-                title="Clear screen (or type 'clear')"
+                title="Clear screen (Ctrl+L)"
               >
                 Clear
               </button>
@@ -881,9 +552,13 @@ export default function BottomTerminal({
                   setIsMaximized(!isMaximized);
                 }}
                 className="terminal-clear-btn p-1 rounded bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition cursor-pointer"
-                title={isMaximized ? "Restore Height" : "Maximize Drawer"}
+                title={isMaximized ? 'Restore Height' : 'Maximize Drawer'}
               >
-                {isMaximized ? <Minimize2 className="w-3.5 h-3.5 text-cyan-400" /> : <Maximize2 className="w-3.5 h-3.5" />}
+                {isMaximized ? (
+                  <Minimize2 className="w-3.5 h-3.5 text-cyan-400" />
+                ) : (
+                  <Maximize2 className="w-3.5 h-3.5" />
+                )}
               </button>
 
               <button
@@ -910,83 +585,29 @@ export default function BottomTerminal({
               <button
                 key={idx}
                 type="button"
-                onClick={() => {
-                  updateTab(activeTab.id, { commandInput: qc.cmd });
-                  setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 40);
-                }}
+                onClick={() => handleRunQuickCommand(qc.cmd)}
                 className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-cyan-300 border border-slate-800 hover:border-slate-700 transition cursor-pointer whitespace-nowrap shrink-0"
-                title={`Insert "${qc.cmd}" into prompt`}
+                title={`Execute "${qc.cmd}" in active terminal`}
               >
                 {qc.label}
               </button>
             ))}
           </div>
 
-          {/* Drawer Output Scroll Body for Active Tab */}
-          <div
-            ref={terminalScrollRef}
-            onClick={() => {
-              const selection = window.getSelection()?.toString();
-              if (!selection && !activeTab.executing) {
-                inputRef.current?.focus({ preventScroll: true });
-              }
-            }}
-            className="flex-1 p-3.5 overflow-y-auto text-xs space-y-1.5 select-text leading-relaxed cursor-text"
-          >
-            {activeTab.history.map((item, idx) => (
-              <div key={idx} className="whitespace-pre-wrap break-all">
-                {item.type === 'cmd' ? (
-                  <div className="flex items-start gap-2 text-slate-200 font-bold mt-1">
-                    <span className="text-emerald-400 font-bold text-xs shrink-0 select-none pt-0.5">
-                      host:{shortenPath(item.cwd || activeTab.cwd)}$
-                    </span>
-                    <span className="whitespace-pre-wrap break-all flex-1 font-mono leading-5">{item.text}</span>
-                  </div>
-                ) : item.type === 'err' ? (
-                  <div className="text-rose-400 pl-2 font-mono whitespace-pre-wrap leading-relaxed">{item.text}</div>
-                ) : item.type === 'system' ? (
-                  <div className="text-slate-500 text-[11px] mb-2">{item.text}</div>
-                ) : (
-                  <div className="text-slate-300 font-mono pl-1">{item.text}</div>
-                )}
-              </div>
+          {/* Real-time Interactive XTerm Viewport */}
+          <div className="flex-1 min-h-0 relative overflow-hidden bg-[#0c1017]">
+            {tabs.map((tab) => (
+              <XTermTab
+                key={tab.id}
+                ref={(el) => {
+                  if (el) tabRefs.current[tab.id] = el;
+                  else delete tabRefs.current[tab.id];
+                }}
+                tabId={tab.id}
+                isActive={tab.id === activeTab.id}
+                onCommandExecuted={() => handleCommandExecuted(tab.id)}
+              />
             ))}
-
-            {/* In-Flight Execution State or Active Shell Prompt for Active Tab */}
-            {activeTab.executing ? (
-              <div className="flex items-center gap-3 py-2 text-slate-300 text-xs font-mono">
-                <span className="flex items-center gap-2 text-amber-400">
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  <span>Executing command in {activeTab.title}...</span>
-                </span>
-                <button
-                  type="button"
-                  onClick={() => handleCancelCommand(activeTab.id)}
-                  className="px-2.5 py-0.5 rounded bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-[11px] font-semibold transition cursor-pointer flex items-center gap-1 shadow-xs"
-                  title="Stop command execution (Ctrl+C)"
-                >
-                  <Square className="w-3 h-3 fill-current" />
-                  <span>Stop (Ctrl+C)</span>
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-start gap-2 pt-1">
-                <span className="text-emerald-400 font-bold text-xs shrink-0 select-none pt-0.5">
-                  host:{shortenPath(activeTab.cwd)}$
-                </span>
-                <textarea
-                  ref={inputRef}
-                  rows={1}
-                  value={activeTab.commandInput}
-                  onChange={(e) => updateTab(activeTab.id, { commandInput: e.target.value })}
-                  onKeyDown={handleKeyDown}
-                  className="terminal-prompt-input flex-1 bg-transparent text-xs text-slate-100 font-mono border-none outline-none focus:ring-0 p-0 shadow-none ring-0 focus:outline-none resize-none leading-5 overflow-y-auto max-h-40"
-                  placeholder="type host command... (Shift+Enter for newline)"
-                  spellCheck={false}
-                  autoComplete="off"
-                />
-              </div>
-            )}
           </div>
         </div>
       )}
@@ -1011,7 +632,7 @@ export default function BottomTerminal({
                 {tabs.length}
               </span>
             )}
-            <span className={`w-1.5 h-1.5 rounded-full ${activeTab.executing ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'}`}></span>
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
           </button>
 
           <span className="text-slate-600">|</span>
@@ -1034,7 +655,9 @@ export default function BottomTerminal({
                   ? `CPU: ${Math.round(hostMetrics.cpuPercent || 0)}% • RAM: ${Math.round(hostMetrics.memoryPercent || 0)}%`
                   : 'Host Resources'}
               </span>
-              <ChevronUp className={`w-3 h-3 transition-transform ${showHostResources ? 'rotate-180 text-cyan-400' : 'text-slate-500'}`} />
+              <ChevronUp
+                className={`w-3 h-3 transition-transform ${showHostResources ? 'rotate-180 text-cyan-400' : 'text-slate-500'}`}
+              />
             </button>
 
             {/* Host Resources Popover Flyout */}
@@ -1050,7 +673,8 @@ export default function BottomTerminal({
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-950 border border-slate-800 text-slate-400">
-                      {hostMetrics?.os || systemInfo?.osType || 'linux'} / {hostMetrics?.arch || systemInfo?.architecture || 'amd64'}
+                      {hostMetrics?.os || systemInfo?.osType || 'linux'} /{' '}
+                      {hostMetrics?.arch || systemInfo?.architecture || 'amd64'}
                     </span>
                     <button
                       type="button"
@@ -1077,13 +701,17 @@ export default function BottomTerminal({
                             {(hostMetrics.usedMemory / (1024 * 1024 * 1024)).toFixed(1)}
                           </span>
                           <span className="text-slate-500"> / </span>
-                          <span>{(hostMetrics.totalMemory / (1024 * 1024 * 1024)).toFixed(1)} GB</span>
+                          <span>
+                            {(hostMetrics.totalMemory / (1024 * 1024 * 1024)).toFixed(1)} GB
+                          </span>
                           <span className="text-slate-400 text-[10px] ml-1">
                             ({Math.round(hostMetrics.memoryPercent)}%)
                           </span>
                         </>
                       ) : systemInfo?.memoryTotal > 0 ? (
-                        <span>{(systemInfo.memoryTotal / (1024 * 1024 * 1024)).toFixed(1)} GB Total</span>
+                        <span>
+                          {(systemInfo.memoryTotal / (1024 * 1024 * 1024)).toFixed(1)} GB Total
+                        </span>
                       ) : (
                         <span className="text-slate-400">Normal</span>
                       )}
@@ -1099,65 +727,69 @@ export default function BottomTerminal({
                           : 'bg-cyan-400'
                       }`}
                       style={{
-                        width: `${Math.min(100, Math.max(5, hostMetrics?.memoryPercent || 25))}%`,
+                        width: `${Math.min(100, Math.max(0, hostMetrics?.memoryPercent || 0))}%`,
                       }}
                     />
                   </div>
+                  <div className="pt-1">
+                    <Sparkline data={memHistory} color="#38bdf8" height={22} />
+                  </div>
                 </div>
 
-                {/* CPU & Running Containers */}
-                <div className="flex items-center justify-between text-[11px] font-mono pt-0.5">
-                  <div className="flex items-center gap-1.5 text-slate-400">
-                    <Cpu className="w-3.5 h-3.5 text-slate-400" />
-                    <span>{hostMetrics?.cpus || systemInfo?.cpus || '8'} Cores</span>
-                  </div>
-                  {hostMetrics?.cpuPercent > 0 ? (
-                    <span className="text-cyan-400 text-[10px] bg-cyan-950/60 border border-cyan-800/50 px-1.5 py-0.5 rounded font-medium">
-                      {Math.round(hostMetrics.cpuPercent)}% CPU
+                {/* CPU utilization */}
+                <div className="space-y-1 pt-1 border-t border-slate-800/60">
+                  <div className="flex items-center justify-between text-[11px] font-mono">
+                    <span className="text-slate-400">CPU</span>
+                    <span className="text-slate-200">
+                      {hostMetrics ? (
+                        <>
+                          <span className="text-emerald-400 font-medium">
+                            {Math.round(hostMetrics.cpuPercent || 0)}%
+                          </span>
+                          {hostMetrics.cpus > 0 && (
+                            <span className="text-slate-500 text-[10px] ml-1">
+                              ({hostMetrics.cpus} Cores)
+                            </span>
+                          )}
+                        </>
+                      ) : systemInfo?.ncpu > 0 ? (
+                        <span>{systemInfo.ncpu} Cores</span>
+                      ) : (
+                        <span className="text-slate-400">Active</span>
+                      )}
                     </span>
-                  ) : (
-                    <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                      <span>{runningContainersCount || 0} running</span>
-                    </div>
-                  )}
+                  </div>
+                  <div className="w-full h-1.5 bg-slate-950 rounded-full overflow-hidden border border-slate-800/60">
+                    <div
+                      className={`h-full transition-all duration-500 rounded-full ${
+                        (hostMetrics?.cpuPercent || 0) > 85
+                          ? 'bg-rose-500'
+                          : (hostMetrics?.cpuPercent || 0) > 60
+                          ? 'bg-amber-400'
+                          : 'bg-emerald-400'
+                      }`}
+                      style={{
+                        width: `${Math.min(100, Math.max(0, hostMetrics?.cpuPercent || 0))}%`,
+                      }}
+                    />
+                  </div>
+                  <div className="pt-1">
+                    <Sparkline data={cpuHistory} color="#4ade80" height={22} />
+                  </div>
                 </div>
 
-                {/* Rolling Activity Trend Sparkline */}
-                <div className="pt-2 border-t border-slate-800/80 space-y-1">
-                  <div className="flex items-center justify-between text-[10px] font-mono text-slate-400">
-                    <span>CPU Trend</span>
-                    <span className="text-cyan-400 font-semibold">{Math.round(hostMetrics?.cpuPercent || 0)}%</span>
-                  </div>
-                  <Sparkline data={cpuHistory} color="#22d3ee" height={26} />
+                {/* Running Containers Footer */}
+                <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400 font-mono">
+                  <span>Containers</span>
+                  <span className="text-cyan-400 font-semibold">{runningContainersCount} Active</span>
                 </div>
               </div>
             )}
           </div>
-
-          <span className="text-slate-600">|</span>
-
-          <span 
-            className="text-[11px] text-slate-500 font-mono flex items-center gap-1 truncate max-w-sm cursor-help"
-            title={`Active Terminal (${activeTab.title}): ${activeTab.cwd}`}
-          >
-            <Folder className="w-3 h-3 text-slate-500" />
-            <span>{shortenPath(activeTab.cwd)}</span>
-          </span>
         </div>
 
-        <div className="flex items-center gap-2.5 text-[11px] text-slate-500 font-mono">
-          <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-900 border border-slate-800 text-slate-400">
-            Ctrl + `
-          </span>
-          <button
-            type="button"
-            onClick={onToggle}
-            className="text-slate-400 hover:text-slate-200 transition cursor-pointer p-0.5"
-            title={isOpen ? "Collapse Terminal" : "Open Terminal"}
-          >
-            {isOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
-          </button>
+        <div className="flex items-center gap-2 text-slate-500 text-[10px] font-mono">
+          <span>Ctrl+` toggle</span>
         </div>
       </div>
     </div>
