@@ -56,6 +56,7 @@ const getClipboardText = async () => {
 };
 import LogsModal, { highlightLogMatches, highlightLogText } from './LogsModal';
 import ExecutionDetailsModal from './ExecutionDetailsModal';
+import ContainerXTermTab from './ContainerXTermTab';
 import { 
   InspectContainer, 
   GetContainerLogs, 
@@ -66,7 +67,8 @@ import {
   PauseContainer, 
   UnpauseContainer, 
   RemoveContainer,
-  ExecContainer
+  ExecContainer,
+  CloseHostTerminal
 } from '../../wailsjs/go/main/App';
 import { formatEngineError } from './Toast';
 
@@ -116,6 +118,7 @@ export default function ContainerDetailsView({
   const [resourceStats, setResourceStats] = useState(null);
 
   // Terminal state
+  const containerTermRef = React.useRef(null);
   const [commandInput, setCommandInput] = useState('');
   const [terminalHistory, setTerminalHistory] = useState([
     { type: 'system', text: 'Dockit Container Shell (bash/sh)\nType any command or "clear" to clear screen.' }
@@ -432,6 +435,16 @@ export default function ContainerDetailsView({
   const isRunning = details?.state?.running;
   const isPaused = details?.state?.paused;
   const stateStatus = details?.state?.status || (isRunning ? 'running' : 'stopped');
+  const [terminalSessionKey, setTerminalSessionKey] = useState(0);
+
+  // When container state transitions from stopped to running, advance session key so xterm initializes fresh
+  const prevRunningRef = React.useRef(isRunning);
+  useEffect(() => {
+    if (isRunning && !prevRunningRef.current) {
+      setTerminalSessionKey((k) => k + 1);
+    }
+    prevRunningRef.current = isRunning;
+  }, [isRunning]);
 
   const notifyError = (err, fallbackTitle) => {
     const formatted = formatEngineError(err);
@@ -445,8 +458,10 @@ export default function ContainerDetailsView({
   const handleStart = async () => {
     setActionInProgress(true);
     try {
+      await CloseHostTerminal(`container-${containerId}`).catch(() => {});
       await StartContainer(containerId);
       if (onToast) onToast('Container started successfully', 'success');
+      setTerminalSessionKey((k) => k + 1);
       await fetchDetails();
       if (onRefreshList) onRefreshList();
     } catch (err) {
@@ -459,6 +474,7 @@ export default function ContainerDetailsView({
   const handleStop = async () => {
     setActionInProgress(true);
     try {
+      await CloseHostTerminal(`container-${containerId}`).catch(() => {});
       await StopContainer(containerId, 10);
       if (onToast) onToast('Container stopped', 'info');
       await fetchDetails();
@@ -473,8 +489,10 @@ export default function ContainerDetailsView({
   const handleRestart = async () => {
     setActionInProgress(true);
     try {
+      await CloseHostTerminal(`container-${containerId}`).catch(() => {});
       await RestartContainer(containerId, 10);
       if (onToast) onToast('Container restarted', 'success');
+      setTerminalSessionKey((k) => k + 1);
       await fetchDetails();
       if (onRefreshList) onRefreshList();
     } catch (err) {
@@ -956,15 +974,7 @@ export default function ContainerDetailsView({
 
         {/* Tab: Terminal Exec */}
         {activeSubTab === 'terminal' && (
-          <div 
-            onClick={() => {
-              const sel = window.getSelection()?.toString();
-              if (!sel && isRunning && !executing) {
-                terminalInputRef.current?.focus({ preventScroll: true });
-              }
-            }}
-            className="terminal-window flex-1 flex flex-col min-h-[360px] rounded-xl border border-slate-800 bg-[#0c1017] overflow-hidden shadow-2xl font-mono cursor-text"
-          >
+          <div className="terminal-window flex-1 flex flex-col min-h-[360px] rounded-xl border border-slate-800 bg-[#0c1017] overflow-hidden shadow-2xl font-mono">
             {/* Terminal Window Titlebar */}
             <div className="terminal-titlebar px-4 py-2.5 bg-[#161b22] border-b border-slate-800 flex items-center justify-between text-xs select-none shrink-0">
               <div className="flex items-center gap-2">
@@ -978,45 +988,53 @@ export default function ContainerDetailsView({
               <div className="flex items-center gap-2.5">
                 <span className="text-[10px] text-slate-400 flex items-center gap-1.5 font-medium">
                   <span className={`w-1.5 h-1.5 rounded-full ${isRunning ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`}></span>
-                  {isRunning ? 'Connected (exec session)' : 'Container Stopped'}
+                  {isRunning ? 'PTY Shell Active' : 'Container Stopped'}
                 </span>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handlePasteToContainerTerminal();
-                  }}
-                  className="terminal-clear-btn p-1 rounded bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-cyan-300 transition cursor-pointer flex items-center gap-1"
-                  title="Paste from clipboard (Ctrl+V / Ctrl+Shift+V)"
-                >
-                  <ClipboardPaste className="w-3 h-3" />
-                  <span className="text-[10px]">Paste</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setTerminalHistory([]);
-                  }}
-                  className="terminal-clear-btn text-[10px] px-2 py-0.5 rounded bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition cursor-pointer"
-                >
-                  Clear
-                </button>
+                {isRunning && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => containerTermRef.current?.reconnect?.()}
+                      className="terminal-clear-btn p-1 rounded bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-cyan-300 transition cursor-pointer flex items-center gap-1"
+                      title="Reconnect shell session"
+                    >
+                      <RotateCw className="w-3 h-3" />
+                      <span className="text-[10px]">Reconnect</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => containerTermRef.current?.copy?.()}
+                      className="terminal-clear-btn p-1 rounded bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-cyan-300 transition cursor-pointer flex items-center gap-1"
+                      title="Copy selection or all output (Ctrl+Shift+C)"
+                    >
+                      <Copy className="w-3 h-3" />
+                      <span className="text-[10px]">Copy</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => containerTermRef.current?.paste?.()}
+                      className="terminal-clear-btn p-1 rounded bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-cyan-300 transition cursor-pointer flex items-center gap-1"
+                      title="Paste from clipboard (Ctrl+V / Ctrl+Shift+V)"
+                    >
+                      <ClipboardPaste className="w-3 h-3" />
+                      <span className="text-[10px]">Paste</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => containerTermRef.current?.clear?.()}
+                      className="terminal-clear-btn text-[10px] px-2 py-0.5 rounded bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition cursor-pointer"
+                      title="Clear terminal (Ctrl+L)"
+                    >
+                      Clear
+                    </button>
+                  </>
+                )}
               </div>
             </div>
 
-            {/* Terminal Output & Inline Prompt Area */}
-            <div 
-              ref={terminalScrollRef}
-              onClick={() => {
-                const sel = window.getSelection()?.toString();
-                if (!sel && isRunning && !executing) {
-                  terminalInputRef.current?.focus({ preventScroll: true });
-                }
-              }}
-              className="flex-1 p-4 overflow-y-auto text-xs space-y-1.5 select-text leading-relaxed cursor-text"
-            >
-              {!isRunning && (
+            {/* Terminal Body */}
+            {!isRunning ? (
+              <div className="flex-1 p-4 overflow-y-auto">
                 <div className="terminal-alert p-3 mb-2 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-300 text-xs flex flex-wrap items-center justify-between gap-2 select-none">
                   <div className="flex items-center gap-2">
                     <AlertCircle className="w-4 h-4 shrink-0 text-amber-400" />
@@ -1037,53 +1055,17 @@ export default function ContainerDetailsView({
                     <span>{actionInProgress ? 'Starting...' : 'Start Container'}</span>
                   </button>
                 </div>
-              )}
-
-              {terminalHistory.map((item, idx) => (
-                <div key={idx} className="whitespace-pre-wrap break-all">
-                  {item.type === 'cmd' ? (
-                    <div className="flex items-center gap-2 text-slate-200 font-bold mt-1">
-                      <span className="text-emerald-400 font-bold">root@{details?.name || 'container'}:~#</span>
-                      <span>{item.text}</span>
-                    </div>
-                  ) : item.type === 'err' ? (
-                    <div className="text-rose-400 pl-2">{item.text}</div>
-                  ) : item.type === 'system' ? (
-                    <div className="text-slate-500 text-[11px] mb-2">{item.text}</div>
-                  ) : (
-                    <div className="text-slate-300 font-mono pl-1">{item.text}</div>
-                  )}
-                </div>
-              ))}
-
-              {executing && (
-                <div className="flex items-center gap-2 text-slate-400 text-xs py-1">
-                  <RefreshCw className="w-3 h-3 animate-spin text-cyan-400" />
-                  <span>Executing...</span>
-                </div>
-              )}
-
-              {/* Seamless Inline CLI Prompt */}
-              {isRunning && (
-                <form onSubmit={handleRunCommand} className="flex items-center gap-2 pt-1">
-                  <span className="text-emerald-400 font-bold text-xs shrink-0 select-none">
-                    root@{details?.name || 'container'}:~#
-                  </span>
-                  <input
-                    ref={terminalInputRef}
-                    type="text"
-                    disabled={executing}
-                    value={commandInput}
-                    onChange={(e) => setCommandInput(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    className="terminal-prompt-input flex-1 bg-transparent text-xs text-slate-100 font-mono border-none outline-none focus:ring-0 p-0 shadow-none ring-0 focus:outline-none"
-                    placeholder={executing ? "" : ""}
-                    spellCheck={false}
-                    autoComplete="off"
-                  />
-                </form>
-              )}
-            </div>
+              </div>
+            ) : (
+              <ContainerXTermTab
+                key={`${containerId}-${details?.state?.startedAt || ''}-${terminalSessionKey}`}
+                ref={containerTermRef}
+                containerId={containerId}
+                containerName={details?.name || 'container'}
+                isActive={activeSubTab === 'terminal'}
+                onSessionExit={fetchDetails}
+              />
+            )}
           </div>
         )}
 

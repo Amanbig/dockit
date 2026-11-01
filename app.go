@@ -1049,6 +1049,74 @@ func (a *App) CloseHostTerminalSession(sessionID string) {
 	a.terminalSvc.CloseSession(sessionID)
 }
 
+// StartHostTerminal starts an interactive PTY shell on the host machine.
+func (a *App) StartHostTerminal(sessionID string, rows int, cols int) error {
+	if a.terminalSvc == nil {
+		a.terminalSvc = terminal.NewService()
+	}
+	ctx := a.ctx
+	return a.terminalSvc.StartTerminal(sessionID, rows, cols,
+		func(data string) {
+			if ctx != nil {
+				wailsruntime.EventsEmit(ctx, "terminal:data:"+sessionID, data)
+			}
+		},
+		func() {
+			if ctx != nil {
+				wailsruntime.EventsEmit(ctx, "terminal:exit:"+sessionID)
+			}
+		},
+	)
+}
+
+// StartContainerTerminal starts an interactive PTY session executing into a container.
+func (a *App) StartContainerTerminal(sessionID string, containerID string, rows int, cols int) error {
+	if a.terminalSvc == nil {
+		a.terminalSvc = terminal.NewService()
+	}
+	ctx := a.ctx
+	rtType := a.runtimeType
+	if rtType == "" || rtType == "none" {
+		rtType = "docker"
+	}
+	return a.terminalSvc.StartContainerTerminal(sessionID, rtType, containerID, rows, cols,
+		func(data string) {
+			if ctx != nil {
+				wailsruntime.EventsEmit(ctx, "terminal:data:"+sessionID, data)
+			}
+		},
+		func() {
+			if ctx != nil {
+				wailsruntime.EventsEmit(ctx, "terminal:exit:"+sessionID)
+			}
+		},
+	)
+}
+
+// SendHostTerminalInput forwards raw keystrokes / text into the host PTY shell.
+func (a *App) SendHostTerminalInput(sessionID string, data string) error {
+	if a.terminalSvc == nil {
+		a.terminalSvc = terminal.NewService()
+	}
+	return a.terminalSvc.SendTerminalInput(sessionID, data)
+}
+
+// ResizeHostTerminal notifies the host PTY shell of terminal dimension changes.
+func (a *App) ResizeHostTerminal(sessionID string, rows int, cols int) error {
+	if a.terminalSvc == nil {
+		a.terminalSvc = terminal.NewService()
+	}
+	return a.terminalSvc.ResizeTerminal(sessionID, rows, cols)
+}
+
+// CloseHostTerminal terminates and cleans up an individual terminal instance.
+func (a *App) CloseHostTerminal(sessionID string) error {
+	if a.terminalSvc == nil {
+		return nil
+	}
+	return a.terminalSvc.CloseTerminal(sessionID)
+}
+
 // GetHostHomeDir returns the user's home directory.
 func (a *App) GetHostHomeDir() string {
 	if a.terminalSvc == nil {

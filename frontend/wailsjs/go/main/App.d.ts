@@ -21,6 +21,8 @@ export function CancelHostCommandSession(arg1:string):Promise<boolean>;
 
 export function CheckForAppUpdate():Promise<updater.UpdateInfo>;
 
+export function CloseHostTerminal(arg1:string):Promise<void>;
+
 export function CloseHostTerminalSession(arg1:string):Promise<void>;
 
 export function ComposeApplyChanges(arg1:string):Promise<void>;
@@ -159,6 +161,8 @@ export function RemoveNetwork(arg1:string):Promise<void>;
 
 export function RemoveVolume(arg1:string,arg2:boolean):Promise<void>;
 
+export function ResizeHostTerminal(arg1:string,arg2:number,arg3:number):Promise<void>;
+
 export function RestartApp():Promise<void>;
 
 export function RestartContainer(arg1:string,arg2:any):Promise<void>;
@@ -168,6 +172,8 @@ export function SearchAllRegistries(arg1:string,arg2:number,arg3:number):Promise
 export function SearchRegistry(arg1:string,arg2:string,arg3:number,arg4:number):Promise<Array<registry.SearchResult>>;
 
 export function SelectDirectoryDialog():Promise<string>;
+
+export function SendHostTerminalInput(arg1:string,arg2:string):Promise<void>;
 
 export function SetAutoCheckUpdates(arg1:boolean):Promise<void>;
 
@@ -180,6 +186,10 @@ export function SetHostCwdSession(arg1:string,arg2:string):Promise<void>;
 export function SetTheme(arg1:string):Promise<void>;
 
 export function StartContainer(arg1:string):Promise<void>;
+
+export function StartContainerTerminal(arg1:string,arg2:string,arg3:number,arg4:number):Promise<void>;
+
+export function StartHostTerminal(arg1:string,arg2:number,arg3:number):Promise<void>;
 
 export function StartRuntime(arg1:string):Promise<void>;
 

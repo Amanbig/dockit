@@ -124,3 +124,50 @@ func TestService_ExecMultiline(t *testing.T) {
 		t.Fatalf("expected multiline output with line 1 and line 2, got: %s", res.Output)
 	}
 }
+
+func TestService_InteractivePTY(t *testing.T) {
+	svc := NewService()
+	outputCh := make(chan string, 100)
+	exitCh := make(chan struct{}, 1)
+
+	err := svc.StartTerminal("test-term", 24, 80,
+		func(data string) {
+			outputCh <- data
+		},
+		func() {
+			exitCh <- struct{}{}
+		},
+	)
+	if err != nil {
+		t.Fatalf("failed to start terminal: %v", err)
+	}
+	defer svc.CloseTerminal("test-term")
+
+	// Send an echo command
+	err = svc.SendTerminalInput("test-term", "echo 'interactive-pty-test'\n")
+	if err != nil {
+		t.Fatalf("failed to send terminal input: %v", err)
+	}
+
+	// Wait for echo in output
+	found := false
+	timeout := time.After(3 * time.Second)
+	var accumulated strings.Builder
+loop:
+	for {
+		select {
+		case data := <-outputCh:
+			accumulated.WriteString(data)
+			if strings.Contains(accumulated.String(), "interactive-pty-test") {
+				found = true
+				break loop
+			}
+		case <-timeout:
+			break loop
+		}
+	}
+
+	if !found {
+		t.Fatalf("did not receive expected output in interactive PTY, got: %s", accumulated.String())
+	}
+}

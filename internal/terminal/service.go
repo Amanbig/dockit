@@ -11,6 +11,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/aymanbagabas/go-pty"
 )
 
 // Result represents the outcome of executing a host shell command.
@@ -42,6 +44,11 @@ type Session struct {
 	cwd           string
 	currentCancel context.CancelFunc
 	currentCmd    *exec.Cmd
+
+	// Interactive PTY state
+	pty     pty.Pty
+	ptyCmd  *pty.Cmd
+	running bool
 }
 
 // Service provides host shell command execution with multi-tab stateful working directory management.
@@ -87,6 +94,12 @@ func (s *Service) GetCwdSession(id string) string {
 	sess := s.getSession(id)
 	sess.mu.Lock()
 	defer sess.mu.Unlock()
+
+	if sess.ptyCmd != nil && sess.ptyCmd.Process != nil && sess.ptyCmd.Process.Pid > 0 {
+		if realCwd := getProcessCwd(sess.ptyCmd.Process.Pid); realCwd != "" {
+			sess.cwd = realCwd
+		}
+	}
 	return sess.cwd
 }
 
@@ -114,6 +127,12 @@ func (s *Service) SetCwdSession(id string, dir string) error {
 		return fmt.Errorf("directory does not exist: %s", dir)
 	}
 	sess.cwd = clean
+
+	// If interactive PTY is currently running, instruct shell to switch directories
+	if sess.running && sess.pty != nil {
+		_, _ = sess.pty.Write([]byte(fmt.Sprintf("cd %q\n", clean)))
+	}
+
 	return nil
 }
 
@@ -134,8 +153,205 @@ func (s *Service) CancelSession(id string) bool {
 	return false
 }
 
-// CloseSession terminates any running command in the session and frees its state.
+// CloseSession terminates any running command or PTY in the session and frees its state.
 func (s *Service) CloseSession(id string) {
+	_ = s.CloseTerminal(id)
+}
+
+// StartTerminal starts an interactive PTY shell for the given session ID.
+func (s *Service) StartTerminal(id string, rows, cols int, onData func(string), onExit func()) error {
+	sess := s.getSession(id)
+	sess.mu.Lock()
+	if sess.running && sess.pty != nil {
+		sess.mu.Unlock()
+		return nil
+	}
+
+	if rows <= 0 {
+		rows = 24
+	}
+	if cols <= 0 {
+		cols = 80
+	}
+
+	pt, err := pty.New()
+	if err != nil {
+		sess.mu.Unlock()
+		return fmt.Errorf("failed to open pty: %w", err)
+	}
+
+	_ = pt.Resize(cols, rows)
+
+	shell := getDefaultShell()
+	cmd := pt.Command(shell)
+	if sess.cwd != "" {
+		cmd.Dir = sess.cwd
+	} else {
+		cmd.Dir = s.homeDir
+	}
+	cmd.Env = getTerminalEnv()
+
+	if err := cmd.Start(); err != nil {
+		_ = pt.Close()
+		sess.mu.Unlock()
+		return fmt.Errorf("failed to start shell (%s): %w", shell, err)
+	}
+
+	sess.pty = pt
+	sess.ptyCmd = cmd
+	sess.running = true
+	sess.mu.Unlock()
+
+	go func() {
+		buf := make([]byte, 4096)
+		for {
+			n, err := pt.Read(buf)
+			if n > 0 {
+				onData(string(buf[:n]))
+			}
+			if err != nil {
+				break
+			}
+		}
+
+		_ = cmd.Wait()
+
+		sess.mu.Lock()
+		sess.running = false
+		sess.pty = nil
+		sess.ptyCmd = nil
+		sess.mu.Unlock()
+
+		_ = pt.Close()
+
+		if onExit != nil {
+			onExit()
+		}
+	}()
+
+	return nil
+}
+
+// StartContainerTerminal starts an interactive PTY session executing directly into a container.
+func (s *Service) StartContainerTerminal(id string, runtimeType string, containerID string, rows, cols int, onData func(string), onExit func()) error {
+	sess := s.getSession(id)
+	sess.mu.Lock()
+	if sess.ptyCmd != nil && sess.ptyCmd.Process != nil {
+		_ = sess.ptyCmd.Process.Kill()
+	}
+	if sess.pty != nil {
+		_ = sess.pty.Close()
+	}
+	sess.running = false
+	sess.pty = nil
+	sess.ptyCmd = nil
+
+	if rows <= 0 {
+		rows = 24
+	}
+	if cols <= 0 {
+		cols = 80
+	}
+
+	pt, err := pty.New()
+	if err != nil {
+		sess.mu.Unlock()
+		return fmt.Errorf("failed to open pty: %w", err)
+	}
+
+	_ = pt.Resize(cols, rows)
+
+	bin := "docker"
+	if strings.ToLower(runtimeType) == "podman" {
+		bin = "podman"
+	}
+	if p, err := exec.LookPath(bin); err == nil {
+		bin = p
+	}
+
+	cmd := pt.Command(bin, "exec", "-it", containerID, "sh")
+	cmd.Env = getTerminalEnv()
+
+	if err := cmd.Start(); err != nil {
+		_ = pt.Close()
+		sess.mu.Unlock()
+		return fmt.Errorf("failed to start container exec (%s): %w", bin, err)
+	}
+
+	sess.pty = pt
+	sess.ptyCmd = cmd
+	sess.running = true
+	sess.mu.Unlock()
+
+	go func() {
+		buf := make([]byte, 4096)
+		for {
+			n, err := pt.Read(buf)
+			if n > 0 {
+				onData(string(buf[:n]))
+			}
+			if err != nil {
+				break
+			}
+		}
+
+		_ = cmd.Wait()
+
+		sess.mu.Lock()
+		sess.running = false
+		sess.pty = nil
+		sess.ptyCmd = nil
+		sess.mu.Unlock()
+
+		_ = pt.Close()
+
+		if onExit != nil {
+			onExit()
+		}
+	}()
+
+	return nil
+}
+
+// SendTerminalInput forwards raw keystrokes / text into the interactive PTY shell.
+func (s *Service) SendTerminalInput(id string, data string) error {
+	sess := s.getSession(id)
+	sess.mu.Lock()
+	pt := sess.pty
+	running := sess.running
+	sess.mu.Unlock()
+
+	if !running || pt == nil {
+		return fmt.Errorf("terminal session %s is not active", id)
+	}
+
+	_, err := pt.Write([]byte(data))
+	return err
+}
+
+// ResizeTerminal notifies the PTY shell of terminal dimension changes.
+func (s *Service) ResizeTerminal(id string, rows, cols int) error {
+	sess := s.getSession(id)
+	sess.mu.Lock()
+	pt := sess.pty
+	running := sess.running
+	sess.mu.Unlock()
+
+	if !running || pt == nil {
+		return nil
+	}
+
+	if rows <= 0 {
+		rows = 24
+	}
+	if cols <= 0 {
+		cols = 80
+	}
+	return pt.Resize(cols, rows)
+}
+
+// CloseTerminal cleanly stops any active process / PTY and deletes the session state.
+func (s *Service) CloseTerminal(id string) error {
 	if id == "" {
 		id = "default"
 	}
@@ -156,8 +372,72 @@ func (s *Service) CloseSession(id string) {
 			sess.currentCancel = nil
 			sess.currentCmd = nil
 		}
+		if sess.ptyCmd != nil && sess.ptyCmd.Process != nil {
+			_ = sess.ptyCmd.Process.Kill()
+		}
+		if sess.pty != nil {
+			_ = sess.pty.Close()
+		}
+		sess.running = false
+		sess.pty = nil
+		sess.ptyCmd = nil
 		sess.mu.Unlock()
 	}
+	return nil
+}
+
+func getDefaultShell() string {
+	if runtime.GOOS == "windows" {
+		if comspec := os.Getenv("COMSPEC"); comspec != "" {
+			return comspec
+		}
+		if p, err := exec.LookPath("powershell.exe"); err == nil {
+			return p
+		}
+		return "cmd.exe"
+	}
+
+	if envShell := os.Getenv("SHELL"); envShell != "" {
+		if _, err := os.Stat(envShell); err == nil {
+			return envShell
+		}
+	}
+	for _, fallback := range []string{"/bin/bash", "/usr/bin/bash", "/bin/zsh", "/bin/sh"} {
+		if _, err := os.Stat(fallback); err == nil {
+			return fallback
+		}
+	}
+	return "sh"
+}
+
+func getTerminalEnv() []string {
+	env := os.Environ()
+	hasTerm := false
+	hasColorTerm := false
+	for _, e := range env {
+		if strings.HasPrefix(e, "TERM=") {
+			hasTerm = true
+		}
+		if strings.HasPrefix(e, "COLORTERM=") {
+			hasColorTerm = true
+		}
+	}
+	if !hasTerm {
+		env = append(env, "TERM=xterm-256color")
+	}
+	if !hasColorTerm {
+		env = append(env, "COLORTERM=truecolor")
+	}
+	return env
+}
+
+func getProcessCwd(pid int) string {
+	if runtime.GOOS == "linux" {
+		if link, err := os.Readlink(fmt.Sprintf("/proc/%d/cwd", pid)); err == nil && link != "" {
+			return link
+		}
+	}
+	return ""
 }
 
 // ExecSession executes a host shell command in the specific session's working directory.

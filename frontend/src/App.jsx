@@ -114,6 +114,7 @@ import {
   CancelHostCommand,
   CancelHostCommandSession,
   CloseHostTerminalSession,
+  CloseHostTerminal,
   GetHostHomeDir
 } from '../wailsjs/go/main/App';
 import { WindowIsMaximised, WindowToggleMaximise } from '../wailsjs/runtime/runtime';
@@ -569,9 +570,10 @@ export default function App() {
   // Container handlers
   const handleStartContainer = async (id) => {
     try {
+      await CloseHostTerminal(`container-${id}`).catch(() => {});
       await StartContainer(id);
       addToast('Container started successfully', 'success');
-      refreshAll();
+      await refreshAll();
     } catch (err) {
       addToast(formatEngineError(err), 'error', 'Failed to Start Container');
     }
@@ -579,9 +581,10 @@ export default function App() {
 
   const handleStopContainer = async (id) => {
     try {
+      await CloseHostTerminal(`container-${id}`).catch(() => {});
       await StopContainer(id, 10);
       addToast('Container stopped', 'info');
-      refreshAll();
+      await refreshAll();
     } catch (err) {
       addToast(formatEngineError(err), 'error', 'Failed to Stop Container');
     }
@@ -589,9 +592,10 @@ export default function App() {
 
   const handleRestartContainer = async (id) => {
     try {
+      await CloseHostTerminal(`container-${id}`).catch(() => {});
       await RestartContainer(id, 10);
       addToast('Container restarted', 'success');
-      refreshAll();
+      await refreshAll();
     } catch (err) {
       addToast(formatEngineError(err), 'error', 'Failed to Restart Container');
     }
@@ -1246,6 +1250,7 @@ export default function App() {
                 {selectedContainerId ? (
                   <ContainerDetailsView
                     containerId={selectedContainerId}
+                    containerSummary={containers.find((item) => item.id === selectedContainerId)}
                     isTabActive={activeTab === 'containers'}
                     onBack={() => setSelectedContainerId(null)}
                     onRefreshList={refreshAll}

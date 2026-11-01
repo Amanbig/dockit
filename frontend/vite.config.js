@@ -18,6 +18,7 @@ export default defineConfig({
           'vendor-react': ['react', 'react-dom'],
           'vendor-marked': ['marked'],
           'vendor-icons': ['lucide-react', '@hugeicons/react'],
+          'vendor-xterm': ['@xterm/xterm', '@xterm/addon-fit', '@xterm/addon-web-links'],
         },
       },
     },
