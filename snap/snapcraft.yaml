@@ -60,7 +60,7 @@ parts:
       export GOPATH=/tmp/go
       export GOCACHE=/tmp/gocache
       export PATH="$GOPATH/bin:$PATH"
-      go install github.com/wailsapp/wails/v2/cmd/wails@v2.16.0
+      go install github.com/wailsapp/wails/v2/cmd/wails@v2.17.0
 
       # 3. Build Wails app with WebKitGTK 4.1
       wails build -tags webkit2_41 -platform linux/amd64 -ldflags "-X 'dockit/internal/version.Version=v$VERSION'"
