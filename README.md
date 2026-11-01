@@ -36,16 +36,16 @@ Built with [Wails v2](https://wails.io) (Go) and React 19 + Tailwind CSS v4, so 
 ## Features
 
 - **Docker and Podman**: switch engines with one click. Dockit auto-detects Docker sockets, rootless and rootful Podman sockets, and Windows named pipes, and lets you override the endpoint.
-- **Collapsible & Resizable Sidebar**: toggle between full navigation and a compact 58px mini-rail with <kbd>Ctrl+B</kbd> / <kbd>Cmd+B</kbd> or the rail toggle button. Smoothly adjust sidebar width with the VS Code-style horizontal resize sash (persisted via `localStorage`).
-- **Containers**: start, stop, restart, pause, delete (with batch actions), live CPU/memory/network/disk metrics, searchable log streaming with line-wrap toggle and raw text export, 1-click browser port launch (`localhost:<port> ↗`), full inspector, interactive exec shell, and a create-container wizard (ports, env vars/`.env`, command override).
+- **Collapsible & Resizable Sidebar**: toggle between full navigation and a compact 58px mini-rail with <kbd>Ctrl+B</kbd> / <kbd>Cmd+B</kbd> or the rail toggle button. Grouped into Resources, Management, and App sections with a VS Code-style horizontal resize sash (persisted via `localStorage`).
+- **Containers**: start, stop, restart, pause, delete (with batch actions), live CPU/memory/network/disk metrics, live uptime badges, table density toggles (Normal/Compact/Dense), searchable log streaming with line-wrap toggle and raw text export, 1-click browser port launch (`localhost:<port> ↗`), full inspector, interactive container PTY shell exec with auto-reconnect, and a create-container wizard (ports, env vars/`.env`, command override).
 - **Images, volumes, networks**: list, pull, tag, inspect, create, batch delete, and prune.
 - **Compose Studio**: open or clone projects, edit `docker-compose.yml` with syntax highlighting and snapshots, manage a `.env` tab, and run Up/Down/restart with live CLI output.
 - **Registry Hub**: search Docker Hub and GitHub Container Registry, read rendered READMEs, browse tags, and pull in one click.
 - **Reclaim Storage**: see disk usage by images, containers, volumes, and build cache, then quick-clean or prune selectively.
-- **Bottom Dock Resources & Terminal Drawer** (<kbd>Ctrl</kbd>+<kbd>`</kbd>): a VS Code-style terminal drawer with multi-tab sessions, quick diagnostic chips (`docker ps`, `stats`, `system df`, `compose ps`), and bottom dock bar host metrics (RAM, CPU, cores) with rolling SVG sparklines.
+- **Interactive xterm.js Terminal Drawer** (<kbd>Ctrl</kbd>+<kbd>`</kbd>): a VS Code-style bottom terminal drawer with multi-tab sessions powered by a native Go PTY backend (`aymanbagabas/go-pty`). Supports interactive TUI apps (`top`, `htop`, `vim`, `nano`), middle-click paste, Linux `/proc/<pid>/cwd` directory tracking, and quick diagnostic chips (`docker ps`, `stats`, `system df`, `compose ps`).
 - **Smart Engine Startup & Installer**: 1-click engine service startup (`systemctl start docker`, `open -a Docker`, `Start-Process Docker Desktop.exe`) when engine is stopped, or full automated package installation (APT, DNF, Pacman, Homebrew, Winget, Chocolatey) when missing.
 - **Auto-update**: checks GitHub Releases and installs updates in place (`.deb`, `.rpm`, Windows installer, portable binary, or automated Snap Store updates).
-- **Light and dark themes**, universal filter focus with <kbd>/</kbd>, keyboard-friendly confirmation dialogs, and polling that pauses when the window is hidden or the engine is offline.
+- **Modern UI & Design Tokens**: Figtree typography, skeleton shimmer loaders, smart empty states with "Clear filters", smart toast auto-dismissal, light and dark themes, universal filter focus with <kbd>/</kbd>, and polling that pauses when hidden.
 
 ## Install
 
