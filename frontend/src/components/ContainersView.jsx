@@ -14,7 +14,8 @@ import {
   SlidersHorizontal,
   Network,
   Terminal,
-  ExternalLink
+  ExternalLink,
+  Box
 } from 'lucide-react';
 import { BrowserOpenURL } from '../../wailsjs/runtime/runtime';
 import EnvEditorModal, { parseEnvString } from './EnvEditorModal';
