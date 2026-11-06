@@ -14,11 +14,19 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          'vendor-react': ['react', 'react-dom'],
-          'vendor-marked': ['marked'],
-          'vendor-icons': ['lucide-react', '@hugeicons/react'],
-          'vendor-xterm': ['@xterm/xterm', '@xterm/addon-fit', '@xterm/addon-web-links'],
+        manualChunks(id) {
+          if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/')) {
+            return 'vendor-react'
+          }
+          if (id.includes('node_modules/marked/')) {
+            return 'vendor-marked'
+          }
+          if (id.includes('node_modules/lucide-react/') || id.includes('node_modules/@hugeicons/')) {
+            return 'vendor-icons'
+          }
+          if (id.includes('node_modules/@xterm/')) {
+            return 'vendor-xterm'
+          }
         },
       },
     },
