@@ -10,7 +10,8 @@ Dockit **v0.9.5** delivers essential security patches, upstream dependency updat
 - **Ubuntu Security Patch Alignment**: Rebuilt and staged snap package against the latest Ubuntu 24.04 (core24) archive, incorporating security patch **USN 8975-1** for `libsoup-3.0-common` used by `libwebkit2gtk-4.1-0`.
 - **Snapcraft Version Bump**: Updated snapcraft build metadata and packaging definitions to `v0.9.5`.
 
-#### ⚡ Bundler & Chunking Architecture Polish
+#### ⚡ Bundler & UI Architecture Polish
+- **Dedicated GitHub Support & Sponsor Integration**: Streamlined the sidebar footer to feature a focused, modern **Support on GitHub** action button with interactive heart accents and responsive collapsing, alongside matching sponsor badges in the Settings view.
 - **Dynamic Functional `manualChunks`**: Modernized Rollup/Vite chunk configuration in `vite.config.js` to use functional chunk mapping (`manualChunks(id)`).
 - **Clean Vendor Separation**: Ensures optimized client delivery across `vendor-react`, `vendor-icons`, `vendor-marked`, and `vendor-xterm`, eliminating module bundling warnings and guaranteeing full forward-compatibility with Vite / Rolldown bundlers.
 
