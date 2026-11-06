@@ -52,7 +52,7 @@ parts:
       # 1. Determine version from git tag
       VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//')
       if [ -z "$VERSION" ]; then
-        VERSION="0.9.4"
+        VERSION="0.9.5"
       fi
       craftctl set version="$VERSION"
 

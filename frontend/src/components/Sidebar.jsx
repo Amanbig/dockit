@@ -16,19 +16,12 @@ import {
   Copy,
   Check,
   PanelLeft,
-  PanelLeftClose
+  PanelLeftClose,
+  Heart
 } from 'lucide-react';
 import { BrowserOpenURL, WindowToggleMaximise } from '../../wailsjs/runtime/runtime';
 
 import logoImg from '../assets/images/logo.png';
-
-function GithubIcon({ className = "w-4 h-4" }) {
-  return (
-    <svg className={className} fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-      <path fillRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clipRule="evenodd" />
-    </svg>
-  );
-}
 
 const DEFAULT_SIDEBAR_WIDTH = 256;
 const MIN_SIDEBAR_WIDTH = 190;
@@ -43,7 +36,7 @@ export default function Sidebar({
   runtimesStatus,
   onOpenInstaller,
   hostMetrics,
-  appVersion = '0.9.4',
+  appVersion = '0.9.5',
   updateAvailable = false,
   onOpenUpdateModal,
   navigationStyle = 'sidebar',
@@ -449,11 +442,11 @@ export default function Sidebar({
         )}
       </nav>
 
-      {/* Bottom Footer: GitHub Repository & Releases */}
-      <div className={`${isCollapsed ? 'p-1.5' : 'p-3'} border-t border-slate-800 space-y-2`}>
+      {/* Bottom Footer: Support on GitHub */}
+      <div className={`${isCollapsed ? 'p-1.5' : 'p-3'} border-t border-slate-800`}>
         <button
           onClick={() => {
-            const url = 'https://github.com/Amanbig/dockit';
+            const url = 'https://github.com/sponsors/Amanbig';
             if (typeof BrowserOpenURL === 'function') {
               BrowserOpenURL(url);
             } else if (window.runtime?.BrowserOpenURL) {
@@ -462,28 +455,28 @@ export default function Sidebar({
               window.open(url, '_blank');
             }
           }}
-          className={`w-full flex items-center rounded-lg bg-slate-900/50 hover:bg-slate-900 border border-slate-800/80 hover:border-slate-700 text-xs text-slate-400 hover:text-slate-200 transition-all group shadow-xs cursor-pointer ${
+          className={`w-full flex items-center rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/25 hover:border-rose-500/40 text-xs text-rose-300 hover:text-rose-100 transition-all group shadow-xs cursor-pointer ${
             isCollapsed ? 'p-2 justify-center' : 'px-2.5 py-1.5 justify-between gap-2'
           }`}
-          title={`GitHub: Amanbig/dockit (v${appVersion})`}
+          title="Support & Sponsor Dockit on GitHub"
         >
           {isCollapsed ? (
-            <GithubIcon className="w-4 h-4 text-slate-400 group-hover:text-cyan-400" />
+            <Heart className="w-4 h-4 text-rose-400 group-hover:scale-110 fill-rose-500/30 transition-transform" />
           ) : (
             <>
               <div className="flex items-center gap-1.5 min-w-0">
-                <GithubIcon className="w-3.5 h-3.5 shrink-0 text-slate-400 group-hover:text-cyan-400 transition-colors" />
-                <span className="font-medium text-slate-300 group-hover:text-slate-100 text-[11px] shrink-0">GitHub</span>
+                <Heart className="w-3.5 h-3.5 shrink-0 text-rose-400 fill-rose-500/30 group-hover:scale-110 transition-transform" />
+                <span className="font-semibold text-rose-200 group-hover:text-white text-[11px] shrink-0">Support</span>
                 {sidebarWidth >= 200 && (
                   <>
-                    <span className="text-slate-600 text-[10px] shrink-0">•</span>
-                    <span className="text-[10px] font-mono text-slate-500 group-hover:text-slate-400 truncate">
-                      Amanbig/dockit
+                    <span className="text-rose-500/60 text-[10px] shrink-0">•</span>
+                    <span className="text-[10px] text-rose-300/80 group-hover:text-rose-100 truncate">
+                      GitHub Sponsor
                     </span>
                   </>
                 )}
               </div>
-              <ExternalLink className="w-3 h-3 shrink-0 text-slate-500 group-hover:text-cyan-400 transition-colors" />
+              <ExternalLink className="w-3 h-3 shrink-0 text-rose-400/70 group-hover:text-rose-200 transition-colors" />
             </>
           )}
         </button>

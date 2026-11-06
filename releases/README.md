@@ -10,7 +10,8 @@ For the active release currently being compiled or deployed, refer to the root [
 
 | Version | Release Date / Milestone | Highlights | Release Notes |
 | :--- | :--- | :--- | :---: |
-| **v0.9.4** | *Current* | Interactive xterm.js terminal with cross-platform native PTY backend, container exec shell synchronization & reconnect, Figtree typography, design tokens, sidebar nav sections, table density toggles, and skeleton shimmer loaders | [v0.9.4.md](v0.9.4.md) |
+| **v0.9.5** | *Current* | Dependabot security & package updates, USN 8975-1 snap security rebuild, Vite functional manualChunks optimization | [v0.9.5.md](v0.9.5.md) |
+| **v0.9.4** | November 2026 | Interactive xterm.js terminal with cross-platform native PTY backend, container exec shell synchronization & reconnect, Figtree typography, design tokens, sidebar nav sections, table density toggles, and skeleton shimmer loaders | [v0.9.4.md](v0.9.4.md) |
 | **v0.9.0** | November 2026 | Collapsible mini-rail sidebar (`Ctrl+B`) & horizontal resize sash, smart 1-click engine service startup, bottom dock host monitor with rolling sparklines & terminal chips, clickable port links (`localhost:<port> ↗`), live log wrap/export, and Ubuntu Snap Store packaging | [v0.9.0.md](v0.9.0.md) |
 | **v0.8.1** | October 2026 | Multi-tab Host Terminal drawer with session isolation, concurrent process execution, keyboard shortcuts (`Ctrl+Shift+```, `Alt+[1-9]`), tab counter badge, and open-source CI / community health templates | [v0.8.1.md](v0.8.1.md) |
 | **v0.8.0** | October 2026 | VS Code-style Global Bottom Host Terminal drawer (`Ctrl+\``), full Linux clipboard paste (`Ctrl+V` & `Ctrl+Shift+V`), safe process group cancellation (`Ctrl+C`), conditional Compose `.env` management, responsive full-height terminal stretch, daemon offline polling backoff | [v0.8.0.md](v0.8.0.md) |

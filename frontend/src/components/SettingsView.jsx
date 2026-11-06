@@ -16,7 +16,8 @@ import {
   ExternalLink,
   LayoutGrid,
   PanelLeft,
-  Layers
+  Layers,
+  Heart
 } from 'lucide-react';
 import { BrowserOpenURL } from '../../wailsjs/runtime/runtime';
 
@@ -36,7 +37,7 @@ export default function SettingsView({
   activeRuntime,
   theme,
   onSetTheme,
-  appVersion = '0.9.4',
+  appVersion = '0.9.5',
   onCheckForUpdates,
   isCheckingUpdates = false,
   onToast,
@@ -439,6 +440,17 @@ export default function SettingsView({
               </div>
 
               <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleOpenExternal('https://github.com/sponsors/Amanbig')}
+                  className="px-2.5 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 hover:text-rose-100 text-xs flex items-center gap-1.5 transition-colors cursor-pointer font-medium"
+                  title="Support & Sponsor Dockit on GitHub"
+                >
+                  <Heart className="w-3.5 h-3.5 text-rose-400 fill-rose-500/30" />
+                  <span>Support on GitHub</span>
+                  <ExternalLink className="w-2.5 h-2.5 opacity-60" />
+                </button>
+
                 <button
                   type="button"
                   onClick={() => handleOpenExternal('https://github.com/Amanbig/dockit')}

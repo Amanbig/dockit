@@ -1,31 +1,28 @@
-# Dockit v0.9.4 🚀
+# Dockit v0.9.5 🛡️
 
-Dockit **v0.9.4** brings a major upgrade to the terminal experience with **Interactive xterm.js Terminal Sessions powered by a native Go PTY backend**, complete **Container Exec Shell synchronization**, and comprehensive **UI/UX design polish** including Figtree typography, design tokens, table density controls, and skeleton loaders.
+Dockit **v0.9.5** delivers essential security patches, upstream dependency updates, Vite bundler chunking enhancements, and Snap package maintenance against the latest Ubuntu security updates.
 
 ---
 
 ### ✨ What's New & Highlights
 
-#### 💻 Interactive xterm.js Terminal with Native PTY Engine
-- **Full Pseudo-Terminal (PTY) Backend**: Switched from line-buffered execution to true interactive PTY streaming via `aymanbagabas/go-pty`. Run full-screen interactive TUI applications (`top`, `htop`, `vim`, `nano`, `less`), bash/zsh command completions, and escape sequence formatting directly inside Dockit.
-- **Multi-Tab Bottom Terminal Drawer**: Persistent bottom drawer supporting multiple concurrent interactive terminal tabs with independent working directories, dynamic PTY window resizing, and live `/proc/<pid>/cwd` directory tracking on Linux.
-- **Native Clipboard & Mouse Interactions**: Full support for <kbd>Ctrl+Shift+C</kbd> / <kbd>Ctrl+Shift+V</kbd>, Middle-Click paste, right-click context menus with Copy/Paste/Select All/Clear, and auto-fit terminal viewport scaling.
+#### 🛡️ Snap Packaging & Ubuntu Security Notice (USN 8975-1)
+- **Ubuntu Security Patch Alignment**: Rebuilt and staged snap package against the latest Ubuntu 24.04 (core24) archive, incorporating security patch **USN 8975-1** for `libsoup-3.0-common` used by `libwebkit2gtk-4.1-0`.
+- **Snapcraft Version Bump**: Updated snapcraft build metadata and packaging definitions to `v0.9.5`.
 
-#### 🚢 Container Interactive Exec Shell & Lifecycle Synchronization
-- **Live Container Shell Exec**: Open real-time interactive shell sessions (`docker exec -it <container> sh`) directly into running containers with full PTY support.
-- **Real-Time Engine State Sync**: Terminal views are now tightly synchronized with the container runtime state. Starting, stopping, or restarting a container from the sidebar, in-page action, or external CLI immediately updates the terminal state without stale errors.
-- **Automatic Session Cleanup & Reconnect**: Cleanly closes dangling PTY processes when containers stop, preventing lingering daemon error messages (`Container ... is not running`). Includes an in-terminal disconnect banner and header **"Reconnect"** button for instant re-attachment.
-- **Container Uptime Badge**: Live calculated uptime indicator (`formatUptime`) on container status badges (e.g. `2h 15m`, `3d 4h`).
+#### ⚡ Bundler & UI Architecture Polish
+- **Dedicated GitHub Support & Sponsor Integration**: Streamlined the sidebar footer to feature a focused, modern **Support on GitHub** action button with interactive heart accents and responsive collapsing, alongside matching sponsor badges in the Settings view.
+- **Dynamic Functional `manualChunks`**: Modernized Rollup/Vite chunk configuration in `vite.config.js` to use functional chunk mapping (`manualChunks(id)`).
+- **Clean Vendor Separation**: Ensures optimized client delivery across `vendor-react`, `vendor-icons`, `vendor-marked`, and `vendor-xterm`, eliminating module bundling warnings and guaranteeing full forward-compatibility with Vite / Rolldown bundlers.
 
-#### 🎨 Comprehensive UI/UX Polish & Design Tokens
-- **Modern Figtree Typography**: Applied Figtree Variable font across the interface for a crisp, modern developer aesthetic.
-- **CSS Design Token Architecture**: Unified surface palettes, borders, status dots, and focus rings (`*:focus-visible` with 2px cyan outline) via CSS custom properties.
-- **Grouped Sidebar Navigation**: Nav items are now organized into clean sections (*Resources*, *Management*, *App*) with high-contrast left-accent borders (`.sidebar-nav-active`) and pulsing emerald status indicators for running containers.
-- **Table Density Modes**: Toggle container table display between **Normal**, **Compact**, and **Dense** views, persisted via `localStorage`.
-- **Skeleton Shimmer Loaders**: Reusable `.skeleton` shimmer loaders smooth out data transitions during initial load and runtime switches.
-- **Smart Empty States**: Distinguishes between true empty states (no containers exist) and filtered empty states (no search matches), with a 1-click **"Clear filters"** CTA.
-- **Smart Toast Notifications**: Error toasts remain visible until manually dismissed, while success toasts dismiss after 3 seconds, and info/warning toasts dismiss after 5 seconds.
-- **Container Details Refinements**: Dedicated Offline Status Card for stopped containers with a 1-click "Start Container" CTA, search and filter for environment variables with "Copy All (.env)", and volume mount access mode badges (Read/Write vs Read-Only).
+#### 📦 Upstream Dependabot & Dependency Upgrades
+- **Lucide Icons**: Bumped `lucide-react` to `1.70.0` (resolves Dependabot PR #22).
+- **TypeScript Node Definitions**: Bumped `@types/node` to `26.6.6` (resolves Dependabot PR #21).
+- **Classnames / Utilities**: Bumped `cn` to `0.5.2` (resolves Dependabot PR #20).
+- **UI & Icons**: Bumped `@hugeicons/core-free-icons` to `4.4.0` and `shadcn` to `4.23.0`.
+- **Styling**: Bumped `@tailwindcss/vite` and `tailwindcss` to `4.3.4`.
+- **Markdown Parser**: Bumped `marked` to `18.1.3`.
+- **Security Vulnerability Remediation**: Resolved upstream advisories across `zod`, `fast-uri`, `body-parser`, `qs`, and `systeminformation`.
 
 ---
 
