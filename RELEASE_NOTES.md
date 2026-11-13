@@ -1,28 +1,31 @@
-# Dockit v0.9.5 🛡️
+# Dockit v0.9.6 🚀
 
-Dockit **v0.9.5** delivers essential security patches, upstream dependency updates, Vite bundler chunking enhancements, and Snap package maintenance against the latest Ubuntu security updates.
+Dockit **v0.9.6** upgrades the core frontend and desktop runtime dependencies (Vite 8, Wails v2.17.1, Lucide Icons), introduces automated GitHub Discussions release announcements, and modernizes Vite configuration for native ESM compatibility.
 
 ---
 
 ### ✨ What's New & Highlights
 
-#### 🛡️ Snap Packaging & Ubuntu Security Notice (USN 8975-1)
-- **Ubuntu Security Patch Alignment**: Rebuilt and staged snap package against the latest Ubuntu 24.04 (core24) archive, incorporating security patch **USN 8975-1** for `libsoup-3.0-common` used by `libwebkit2gtk-4.1-0`.
-- **Snapcraft Version Bump**: Updated snapcraft build metadata and packaging definitions to `v0.9.5`.
+#### 📢 Automated GitHub Discussions Release Announcements
+- **Release Discussions Integration**: GitHub Releases are now automatically cross-posted to the repository's GitHub Discussions **Announcements** category upon publishing.
+- **Community Engagement**: Community members can now easily discuss new features, provide direct feedback, and ask release-specific questions right from Discussions.
 
-#### ⚡ Bundler & UI Architecture Polish
-- **Dedicated GitHub Support & Sponsor Integration**: Streamlined the sidebar footer to feature a focused, modern **Support on GitHub** action button with interactive heart accents and responsive collapsing, alongside matching sponsor badges in the Settings view.
-- **Dynamic Functional `manualChunks`**: Modernized Rollup/Vite chunk configuration in `vite.config.js` to use functional chunk mapping (`manualChunks(id)`).
-- **Clean Vendor Separation**: Ensures optimized client delivery across `vendor-react`, `vendor-icons`, `vendor-marked`, and `vendor-xterm`, eliminating module bundling warnings and guaranteeing full forward-compatibility with Vite / Rolldown bundlers.
+#### ⚡ Core Toolchain & Bundler Upgrades
+- **Vite 8 (`^8.3.8`)**: Upgraded to the latest Vite 8 engine, delivering blazing-fast sub-second production build times (~600ms).
+- **Native ESM Config (`import.meta.dirname`)**: Transitioned `vite.config.js` to use `import.meta.dirname` for native ESM compatibility.
+- **Wails Desktop Framework (`v2.17.1`)**: Upgraded core Go application framework to `v2.17.1` for improved runtime stability and security fixes.
 
-#### 📦 Upstream Dependabot & Dependency Upgrades
-- **Lucide Icons**: Bumped `lucide-react` to `1.70.0` (resolves Dependabot PR #22).
-- **TypeScript Node Definitions**: Bumped `@types/node` to `26.6.6` (resolves Dependabot PR #21).
-- **Classnames / Utilities**: Bumped `cn` to `0.5.2` (resolves Dependabot PR #20).
-- **UI & Icons**: Bumped `@hugeicons/core-free-icons` to `4.4.0` and `shadcn` to `4.23.0`.
-- **Styling**: Bumped `@tailwindcss/vite` and `tailwindcss` to `4.3.4`.
-- **Markdown Parser**: Bumped `marked` to `18.1.3`.
-- **Security Vulnerability Remediation**: Resolved upstream advisories across `zod`, `fast-uri`, `body-parser`, `qs`, and `systeminformation`.
+#### 📦 Ecosystem & Dependency Updates
+- **Wails Go Module**: Upgraded `github.com/wailsapp/wails/v2` from `2.17.0` to `2.17.1` (resolves Dependabot PR #24).
+- **Vite Bundler**: Upgraded `vite` from `7.3.7` to `8.3.8` (resolves Dependabot PR #25).
+- **Lucide Icons**: Bumped `lucide-react` to `1.72.0`.
+- **Markdown Rendering**: Bumped `marked` to `18.2.0`.
+- **Tailwind CSS**: Bumped `@tailwindcss/vite` and `tailwindcss` to `4.3.5`.
+- **Go Ecosystem**: Upgraded `golang.org/x/net`, `golang.org/x/crypto`, `golang.org/x/sys`, and `github.com/labstack/echo/v4`.
+
+#### 🛡️ Snap Packaging Security Maintenance
+- Rebuilding against the latest Ubuntu 24.04 (core24) archive incorporates all recent security fixes from the Ubuntu Security Notices (USN) scanner.
+- Bumped snapcraft build configuration to `v0.9.6` and Wails CLI to `v2.17.1`.
 
 ---
 
