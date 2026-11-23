@@ -19,7 +19,9 @@ import {
   HardDrive,
   FolderOpen,
   Layers,
-  ArrowRight
+  ArrowRight,
+  Copy,
+  Check
 } from 'lucide-react';
 import { BrowserOpenURL } from '../../wailsjs/runtime/runtime';
 import { SelectDirectoryDialog } from '../../wailsjs/go/main/App';
@@ -69,7 +71,17 @@ export default function ContainersView({
   const [showCmdModal, setShowCmdModal] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
   const [batchExecuting, setBatchExecuting] = useState(false);
+  const [copiedKey, setCopiedKey] = useState(null);
   const headerCheckboxRef = useRef(null);
+
+  const handleCopy = (e, text, key) => {
+    e.stopPropagation();
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text);
+      setCopiedKey(key);
+      setTimeout(() => setCopiedKey(null), 1500);
+    }
+  };
 
   // Row density: 'normal' | 'compact' | 'dense'
   const [density, setDensity] = useState(() => {
@@ -641,13 +653,41 @@ export default function ContainersView({
                         <div className="font-semibold text-slate-100 group-hover:text-cyan-400 transition-colors truncate max-w-[180px]">
                           {c.name || shortId}
                         </div>
-                        <div className="text-[11px] text-slate-500 font-mono">
-                          {shortId}
+                        <div className="flex items-center gap-1.5 text-[11px] text-slate-500 font-mono">
+                          <span>{shortId}</span>
+                          <button
+                            type="button"
+                            onClick={(e) => handleCopy(e, c.id || shortId, `cid-${c.id}`)}
+                            className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-cyan-400 text-slate-500 transition cursor-pointer"
+                            title="Copy full container ID"
+                          >
+                            {copiedKey === `cid-${c.id}` ? (
+                              <Check className="w-3 h-3 text-emerald-400" />
+                            ) : (
+                              <Copy className="w-3 h-3" />
+                            )}
+                          </button>
                         </div>
                       </td>
                       <td className="py-3 px-4">{renderStatusBadge(c)}</td>
-                      <td className="py-3 px-4 font-mono text-[11px] text-slate-300 max-w-[180px] truncate" title={c.image}>
-                        {c.image}
+                      <td className="py-3 px-4 font-mono text-[11px] text-slate-300 max-w-[180px]">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="truncate" title={c.image}>{c.image}</span>
+                          {c.image && (
+                            <button
+                              type="button"
+                              onClick={(e) => handleCopy(e, c.image, `img-${c.id}`)}
+                              className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-cyan-400 text-slate-500 transition cursor-pointer shrink-0"
+                              title="Copy image name"
+                            >
+                              {copiedKey === `img-${c.id}` ? (
+                                <Check className="w-3 h-3 text-emerald-400" />
+                              ) : (
+                                <Copy className="w-3 h-3" />
+                              )}
+                            </button>
+                          )}
+                        </div>
                       </td>
                       <td className="py-3 px-4 font-mono text-[11px] text-slate-400">
                         {c.ports && c.ports.length > 0 ? (

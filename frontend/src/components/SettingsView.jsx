@@ -17,7 +17,8 @@ import {
   LayoutGrid,
   PanelLeft,
   Layers,
-  Heart
+  Heart,
+  Keyboard
 } from 'lucide-react';
 import { BrowserOpenURL } from '../../wailsjs/runtime/runtime';
 
@@ -37,10 +38,11 @@ export default function SettingsView({
   activeRuntime,
   theme,
   onSetTheme,
-  appVersion = '0.9.6',
+  appVersion = '0.9.7',
   onCheckForUpdates,
   isCheckingUpdates = false,
   onToast,
+  onOpenShortcuts,
   navigationStyle = 'sidebar',
   onSetNavigationStyle
 }) {
@@ -437,6 +439,19 @@ export default function SettingsView({
                   <span>Apache-2.0</span>
                   <ExternalLink className="w-2.5 h-2.5" />
                 </button>
+
+                {onOpenShortcuts && (
+                  <button
+                    type="button"
+                    onClick={onOpenShortcuts}
+                    className="ml-1 px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-cyan-400 border border-slate-800 hover:border-slate-700 text-[11px] font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+                    title="View Keyboard Shortcuts Cheatsheet (?)"
+                  >
+                    <Keyboard className="w-3 h-3 text-cyan-400" />
+                    <span>Shortcuts</span>
+                    <kbd className="text-[9px] font-mono bg-slate-800 px-1 rounded text-slate-400">?</kbd>
+                  </button>
+                )}
               </div>
 
               <div className="flex items-center gap-2">

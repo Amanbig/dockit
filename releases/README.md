@@ -10,7 +10,8 @@ For the active release currently being compiled or deployed, refer to the root [
 
 | Version | Release Date / Milestone | Highlights | Release Notes |
 | :--- | :--- | :--- | :---: |
-| **v0.9.6** | *Current* | Vite 8 upgrade, Wails v2.17.1 runtime, automated Discussions release announcements, native ESM config, dependency updates | [v0.9.6.md](v0.9.6.md) |
+| **v0.9.7** | *Current* | Keyboard shortcuts cheatsheet modal (`?`), container row quick-copy, moby client v0.6.3 & api v1.57.0, @vitejs/plugin-react v6.3.0 | [v0.9.7.md](v0.9.7.md) |
+| **v0.9.6** | November 2026 | Vite 8 upgrade, Wails v2.17.1 runtime, automated Discussions release announcements, native ESM config, dependency updates | [v0.9.6.md](v0.9.6.md) |
 | **v0.9.5** | November 2026 | Dependabot security & package updates, USN 8975-1 snap security rebuild, Vite functional manualChunks optimization, single GitHub support button | [v0.9.5.md](v0.9.5.md) |
 | **v0.9.4** | November 2026 | Interactive xterm.js terminal with cross-platform native PTY backend, container exec shell synchronization & reconnect, Figtree typography, design tokens, sidebar nav sections, table density toggles, and skeleton shimmer loaders | [v0.9.4.md](v0.9.4.md) |
 | **v0.9.0** | November 2026 | Collapsible mini-rail sidebar (`Ctrl+B`) & horizontal resize sash, smart 1-click engine service startup, bottom dock host monitor with rolling sparklines & terminal chips, clickable port links (`localhost:<port> ↗`), live log wrap/export, and Ubuntu Snap Store packaging | [v0.9.0.md](v0.9.0.md) |
