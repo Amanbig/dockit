@@ -32,6 +32,7 @@ export default function Header({
   runtimesStatus,
   onOpenInstaller,
   onOpenCommandPalette,
+  onOpenShortcuts,
   isMaximised = false,
   onToggleMaximise
 }) {
@@ -134,10 +135,19 @@ export default function Header({
           <button
             onClick={onRefresh}
             disabled={isRefreshing}
-            className="p-1.5 sm:p-2 text-slate-400 hover:text-slate-100 hover:bg-slate-850 rounded-lg border border-slate-800 transition-all disabled:opacity-50 shrink-0 shadow-xs"
+            className="p-1.5 sm:p-2 text-slate-400 hover:text-slate-100 hover:bg-slate-850 rounded-lg border border-slate-800 transition-all disabled:opacity-50 shrink-0 shadow-xs cursor-pointer"
             title="Refresh Resources"
           >
             <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-cyan-400' : ''}`} />
+          </button>
+
+          {/* Keyboard Shortcuts & Cheatsheet */}
+          <button
+            onClick={onOpenShortcuts}
+            className="p-1.5 sm:p-2 text-slate-400 hover:text-cyan-300 hover:bg-slate-850 rounded-lg border border-slate-800 hover:border-slate-700 transition-all shrink-0 shadow-xs cursor-pointer group"
+            title="Keyboard Shortcuts & Cheatsheet (?)"
+          >
+            <HelpCircle className="w-4 h-4 text-slate-400 group-hover:text-cyan-400 transition-colors" />
           </button>
 
           {/* Custom Frameless Window Controls */}

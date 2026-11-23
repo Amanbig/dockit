@@ -1,31 +1,31 @@
-# Dockit v0.9.6 🚀
+# Dockit v0.9.7 ⚡
 
-Dockit **v0.9.6** upgrades the core frontend and desktop runtime dependencies (Vite 8, Wails v2.17.1, Lucide Icons), introduces automated GitHub Discussions release announcements, and modernizes Vite configuration for native ESM compatibility.
+Dockit **v0.9.7** introduces a dedicated **Developer Keyboard Shortcuts Cheatsheet Modal**, **Quick-Copy Actions** on container rows, and upgrades key container runtime and frontend dependencies (`moby/client` v0.6.3, `moby/api` v1.57.0, `@vitejs/plugin-react` v6.3.0, `lucide-react` v1.78.0, and `tailwind-merge` v3.7.1).
 
 ---
 
 ### ✨ What's New & Highlights
 
-#### 📢 Automated GitHub Discussions Release Announcements
-- **Release Discussions Integration**: GitHub Releases are now automatically cross-posted to the repository's GitHub Discussions **Announcements** category upon publishing.
-- **Community Engagement**: Community members can now easily discuss new features, provide direct feedback, and ask release-specific questions right from Discussions.
+#### ⌨️ Developer Keyboard Shortcuts & Cheatsheet Modal
+- **Instant Shortcuts Modal (`?` or `Shift+/`)**: Press <kbd>?</kbd> anywhere (outside inputs) or click the new **Help icon** in the header to open a comprehensive shortcut cheatsheet.
+- **Categorized Shortcuts**: Grouped into *Global & Navigation*, *Bottom Terminal Drawer*, and *Resource Workflows & Quick Actions*, complete with platform-aware key hints (<kbd>Ctrl</kbd> on Linux/Windows, <kbd>⌘</kbd> on macOS).
+- **Fuzzy Search Filter**: Quickly find shortcuts for terminal tabs, clearing screens, searching, and managing resources.
+- **Settings Integration**: Dedicated shortcut button in **Settings → About** for quick reference.
 
-#### ⚡ Core Toolchain & Bundler Upgrades
-- **Vite 8 (`^8.3.8`)**: Upgraded to the latest Vite 8 engine, delivering blazing-fast sub-second production build times (~600ms).
-- **Native ESM Config (`import.meta.dirname`)**: Transitioned `vite.config.js` to use `import.meta.dirname` for native ESM compatibility.
-- **Wails Desktop Framework (`v2.17.1`)**: Upgraded core Go application framework to `v2.17.1` for improved runtime stability and security fixes.
+#### 📋 Quick-Copy on Container Rows
+- **1-Click Container ID Copy**: Hover over any container row in the main container table to instantly copy the full container ID to your clipboard.
+- **1-Click Image Tag Copy**: Hover over container image tags to copy the exact image name for fast terminal commands.
 
-#### 📦 Ecosystem & Dependency Updates
-- **Wails Go Module**: Upgraded `github.com/wailsapp/wails/v2` from `2.17.0` to `2.17.1` (resolves Dependabot PR #24).
-- **Vite Bundler**: Upgraded `vite` from `7.3.7` to `8.3.8` (resolves Dependabot PR #25).
-- **Lucide Icons**: Bumped `lucide-react` to `1.72.0`.
-- **Markdown Rendering**: Bumped `marked` to `18.2.0`.
-- **Tailwind CSS**: Bumped `@tailwindcss/vite` and `tailwindcss` to `4.3.5`.
-- **Go Ecosystem**: Upgraded `golang.org/x/net`, `golang.org/x/crypto`, `golang.org/x/sys`, and `github.com/labstack/echo/v4`.
+#### 📦 Upstream Dependabot & Ecosystem Upgrades
+- **Docker/Moby Client**: Upgraded `github.com/moby/moby/client` from `0.6.2` to `0.6.3` (resolves #36).
+- **Docker/Moby API**: Upgraded `github.com/moby/moby/api` from `1.56.1` to `1.57.0` (resolves #35).
+- **Vite React Plugin**: Upgraded `@vitejs/plugin-react` from `5.2.0` to `6.3.0` (resolves #33).
+- **Lucide Icons**: Bumped `lucide-react` from `1.72.0` to `1.78.0` (resolves #34).
+- **Markdown Renderer**: Bumped `marked` from `18.2.0` to `18.2.1` (resolves #37).
+- **Tailwind Merge**: Bumped `tailwind-merge` from `3.7.0` to `3.7.1` (resolves #38).
 
 #### 🛡️ Snap Packaging Security Maintenance
-- Rebuilding against the latest Ubuntu 24.04 (core24) archive incorporates all recent security fixes from the Ubuntu Security Notices (USN) scanner.
-- Bumped snapcraft build configuration to `v0.9.6` and Wails CLI to `v2.17.1`.
+- Bumped snapcraft version configuration to `v0.9.7` for clean automated build & publish on Launchpad / Snapcraft online builds.
 
 ---
 

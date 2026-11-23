@@ -15,6 +15,7 @@ import LogsModal from './components/LogsModal';
 import InspectModal from './components/InspectModal';
 import InstallerModal from './components/InstallerModal';
 import CommandPalette from './components/CommandPalette';
+import ShortcutsModal from './components/ShortcutsModal';
 import ConfirmModal from './components/ConfirmModal';
 import ErrorBoundary from './components/ErrorBoundary';
 import { ToastContainer, formatEngineError } from './components/Toast';
@@ -146,7 +147,7 @@ export default function App() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [appConfig, setAppConfig] = useState(null);
   const [theme, setTheme] = useState('dark');
-  const [appVersion, setAppVersion] = useState(packageJson?.version || '0.9.6');
+  const [appVersion, setAppVersion] = useState(packageJson?.version || '0.9.7');
   const [activeComposeDir, setActiveComposeDir] = useState(null);
 
   // Navigation layout style: 'sidebar' (contextual drilldown) vs 'tabs' (horizontal subtabs)
@@ -253,6 +254,7 @@ export default function App() {
   const [updateInfo, setUpdateInfo] = useState(null);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
   const [toasts, setToasts] = useState([]);
   const [confirmModal, setConfirmModal] = useState({
     isOpen: false,
@@ -295,15 +297,20 @@ export default function App() {
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
-  // Global keyboard shortcuts (Ctrl+K for Command Palette, Esc for modals)
+  // Global keyboard shortcuts (Ctrl+K for Command Palette, ? for Shortcuts, Esc for modals)
   useEffect(() => {
     const handleKeyDown = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setCommandPaletteOpen(prev => !prev);
+      } else if ((e.key === '?' || (e.shiftKey && e.key === '/')) && !['input', 'textarea'].includes(document.activeElement?.tagName?.toLowerCase()) && !document.activeElement?.isContentEditable) {
+        e.preventDefault();
+        setShowShortcuts(prev => !prev);
       } else if (e.key === 'Escape') {
         if (confirmModal.isOpen) {
           handleConfirmModalAction(false);
+        } else if (showShortcuts) {
+          setShowShortcuts(false);
         } else if (commandPaletteOpen) {
           setCommandPaletteOpen(false);
         } else if (inspectModal.open) {
@@ -319,7 +326,7 @@ export default function App() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [commandPaletteOpen, inspectModal.open, logsModal.open, updateModalOpen, showInstaller, confirmModal.isOpen, handleConfirmModalAction]);
+  }, [commandPaletteOpen, showShortcuts, inspectModal.open, logsModal.open, updateModalOpen, showInstaller, confirmModal.isOpen, handleConfirmModalAction]);
 
   // Apply theme to document root
   const applyThemeToDOM = async (t) => {
@@ -1200,6 +1207,7 @@ export default function App() {
             runtimesStatus={runtimesStatus}
             onOpenInstaller={() => setShowInstaller(true)}
             onOpenCommandPalette={() => setCommandPaletteOpen(true)}
+            onOpenShortcuts={() => setShowShortcuts(true)}
             isMaximised={isMaximised}
             onToggleMaximise={handleToggleMaximise}
           />
@@ -1439,6 +1447,7 @@ export default function App() {
                   appVersion={appVersion}
                   onCheckForUpdates={() => handleCheckForUpdates(true)}
                   isCheckingUpdates={isCheckingUpdate}
+                  onOpenShortcuts={() => setShowShortcuts(true)}
                   onToast={addToast}
                 />
               </div>
@@ -1503,6 +1512,11 @@ export default function App() {
         updateInfo={updateInfo}
         onCheckAgain={() => handleCheckForUpdates(true)}
         isChecking={isCheckingUpdate}
+      />
+
+      <ShortcutsModal
+        isOpen={showShortcuts}
+        onClose={() => setShowShortcuts(false)}
       />
 
       <CommandPalette
